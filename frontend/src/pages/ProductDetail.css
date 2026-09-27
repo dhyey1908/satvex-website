@@ -1,8 +1,18 @@
 .product-detail-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-8);
+  grid-template-columns: 1.35fr 1fr;
+  gap: var(--space-7);
   align-items: start;
+}
+
+/* Sticky purchase panel — bordered structural block that pins alongside the
+   large editorial gallery rather than scrolling away with the page. */
+.product-detail-info {
+  position: sticky;
+  top: calc(var(--header-height) + var(--space-5));
+  border: 1.5px solid var(--color-border);
+  padding: var(--space-6);
+  background: var(--color-surface);
 }
 
 .product-detail-info h1 { margin-bottom: var(--space-2); }
@@ -114,4 +124,9 @@
 
 @media (max-width: 860px) {
   .product-detail-grid { grid-template-columns: 1fr; }
+  .product-detail-info {
+    position: static;
+    border: none;
+    padding: 0;
+  }
 }

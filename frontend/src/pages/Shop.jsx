@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
@@ -38,6 +38,23 @@ export function Shop() {
   const [inStockOnly, setInStockOnly] = useState(false);
   const [selectedColors, setSelectedColors] = useState([]);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const colorPickerRef = useRef(null);
+
+  useEffect(() => {
+    if (!colorPickerOpen) return undefined;
+    function onDocClick(e) {
+      if (colorPickerRef.current && !colorPickerRef.current.contains(e.target)) setColorPickerOpen(false);
+    }
+    function onKeyDown(e) {
+      if (e.key === 'Escape') setColorPickerOpen(false);
+    }
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [colorPickerOpen]);
 
   function load() {
     setError(null);
@@ -121,7 +138,7 @@ export function Shop() {
             In Stock Only
           </button>
 
-          <div className="shop-color-picker">
+          <div className="shop-color-picker" ref={colorPickerRef}>
             <button
               type="button"
               className={`shop-pill ${selectedColors.length > 0 ? 'active' : ''}`}
@@ -188,7 +205,7 @@ export function Shop() {
         )}
       </AnimatePresence>
 
-      <div className="shop-results">
+      <div className={`shop-results ${visible?.length === 1 ? 'shop-single-product' : ''}`}>
         {error && <ErrorState message={error} onRetry={load} />}
         {!error && (
           <ProductGrid

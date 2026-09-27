@@ -1,19 +1,31 @@
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Menu } from 'lucide-react';
+import {
+  Menu,
+  ArrowLeft,
+  LayoutDashboard,
+  Package,
+  ShoppingBag,
+  Users,
+  Tag,
+  Star,
+  Image as ImageIcon,
+  Mail,
+  Settings,
+} from 'lucide-react';
 import './AdminLayout.css';
 
 const LINKS = [
-  { to: '/admin', label: 'Dashboard', end: true },
-  { to: '/admin/products', label: 'Products' },
-  { to: '/admin/orders', label: 'Orders' },
-  { to: '/admin/customers', label: 'Customers' },
-  { to: '/admin/coupons', label: 'Coupons' },
-  { to: '/admin/reviews', label: 'Reviews' },
-  { to: '/admin/banners', label: 'Banners' },
-  { to: '/admin/contacts', label: 'Contacts' },
-  { to: '/admin/settings', label: 'Settings' },
+  { to: '/admin', label: 'Dashboard', end: true, icon: LayoutDashboard },
+  { to: '/admin/products', label: 'Products', icon: Package },
+  { to: '/admin/orders', label: 'Orders', icon: ShoppingBag },
+  { to: '/admin/customers', label: 'Customers', icon: Users },
+  { to: '/admin/coupons', label: 'Coupons', icon: Tag },
+  { to: '/admin/reviews', label: 'Reviews', icon: Star },
+  { to: '/admin/banners', label: 'Banners', icon: ImageIcon },
+  { to: '/admin/contacts', label: 'Contacts', icon: Mail },
+  { to: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
 export function AdminLayout() {
@@ -25,17 +37,20 @@ export function AdminLayout() {
       <aside className="admin-sidebar">
         <div className="admin-brand">Satvex Admin</div>
         <nav>
-          {LINKS.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              end={link.end}
-              className={({ isActive }) => (isActive ? 'active' : '')}
-              onClick={() => setSidebarOpen(false)}
-            >
-              {link.label}
-            </NavLink>
-          ))}
+          {LINKS.map((link) => {
+            const Icon = link.icon;
+            return (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                end={link.end}
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Icon size={17} /> {link.label}
+              </NavLink>
+            );
+          })}
         </nav>
         <div className="admin-user">
           <span>{user?.name}</span>
@@ -56,7 +71,7 @@ export function AdminLayout() {
             <Menu size={20} />
           </button>
           <NavLink to="/" className="btn btn-ghost btn-sm">
-            ← Back to site
+            <ArrowLeft size={16} /> Back to site
           </NavLink>
         </div>
         <div className="admin-content">

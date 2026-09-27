@@ -8,8 +8,9 @@
 .about-hero-grid p { max-width: 460px; }
 
 .about-hero-image {
-  aspect-ratio: 4/5;
+  aspect-ratio: 7/5;
   border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
   overflow: hidden;
   box-shadow: var(--shadow-lg);
   background: var(--color-surface-container-high);
@@ -26,15 +27,15 @@
 .about-value-card {
   background: var(--color-surface);
   border-radius: var(--radius-lg);
+  border: 1.5px solid var(--color-border);
   padding: var(--sp-md);
-  box-shadow: var(--shadow-sm);
 }
 .about-value-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--color-surface-container);
-  color: var(--color-accent);
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  color: var(--color-bg);
   display: flex;
   align-items: center;
   justify-content: center;

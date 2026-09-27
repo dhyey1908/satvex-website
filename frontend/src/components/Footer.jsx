@@ -1,60 +1,22 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Mail, Phone } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
-import { useToast } from '../context/ToastContext';
-import { contactService } from '../services/contactService';
 import { BrandLogo } from './BrandLogo';
+import { InstagramIcon } from './InstagramIcon';
 import './Footer.css';
 
 export function Footer() {
   const { settings } = useSettings();
-  const { showToast } = useToast();
-  const [email, setEmail] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  async function handleSubscribe(e) {
-    e.preventDefault();
-    if (!email.trim()) return;
-    setSubmitting(true);
-    try {
-      await contactService.submit({
-        name: 'Newsletter subscriber',
-        email: email.trim(),
-        message: 'Please add me to the Satvex mailing list for new releases and drops.',
-      });
-      showToast("You're on the list — thank you!", 'success');
-      setEmail('');
-    } catch (err) {
-      showToast(err.message, 'error');
-    } finally {
-      setSubmitting(false);
-    }
-  }
 
   return (
     <footer className="site-footer">
       <div className="container footer-grid">
         <div className="footer-brand-col">
-          <BrandLogo height={40} />
+          <BrandLogo height={40} light />
           <p>Modern women-focused essentials — flexible, comfortable, durable, and distinctly Satvex.</p>
-
-          <div className="footer-newsletter">
-            <p className="footer-newsletter-label">Join the List</p>
-            <p className="footer-newsletter-copy">Be first to know about new colors and drops.</p>
-            <form onSubmit={handleSubscribe} className="footer-newsletter-form">
-              <input
-                type="email"
-                placeholder="Enter your email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              <button type="submit" disabled={submitting}>Join</button>
-            </form>
-          </div>
         </div>
 
-        <div>
+        <div className="footer-col">
           <h4>Shop</h4>
           <ul>
             <li><Link to="/shop">All Products</Link></li>
@@ -63,7 +25,7 @@ export function Footer() {
           </ul>
         </div>
 
-        <div>
+        <div className="footer-col">
           <h4>Company</h4>
           <ul>
             <li><Link to="/about">About Us</Link></li>
@@ -71,13 +33,22 @@ export function Footer() {
           </ul>
         </div>
 
-        <div>
-          <h4>Get in touch</h4>
+        <div className="footer-col">
+          <h4>Contact</h4>
           <ul>
-            {settings?.contactEmail && <li>{settings.contactEmail}</li>}
-            {settings?.contactPhone && <li>{settings.contactPhone}</li>}
+            {settings?.contactEmail && (
+              <li className="footer-contact-item">
+                <Mail size={14} /> <span>{settings.contactEmail}</span>
+              </li>
+            )}
+            {settings?.contactPhone && (
+              <li className="footer-contact-item">
+                <Phone size={14} /> <span>{settings.contactPhone}</span>
+              </li>
+            )}
             {settings?.instagramUrl && (
-              <li>
+              <li className="footer-contact-item">
+                <InstagramIcon size={14} />{' '}
                 <a href={settings.instagramUrl} target="_blank" rel="noreferrer">
                   Instagram
                 </a>

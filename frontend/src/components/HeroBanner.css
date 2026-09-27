@@ -1,4 +1,7 @@
-.hero-image video { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Absolutely positioned so the outgoing and incoming banner slide can
+   overlap and crossfade in place instead of stacking while both are
+   mounted during the transition. */
+.hero-image video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 
 /* Soft entrance on first paint — applies to both the banner carousel and the
    product-image fallback, since both share the .hero-image class. */

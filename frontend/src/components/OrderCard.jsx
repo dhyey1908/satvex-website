@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { XCircle, RotateCcw, ArrowRight } from 'lucide-react';
 import { OrderStatusBadge } from './OrderStatusBadge';
 import './OrderCard.css';
 
@@ -35,16 +36,16 @@ export function OrderCard({ order, onCancel, onReorder }) {
         <div className="order-card-actions">
           {canCancel && onCancel && (
             <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>
-              Cancel
+              <XCircle size={14} /> Cancel
             </button>
           )}
           {onReorder && (
             <button type="button" className="btn btn-outline btn-sm" onClick={onReorder}>
-              Reorder
+              <RotateCcw size={14} /> Reorder
             </button>
           )}
           <Link to={`/account/orders/${order.orderId}`} className="btn btn-primary btn-sm">
-            View Details
+            View Details <ArrowRight size={14} />
           </Link>
         </div>
       </div>

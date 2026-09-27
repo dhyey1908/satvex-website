@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Minus, Plus, Trash2 } from 'lucide-react';
+import { Minus, Plus, Trash2, Bookmark, ShoppingBag } from 'lucide-react';
 import { listItem } from '../motion';
 import './CartItem.css';
 
@@ -60,16 +60,16 @@ export function CartItem({ item, onQuantityChange, onRemove, onSaveForLater, onM
             </div>
           )}
           {onSaveForLater && (
-            <button type="button" className="btn-ghost btn-sm" onClick={onSaveForLater}>
-              Save for later
+            <button type="button" className="btn btn-ghost btn-sm" onClick={onSaveForLater}>
+              <Bookmark size={14} /> Save for later
             </button>
           )}
           {onMoveToCart && (
-            <button type="button" className="btn-ghost btn-sm" onClick={onMoveToCart}>
-              Move to cart
+            <button type="button" className="btn btn-ghost btn-sm" onClick={onMoveToCart}>
+              <ShoppingBag size={14} /> Move to cart
             </button>
           )}
-          <button type="button" className="btn-ghost btn-sm cart-item-remove" onClick={onRemove}>
+          <button type="button" className="btn btn-ghost btn-sm cart-item-remove" onClick={onRemove}>
             <Trash2 size={14} /> Remove
           </button>
         </div>

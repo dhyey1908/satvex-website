@@ -47,7 +47,9 @@ export function ToastProvider({ children }) {
           const Icon = ICONS[t.type];
           return (
             <div key={t.id} className={`toast ${t.type} ${t.leaving ? 'leaving' : ''}`} role="status">
-              <Icon size={18} className="toast-icon" />
+              <span className="toast-icon-chip">
+                <Icon size={14} />
+              </span>
               <span className="toast-message">{t.message}</span>
               <button type="button" className="toast-close" aria-label="Dismiss" onClick={() => dismiss(t.id)}>
                 <X size={16} />

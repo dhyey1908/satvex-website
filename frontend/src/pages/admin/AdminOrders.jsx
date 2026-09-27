@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Download, Search as SearchIcon, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { useToast } from '../../context/ToastContext';
 import { Loader } from '../../components/Loader';
@@ -107,7 +108,7 @@ export function AdminOrders() {
         <h1>Orders</h1>
         {orders?.length > 0 && (
           <button type="button" className="btn btn-outline btn-sm" onClick={exportCsv}>
-            Export CSV
+            <Download size={14} /> Export CSV
           </button>
         )}
       </div>
@@ -127,7 +128,7 @@ export function AdminOrders() {
           ))}
         </select>
         <button type="submit" className="btn btn-outline btn-sm">
-          Search
+          <SearchIcon size={14} /> Search
         </button>
       </form>
 
@@ -197,7 +198,7 @@ export function AdminOrders() {
                     <td>{new Date(o.createdAt).toLocaleDateString()}</td>
                     <td>
                       <Link to={`/admin/orders/${o.orderId}`} className="btn btn-ghost btn-sm">
-                        View
+                        <Eye size={14} /> View
                       </Link>
                     </td>
                   </tr>
@@ -214,7 +215,7 @@ export function AdminOrders() {
                 disabled={page === 1}
                 onClick={() => setPage((p) => p - 1)}
               >
-                ← Previous
+                <ChevronLeft size={14} /> Previous
               </button>
               <span className="text-label-sm">
                 Page {page} of {totalPages}
@@ -225,7 +226,7 @@ export function AdminOrders() {
                 disabled={page === totalPages}
                 onClick={() => setPage((p) => p + 1)}
               >
-                Next →
+                Next <ChevronRight size={14} />
               </button>
             </div>
           )}

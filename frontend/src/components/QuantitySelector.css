@@ -1,8 +1,8 @@
 .quantity-selector {
   display: inline-flex;
   align-items: center;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 .quantity-selector button {

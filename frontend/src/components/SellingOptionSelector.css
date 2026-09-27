@@ -20,7 +20,7 @@
 .selling-option:hover { border-color: var(--color-primary); }
 .selling-option.selected {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-primary);
+  box-shadow: 0 0 0 1.5px var(--color-primary);
   background: var(--color-primary-light);
 }
 

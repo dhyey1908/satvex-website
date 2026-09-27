@@ -3,13 +3,14 @@
   background: var(--color-surface);
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
+  border-top: 3px solid var(--color-primary);
   display: flex;
   flex-direction: column;
   gap: var(--sp-sm);
 }
 .order-summary h3 {
   font-family: var(--font-display);
-  font-weight: 400;
+  font-weight: 500;
   font-size: 1.4rem;
   margin-bottom: var(--sp-xs);
 }
@@ -17,17 +18,19 @@
 .order-summary-row {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-size: 0.88rem;
   color: var(--color-text-muted);
 }
 .order-summary-discount { color: var(--color-accent-dark); }
+.order-summary-shipping { display: inline-flex; align-items: center; gap: 5px; color: var(--color-success); font-weight: 600; }
 
 .order-summary-total {
   font-family: var(--font-display);
   font-weight: 600;
   color: var(--color-text);
-  font-size: 1.3rem;
+  font-size: 1.45rem;
   border-top: 1px solid var(--color-border);
-  padding-top: var(--sp-sm);
-  margin-top: 4px;
+  padding-top: var(--sp-md);
+  margin-top: 6px;
 }

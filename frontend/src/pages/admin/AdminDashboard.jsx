@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { Loader } from '../../components/Loader';
 import { ErrorState } from '../../components/ErrorState';
@@ -67,6 +69,9 @@ export function AdminDashboard() {
     <div>
       <div className="admin-page-header">
         <h1>Dashboard</h1>
+        <Link to="/" className="btn btn-outline btn-sm">
+          <ArrowLeft size={16} /> Back to Customer View
+        </Link>
       </div>
       <div className="stat-grid">
         {Object.entries(LABELS).map(([key, label]) => (

@@ -37,7 +37,7 @@ export function CouponInput({ appliedCoupon, onApply, onClear }) {
           <span>
             <Tag size={14} /> Coupon <strong>{appliedCoupon.code}</strong> applied — saved ₹{appliedCoupon.discountAmount.toFixed(2)}
           </span>
-          <button type="button" className="btn-ghost btn-sm" onClick={onClear}>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onClear}>
             Remove
           </button>
         </motion.div>
@@ -50,12 +50,15 @@ export function CouponInput({ appliedCoupon, onApply, onClear }) {
           animate={fade.animate}
           exit={fade.exit}
         >
-          <input
-            type="text"
-            placeholder="Enter coupon code"
-            value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-          />
+          <div className="coupon-input-field">
+            <Tag size={14} />
+            <input
+              type="text"
+              placeholder="Enter coupon code"
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+            />
+          </div>
           <button type="submit" className="btn btn-outline btn-sm" disabled={submitting || !code.trim()}>
             {submitting ? <Loader2 size={14} className="btn-spinner" /> : 'Apply'}
           </button>

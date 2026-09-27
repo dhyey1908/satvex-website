@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Truck, Gift, Leaf, Infinity as InfinityIcon, Package, Star, CheckCircle2, ShoppingBag, Quote } from 'lucide-react';
 import { productService } from '../services/productService';
-import { contactService } from '../services/contactService';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
@@ -12,6 +11,7 @@ import { ProductGrid } from '../components/ProductGrid';
 import { ImagePlaceholder } from '../components/ImagePlaceholder';
 import { HeroBanner } from '../components/HeroBanner';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
+import { usePreloadedImage } from '../hooks/usePreloadedImage';
 import { staggerContainer, fadeUp, revealOnScroll, crossfade } from '../motion';
 import './Home.css';
 
@@ -34,13 +34,13 @@ export function Home() {
   const { addItem: addToCart } = useCart();
   const { showToast } = useToast();
   const { settings } = useSettings();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const [products, setProducts] = useState(null);
   const [error, setError] = useState(null);
   const [selectedVariantId, setSelectedVariantId] = useState(null);
   const [adding, setAdding] = useState(false);
-  const [email, setEmail] = useState('');
-  const [subscribing, setSubscribing] = useState(false);
 
   useEffect(() => {
     productService
@@ -67,12 +67,15 @@ export function Home() {
   const onSale = displayOption?.compareAtPrice && displayOption.compareAtPrice > displayOption.price;
 
   const heroImage = selectedVariant?.image || showcase?.images?.[0];
-  const showcaseImage = selectedVariant?.image || showcase?.images?.[0];
+  const showcaseImageTarget = selectedVariant?.image || showcase?.images?.[0];
+  // Keeps the previous swatch's photo on screen until the newly-selected
+  // one has actually loaded, instead of swapping the instant it's clicked.
+  const showcaseImage = usePreloadedImage(showcaseImageTarget);
   const isSingleProduct = (products?.length ?? 0) <= 1;
 
   async function handleQuickAdd() {
     if (!isAuthenticated) {
-      showToast('Please log in to add items to your bag', 'error');
+      navigate('/login', { state: { from: location } });
       return;
     }
     if (!showcase || !singleOption || !selectedVariant) return;
@@ -90,25 +93,6 @@ export function Home() {
       showToast(err.message, 'error');
     } finally {
       setAdding(false);
-    }
-  }
-
-  async function handleSubscribe(e) {
-    e.preventDefault();
-    if (!email.trim()) return;
-    setSubscribing(true);
-    try {
-      await contactService.submit({
-        name: 'Newsletter subscriber',
-        email: email.trim(),
-        message: 'Please add me to the Satvex mailing list for new releases and drops.',
-      });
-      showToast("You're on the list — thank you!", 'success');
-      setEmail('');
-    } catch (err) {
-      showToast(err.message, 'error');
-    } finally {
-      setSubscribing(false);
     }
   }
 
@@ -190,7 +174,7 @@ export function Home() {
 
             <div className="showcase-box">
               <div className="showcase-media">
-                <AnimatePresence mode="wait">
+                <AnimatePresence>
                   {showcaseImage ? (
                     <motion.img
                       key={showcaseImage}
@@ -356,38 +340,6 @@ export function Home() {
             </div>
             <div className="quote-banner-glow quote-banner-glow-1" />
             <div className="quote-banner-glow quote-banner-glow-2" />
-          </motion.div>
-        </div>
-      </section>
-
-      {/* NEWSLETTER */}
-      <section className="section newsletter-section">
-        <div className="container">
-          <motion.div
-            className="newsletter-card"
-            initial={revealOnScroll.initial}
-            whileInView={revealOnScroll.whileInView}
-            viewport={{ once: true, margin: '-80px' }}
-          >
-            <div>
-              <div className="eyebrow-dot"><span>Join the List</span></div>
-              <h3 className="text-headline-sm">Receive New Releases Before Public Drops</h3>
-              <p className="text-body-sm newsletter-copy">
-                Be first to know about new colors, combos, and limited drops.
-              </p>
-            </div>
-            <form className="newsletter-form" onSubmit={handleSubscribe}>
-              <input
-                type="email"
-                placeholder="Enter your email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              <button type="submit" className="btn btn-primary" disabled={subscribing}>
-                {subscribing ? 'Joining…' : 'Join'}
-              </button>
-            </form>
           </motion.div>
         </div>
       </section>

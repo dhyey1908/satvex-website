@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Plus, Pencil, Trash2, Power } from 'lucide-react';
 import { productService } from '../../services/productService';
 import { useToast } from '../../context/ToastContext';
 import { useConfirm } from '../../context/ConfirmContext';
@@ -71,7 +72,7 @@ export function AdminProducts() {
       <div className="admin-page-header">
         <h1>Products</h1>
         <Link to="/admin/products/new" className="btn btn-primary">
-          + Add Product
+          <Plus size={16} /> Add Product
         </Link>
       </div>
 
@@ -125,13 +126,13 @@ export function AdminProducts() {
                   </td>
                   <td style={{ display: 'flex', gap: 8 }}>
                     <Link to={`/admin/products/${p.productId}`} className="btn btn-ghost btn-sm">
-                      Edit
+                      <Pencil size={14} /> Edit
                     </Link>
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => toggleActive(p)}>
-                      {p.isActive ? 'Deactivate' : 'Activate'}
+                      <Power size={14} /> {p.isActive ? 'Deactivate' : 'Activate'}
                     </button>
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => handleDelete(p)}>
-                      Delete
+                      <Trash2 size={14} /> Delete
                     </button>
                   </td>
                 </tr>

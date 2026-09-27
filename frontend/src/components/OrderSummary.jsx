@@ -1,3 +1,4 @@
+import { Truck } from 'lucide-react';
 import './OrderSummary.css';
 
 export function OrderSummary({ subtotal, discountAmount = 0, couponCode, shipping = 0, total, itemsSlot, children }) {
@@ -17,7 +18,9 @@ export function OrderSummary({ subtotal, discountAmount = 0, couponCode, shippin
       )}
       <div className="order-summary-row">
         <span>Shipping</span>
-        <span>{shipping > 0 ? `₹${shipping.toFixed(2)}` : 'Free'}</span>
+        <span className="order-summary-shipping">
+          {shipping > 0 ? `₹${shipping.toFixed(2)}` : (<><Truck size={14} /> Free</>)}
+        </span>
       </div>
       <div className="order-summary-row order-summary-total">
         <span>Total</span>

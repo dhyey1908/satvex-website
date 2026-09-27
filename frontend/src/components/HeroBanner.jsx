@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { crossfade } from '../motion';
+import { isMediaPreloaded, preloadMedia } from '../utils/mediaPreload';
 import './HeroBanner.css';
 
 const ROTATE_MS = 6000;
@@ -10,6 +11,12 @@ export function HeroBanner({ banners, fallback }) {
   const activeBanners = (banners || []).filter((b) => b.isActive && b.mediaUrl);
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  const current = activeBanners[index] || null;
+  // Lags behind `current` until that slide's media has actually loaded, so
+  // rotating/clicking a dot never swaps to a blank frame mid-fetch. The
+  // link/dots below react to `current` immediately — only the rendered
+  // image/video itself waits.
+  const [displayed, setDisplayed] = useState(current);
 
   useEffect(() => {
     setIndex(0);
@@ -21,9 +28,27 @@ export function HeroBanner({ banners, fallback }) {
     return () => clearInterval(timer);
   }, [activeBanners.length, paused]);
 
-  if (activeBanners.length === 0) return fallback;
+  useEffect(() => {
+    if (!current) {
+      setDisplayed(null);
+      return undefined;
+    }
+    if (isMediaPreloaded(current.mediaUrl)) {
+      setDisplayed(current);
+      return undefined;
+    }
+    let cancelled = false;
+    preloadMedia(current.mediaUrl, current.type).then(() => {
+      if (!cancelled) setDisplayed(current);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [current?.id, current?.mediaUrl, current?.type]);
 
-  const current = activeBanners[index];
+  if (activeBanners.length === 0) return fallback;
+  if (!displayed) return fallback;
+
   const isExternal = current.link && /^https?:\/\//.test(current.link);
 
   function selectDot(e, i) {
@@ -34,11 +59,11 @@ export function HeroBanner({ banners, fallback }) {
 
   const inner = (
     <>
-      <AnimatePresence mode="wait">
-        {current.type === 'video' ? (
+      <AnimatePresence>
+        {displayed.type === 'video' ? (
           <motion.video
-            key={current.id}
-            src={current.mediaUrl}
+            key={displayed.id}
+            src={displayed.mediaUrl}
             autoPlay
             muted
             loop
@@ -49,8 +74,8 @@ export function HeroBanner({ banners, fallback }) {
           />
         ) : (
           <motion.img
-            key={current.id}
-            src={current.mediaUrl}
+            key={displayed.id}
+            src={displayed.mediaUrl}
             alt=""
             initial={crossfade.initial}
             animate={crossfade.animate}

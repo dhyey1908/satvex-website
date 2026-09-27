@@ -26,10 +26,10 @@
   padding: 10px;
   border: none;
   border-radius: var(--radius-button);
-  background: rgba(9, 7, 7, 0.95);
+  background: rgba(20, 19, 15, 0.95);
   color: #fff;
   font-size: 0.7rem;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   display: flex;
@@ -37,15 +37,12 @@
   justify-content: center;
   gap: 6px;
   cursor: pointer;
-  opacity: 0;
-  transform: translateY(4px);
-  transition: opacity var(--transition-fast), transform var(--transition-fast), background var(--transition-fast);
+  transition: background var(--transition-fast), transform var(--transition-fast);
   box-shadow: var(--shadow-md);
 }
 .product-card:hover .product-card-quick-add,
 .product-card:focus-within .product-card-quick-add {
-  opacity: 1;
-  transform: translateY(0);
+  transform: translateY(-1px);
 }
 .product-card-quick-add:hover { background: var(--color-accent); }
 
@@ -75,18 +72,18 @@
   right: var(--space-3);
   width: 36px;
   height: 36px;
-  border-radius: 50%;
+  border-radius: var(--radius-sm);
   border: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255,255,255,0.9);
+  background: rgba(255,255,255,0.92);
   cursor: pointer;
   color: var(--color-text);
   box-shadow: var(--shadow-sm);
   transition: color var(--transition-fast), transform var(--transition-fast);
 }
-.wishlist-toggle:hover { transform: scale(1.08); }
+.wishlist-toggle:hover { transform: translate(-1px, -1px); box-shadow: var(--shadow-md); }
 .wishlist-toggle.active { color: var(--color-accent); }
 
 .product-card-body { padding: var(--sp-sm) 4px 0; }
@@ -139,11 +136,11 @@
 
 .product-card-swatches { display: flex; align-items: center; }
 .product-card-swatch-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
   box-shadow: 0 0 0 1px var(--color-surface);
-  margin-left: -4px;
+  margin-left: -2px;
 }
 .product-card-swatch-dot:first-child { margin-left: 0; }
 .product-card-swatch-more {

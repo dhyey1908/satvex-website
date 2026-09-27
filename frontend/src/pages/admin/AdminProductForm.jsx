@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Plus, Trash2 } from 'lucide-react';
 import { productService } from '../../services/productService';
 import { useToast } from '../../context/ToastContext';
 import { ImageUploader } from '../../components/ImageUploader';
@@ -261,7 +262,7 @@ export function AdminProductForm() {
               <img src={img} alt="" />
               <span style={{ flex: 2, fontSize: '0.8rem', wordBreak: 'break-all' }}>{img}</span>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeProductImage(i)}>
-                Remove
+                <Trash2 size={14} /> Remove
               </button>
             </div>
           ))}
@@ -287,12 +288,12 @@ export function AdminProductForm() {
                 Active
               </label>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeVariant(i)}>
-                Remove
+                <Trash2 size={14} /> Remove
               </button>
             </div>
           ))}
           <button type="button" className="btn btn-outline btn-sm" onClick={addVariant}>
-            + Add Color
+            <Plus size={16} /> Add Color
           </button>
         </div>
 
@@ -337,12 +338,12 @@ export function AdminProductForm() {
                 Active
               </label>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeSellingOption(i)}>
-                Remove
+                <Trash2 size={14} /> Remove
               </button>
             </div>
           ))}
           <button type="button" className="btn btn-outline btn-sm" onClick={addSellingOption}>
-            + Add Selling Option
+            <Plus size={16} /> Add Selling Option
           </button>
         </div>
 

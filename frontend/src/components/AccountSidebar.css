@@ -4,7 +4,7 @@
   gap: 2px;
   background: var(--color-surface);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  border: 1.5px solid var(--color-border);
   padding: var(--space-3);
   position: sticky;
   top: calc(var(--header-height) + var(--space-4));

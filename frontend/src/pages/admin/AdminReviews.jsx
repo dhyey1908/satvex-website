@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Check, X, Trash2 } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { productService } from '../../services/productService';
 import { useToast } from '../../context/ToastContext';
@@ -107,16 +108,16 @@ export function AdminReviews() {
                   <td style={{ display: 'flex', gap: 8 }}>
                     {r.status !== 'approved' && (
                       <button type="button" className="btn btn-ghost btn-sm" onClick={() => moderate(r.reviewId, 'approved')}>
-                        Approve
+                        <Check size={14} /> Approve
                       </button>
                     )}
                     {r.status !== 'rejected' && (
                       <button type="button" className="btn btn-ghost btn-sm" onClick={() => moderate(r.reviewId, 'rejected')}>
-                        Reject
+                        <X size={14} /> Reject
                       </button>
                     )}
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => handleDelete(r.reviewId)}>
-                      Delete
+                      <Trash2 size={14} /> Delete
                     </button>
                   </td>
                 </tr>

@@ -30,9 +30,9 @@ bigger: extra resolution costs nothing at upload time.
 - **Where it appears:** The large image/video on the right side of the homepage hero,
   directly under the header. Supports multiple rotating slides.
 - **Where to upload:** Admin → Banners → Add a Banner.
-- **Aspect ratio:** **4:5 (portrait)**
-- **Recommended size (image):** **1200 × 1500 px**, JPEG, PNG, WebP or AVIF.
-- **Recommended size (video):** **1080 × 1350 px**, MP4 (H.264), **10–20 seconds**,
+- **Aspect ratio:** **3:2 (landscape — wider than tall)**
+- **Recommended size (image):** **1500 × 1000 px**, JPEG, PNG, WebP or AVIF.
+- **Recommended size (video):** **1350 × 900 px**, MP4 (H.264), **10–20 seconds**,
   looping cleanly, **no audio needed** (it plays muted), **under 15 MB** so it loads
   quickly on mobile data.
 - **Notes:**
@@ -90,8 +90,8 @@ bigger: extra resolution costs nothing at upload time.
 | Asset | Admin Location | Aspect Ratio | Recommended Size | Format |
 |---|---|---|---|---|
 | Logo | Settings → Brand | flexible | 600×200 px | PNG (transparent) |
-| Homepage Banner (image) | Banners | 4:5 | 1200×1500 px | JPG/PNG/WebP/AVIF |
-| Homepage Banner (video) | Banners | 4:5 | 1080×1350 px, 10–20s | MP4 |
+| Homepage Banner (image) | Banners | 3:2 | 1500×1000 px | JPG/PNG/WebP/AVIF |
+| Homepage Banner (video) | Banners | 3:2 | 1350×900 px, 10–20s | MP4 |
 | Sign In Page Image | Settings → Site Images | 4:5 | 1000×1200 px | JPG/PNG/WebP/AVIF |
 | About Page Image | Settings → Site Images | 4:5 | 1200×1500 px | JPG/PNG/WebP/AVIF |
 | Product Photo | Products → Images/Variants | 1:1 | 1600×1600 px | JPG/PNG/WebP/AVIF |

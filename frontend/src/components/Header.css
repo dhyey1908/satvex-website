@@ -2,8 +2,8 @@
   position: sticky;
   top: 0;
   z-index: 500;
-  background: rgba(250, 247, 242, 0.92);
-  backdrop-filter: blur(8px);
+  background: rgba(243, 241, 234, 0.94);
+  backdrop-filter: blur(6px);
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -21,18 +21,19 @@
   display: flex;
   align-items: center;
   gap: var(--space-6);
-  font-size: 0.92rem;
-  font-weight: 500;
+  font-family: var(--font-body);
+  font-size: 0.76rem;
+  font-weight: 700;
 }
 .nav-desktop a {
   position: relative;
   color: var(--color-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.14em;
-  padding-bottom: 4px;
+  letter-spacing: 0.16em;
+  padding-bottom: 6px;
   transition: color var(--transition-fast);
 }
-.nav-desktop a:hover { color: var(--color-text); }
+.nav-desktop a:hover { color: var(--color-accent); }
 .nav-desktop a.active { color: var(--color-primary); font-weight: 700; }
 
 .nav-underline {
@@ -40,8 +41,8 @@
   left: 0;
   right: 0;
   bottom: -1px;
-  height: 1px;
-  background: var(--color-primary);
+  height: 2px;
+  background: var(--color-accent);
 }
 
 .header-account-desktop { display: none; }
@@ -62,14 +63,33 @@
   justify-content: center;
   width: 40px;
   height: 40px;
-  border-radius: 50%;
+  border-radius: var(--radius-sm);
   background: transparent;
   border: none;
   color: var(--color-text);
   cursor: pointer;
-  transition: background var(--transition-fast);
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
-.icon-btn:hover { background: var(--color-surface-muted); }
+.icon-btn:hover { background: var(--color-surface-container); color: var(--color-accent); }
+
+/* Active state — same visual language as the desktop nav-link underline
+   (accent color + a small persistent indicator), always visible, not just
+   on hover. */
+.icon-btn.active {
+  color: var(--color-accent);
+  background: var(--color-surface-container);
+}
+.icon-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14px;
+  height: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+}
 
 .badge {
   position: absolute;

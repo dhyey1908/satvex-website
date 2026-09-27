@@ -10,7 +10,7 @@ import { EmptyState } from '../components/EmptyState';
 import { OrderSummary } from '../components/OrderSummary';
 import { AddressCard } from '../components/AddressCard';
 import { PageHeader } from '../components/PageHeader';
-import { Truck, Loader2 } from 'lucide-react';
+import { Truck, Loader2, Plus } from 'lucide-react';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import './Checkout.css';
 
@@ -203,7 +203,7 @@ export function Checkout() {
                 ))}
               </div>
               <button type="button" className="btn btn-ghost btn-sm" onClick={startNewAddress} style={{ marginTop: 12 }}>
-                + Add New Address
+                <Plus size={16} /> Add New Address
               </button>
             </div>
           )}

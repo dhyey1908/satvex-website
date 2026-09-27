@@ -1,63 +1,37 @@
+/* Dark ink footer against the light body — deliberate contrast anchor. */
 .site-footer {
-  background: var(--color-surface-muted);
-  border-top: 1px solid var(--color-border);
-  padding-top: var(--space-8);
-  margin-top: var(--space-9);
+  background: var(--color-primary);
+  color: rgba(255, 255, 255, 0.72);
+  border-top: 3px solid var(--color-accent);
+  padding-top: var(--space-6);
+  margin-top: var(--space-7);
 }
+.site-footer p { color: rgba(255, 255, 255, 0.58); }
 
 .footer-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
-  gap: var(--space-6);
+  grid-template-columns: 1.5fr 1fr 1fr 1.1fr;
+  gap: var(--space-7);
   padding-bottom: var(--space-7);
 }
 
-.footer-brand-col p { max-width: 26rem; margin-top: var(--space-3); }
+.footer-brand-col p { max-width: 24rem; margin-top: var(--space-4); }
 
-.footer-newsletter { margin-top: var(--space-6); }
-.footer-newsletter-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--color-text);
-  margin-bottom: var(--space-2);
-}
-.footer-newsletter-copy { font-size: 0.85rem; margin-bottom: var(--space-3); max-width: 22rem; }
-.footer-newsletter-form {
+/* Columns get a little top offset so they read as a deliberate row next to
+   the taller brand column, not just squeezed to match its height. */
+.footer-col { padding-top: 2px; }
+
+.footer-grid li.footer-contact-item {
   display: flex;
-  align-items: center;
-  border-bottom: 1px solid var(--color-text);
-  max-width: 22rem;
-  transition: border-color var(--transition-fast);
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: var(--space-3);
 }
-.footer-newsletter-form:focus-within { border-color: var(--color-accent); }
-.footer-newsletter-form input {
-  flex: 1;
-  min-width: 0;
-  padding: var(--space-2) 0;
-  border: none;
-  background: transparent;
-  color: var(--color-text);
-  font-size: 0.85rem;
-}
-.footer-newsletter-form input::placeholder { color: var(--color-outline); }
-.footer-newsletter-form input:focus { outline: none; }
-.footer-newsletter-form button {
-  padding: var(--space-2) var(--space-3);
-  border: none;
-  background: none;
-  color: var(--color-text);
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  cursor: pointer;
-  transition: color var(--transition-fast);
-  white-space: nowrap;
-}
-.footer-newsletter-form button:hover:not(:disabled) { color: var(--color-accent); }
-.footer-newsletter-form button:disabled { opacity: 0.6; cursor: not-allowed; }
+.footer-contact-item:last-child { margin-bottom: 0; }
+.footer-contact-item svg { flex-shrink: 0; margin-top: 5px; color: rgba(255, 255, 255, 0.45); }
+.footer-contact-item span,
+.footer-contact-item a { min-width: 0; overflow-wrap: break-word; }
+
 /* Grid items default to min-width:auto, which refuses to shrink below an
    unbroken string's natural width (e.g. an email address) — causing overflow
    at narrow viewports. min-width:0 + overflow-wrap lets long tokens wrap. */
@@ -68,36 +42,32 @@
 
 .footer-grid h4 {
   font-family: var(--font-body);
-  font-size: 0.85rem;
+  font-size: 0.72rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.14em;
   margin-bottom: var(--space-3);
-  color: var(--color-text);
+  color: #fff;
 }
 
-.footer-grid li { margin-bottom: var(--space-2); color: var(--color-text-muted); }
-.footer-grid a:hover { color: var(--color-primary-dark); }
+.footer-grid li { margin-bottom: var(--space-2); color: rgba(255, 255, 255, 0.58); }
+.footer-grid a { transition: color var(--transition-fast); }
+.footer-grid a:hover { color: var(--color-accent-light); }
 
 .footer-bottom {
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
   padding: var(--space-4) 0;
-  font-size: 0.8rem;
-  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.45);
 }
 .footer-bottom p { margin: 0; }
 
 @media (max-width: 760px) {
-  .footer-grid { grid-template-columns: 1fr 1fr; }
+  .footer-grid { grid-template-columns: 1fr 1fr; row-gap: var(--space-6); }
+  .footer-brand-col { grid-column: 1 / -1; }
+  .footer-brand-col p { max-width: none; }
 }
 
-/* Below ~600px even a 2-column footer squeezes the brand paragraph and the
-   newsletter input+button into an unusably narrow half — go full single
-   column so the newsletter form gets the whole viewport width to work with. */
-@media (max-width: 600px) {
-  .footer-grid { grid-template-columns: 1fr; gap: var(--space-7); }
-  .footer-brand-col p,
-  .footer-newsletter-copy,
-  .footer-newsletter-form {
-    max-width: none;
-  }
+@media (max-width: 480px) {
+  .footer-grid { grid-template-columns: 1fr; gap: var(--space-6); }
 }

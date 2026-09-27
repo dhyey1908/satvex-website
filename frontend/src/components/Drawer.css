@@ -20,6 +20,7 @@
   right: 0;
   bottom: 0;
   width: min(400px, 90vw);
+  border-left: 1px solid var(--color-border);
   animation: slide-in-right var(--transition-base);
 }
 
@@ -29,6 +30,7 @@
   bottom: 0;
   max-height: 85vh;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  border-top: 1px solid var(--color-border);
   animation: slide-in-bottom var(--transition-base);
 }
 

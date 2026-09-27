@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Plus } from 'lucide-react';
 import { addressService } from '../../services/addressService';
 import { useToast } from '../../context/ToastContext';
 import { useConfirm } from '../../context/ConfirmContext';
@@ -96,7 +97,7 @@ export function AccountAddresses() {
       <div className="account-page-header-row" style={{ marginBottom: 24 }}>
         <h1 className="text-headline-lg">Addresses</h1>
         <button type="button" className="btn btn-primary btn-sm" onClick={openNew}>
-          + Add New Address
+          <Plus size={16} /> Add New Address
         </button>
       </div>
 

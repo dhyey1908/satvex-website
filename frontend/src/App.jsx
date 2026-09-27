@@ -5,6 +5,7 @@ import { AdminLayout } from './layouts/AdminLayout';
 import { AccountLayout } from './layouts/AccountLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminRoute } from './components/AdminRoute';
+import { ScrollToTop } from './components/ScrollToTop';
 import { useSettings } from './context/SettingsContext';
 
 import { Home } from './pages/Home';
@@ -56,7 +57,9 @@ export default function App() {
   }, [settings?.logoUrl]);
 
   return (
-    <Routes>
+    <>
+      <ScrollToTop />
+      <Routes>
       <Route element={<MainLayout />}>
         <Route path="/" element={<Home />} />
         <Route path="/shop" element={<Shop />} />
@@ -108,7 +111,8 @@ export default function App() {
           <Route path="settings" element={<AdminSettings />} />
         </Route>
       </Route>
-    </Routes>
+      </Routes>
+    </>
   );
 }
 

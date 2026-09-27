@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { useToast } from '../../context/ToastContext';
 import { useConfirm } from '../../context/ConfirmContext';
@@ -95,7 +96,7 @@ export function AdminCoupons() {
       <div className="admin-page-header">
         <h1>Coupons</h1>
         <button type="button" className="btn btn-primary" onClick={openNew}>
-          + Add Coupon
+          <Plus size={16} /> Add Coupon
         </button>
       </div>
 
@@ -126,10 +127,10 @@ export function AdminCoupons() {
                   </td>
                   <td style={{ display: 'flex', gap: 8 }}>
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => openEdit(c)}>
-                      Edit
+                      <Pencil size={14} /> Edit
                     </button>
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => handleDelete(c.code)}>
-                      Delete
+                      <Trash2 size={14} /> Delete
                     </button>
                   </td>
                 </tr>

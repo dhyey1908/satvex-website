@@ -19,7 +19,9 @@
 .admin-brand {
   font-family: var(--font-display);
   font-size: 1.4rem;
-  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-4);
+  margin-bottom: var(--space-4);
+  border-bottom: 2px solid var(--color-accent);
 }
 
 .admin-sidebar nav {
@@ -30,6 +32,9 @@
 }
 
 .admin-sidebar nav a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 11px 14px;
   border-radius: var(--radius-sm);
   color: #cfc6ba;
@@ -37,7 +42,7 @@
   font-weight: 500;
 }
 .admin-sidebar nav a:hover { background: rgba(255,255,255,0.08); color: #fff; }
-.admin-sidebar nav a.active { background: var(--color-primary); color: #fff; }
+.admin-sidebar nav a.active { background: var(--color-accent); color: #fff; }
 
 .admin-user {
   display: flex;

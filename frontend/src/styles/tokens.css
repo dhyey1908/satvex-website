@@ -1,94 +1,93 @@
 :root {
-  /* Color palette — "Atelier Papillon": warm ivory canvas, ink-charcoal
-     primary, dusty rose-brown as the accent (not the primary brand color).
-     Extracted from the real rendered Stitch mockups (satvex_flagship_home
-     etc.), not just the prose brief, since a couple of values differ. */
-  --color-bg: #fcf9f4;
+  /* Color palette — "Ink & Rust": near-black ink, warm bone paper, a single
+     saturated rust-crimson accent. Structured/editorial, not soft-luxury. */
+  --color-bg: #f3f1ea;
   --color-surface: #ffffff;
-  --color-surface-muted: #f6f3ee;
-  --color-surface-container: #f0ede9;
-  --color-surface-container-high: #ebe8e3;
-  --color-surface-container-highest: #e5e2dd;
-  --color-text: #1c1c19;
-  --color-text-muted: #4d4545;
-  --color-border: #ebe8e3;
-  --color-outline: #7f7575;
+  --color-surface-muted: #ece8de;
+  --color-surface-container: #e7e2d5;
+  --color-surface-container-high: #ddd7c6;
+  --color-surface-container-highest: #d2cbb6;
+  --color-text: #14130f;
+  --color-text-muted: #57534a;
+  --color-border: #ddd7c6;
+  --color-outline: #8a8474;
 
-  --color-primary: #090707;
+  --color-primary: #14130f;
   --color-primary-dark: #000000;
-  --color-primary-light: #e5e2dd;
+  --color-primary-light: #e7e2d5;
 
-  --color-accent: #82524a;
-  --color-accent-dark: #673b34;
-  --color-accent-light: #ffc0b6;
+  --color-accent: #b8341f;
+  --color-accent-dark: #7c2113;
+  --color-accent-light: #f2d3c6;
 
-  --color-accent-gold: #82524a;
+  --color-accent-gold: #b8341f;
 
-  --color-outline-variant: #d0c4c4;
+  --color-outline-variant: #c9c2ac;
 
-  --color-success: #3f7d58;
-  --color-success-bg: #e7f2ec;
-  --color-error: #ba1a1a;
-  --color-error-bg: #ffdad6;
+  --color-success: #2f6b45;
+  --color-success-bg: #e3ede4;
+  --color-error: #a12a1f;
+  --color-error-bg: #f6dfd8;
 
-  --color-overlay: rgba(9, 7, 7, 0.6);
+  --color-overlay: rgba(20, 19, 15, 0.65);
 
-  /* Typography */
-  --font-display: 'EB Garamond', 'Georgia', serif;
-  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* Typography — Fraunces (high-contrast editorial serif) for display,
+     Archivo (grotesque) for UI/body. */
+  --font-display: 'Fraunces', 'Georgia', serif;
+  --font-body: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
-  /* Spacing scale */
+  /* Spacing scale — wider jumps than the previous system, editorial rhythm. */
   --space-1: 4px;
   --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 24px;
-  --space-6: 32px;
-  --space-7: 48px;
-  --space-8: 64px;
-  --space-9: 96px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 32px;
+  --space-6: 48px;
+  --space-7: 72px;
+  --space-8: 104px;
+  --space-9: 144px;
 
-  /* Radius — deliberately architectural/sharp (not the previous soft-pill
-     system): buttons are near-square, cards get a modest 8px, only true
-     pills (badges/swatches/chips) use full rounding. */
-  --radius-button: 2px;
-  --radius-sm: 4px;
-  --radius-md: 8px;
+  /* Radius — moderate throughout (not sharp, not pill-heavy). Pill stays
+     reserved for true chips/badges/tags. */
+  --radius-button: 8px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
   --radius-lg: 16px;
   --radius-pill: 999px;
 
-  --shadow-sm: 0 1px 2px rgba(28, 28, 25, 0.05);
-  --shadow-md: 0 12px 32px -4px rgba(28, 28, 25, 0.05), 0 4px 12px -2px rgba(28, 28, 25, 0.02);
-  --shadow-lg: 0 24px 48px -12px rgba(28, 28, 25, 0.08), 0 8px 16px -4px rgba(28, 28, 25, 0.03);
+  /* Shadows — soft, subtle ambient elevation instead of hard offsets or
+     heavy blur. Depth comes mostly from borders/contrast; shadow is a
+     light finishing touch, not the main signal. */
+  --shadow-sm: 0 1px 2px rgba(20, 19, 15, 0.05), 0 1px 1px rgba(20, 19, 15, 0.04);
+  --shadow-md: 0 6px 16px rgba(20, 19, 15, 0.08), 0 2px 6px rgba(20, 19, 15, 0.05);
+  --shadow-lg: 0 16px 40px rgba(20, 19, 15, 0.12), 0 4px 12px rgba(20, 19, 15, 0.06);
 
-  --transition-fast: 150ms ease;
-  --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  /* Focus ring — used for :focus-visible instead of the browser default. */
+  --focus-ring: 0 0 0 3px rgba(184, 52, 31, 0.22);
 
-  /* Motion system (v3) — shared timing for both CSS transitions and the
-     Framer Motion helpers in src/motion/. Spring params live in JS
-     (src/motion/index.js) since CSS can't express spring physics. */
-  --motion-fast: 150ms;
-  --motion-base: 250ms;
-  --motion-slow: 400ms;
-  --motion-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-fast: 120ms ease;
+  --transition-base: 220ms cubic-bezier(0.65, 0, 0.35, 1);
 
-  --container-max: 1280px;
-  --header-height: 80px;
+  /* Motion system — more mechanical/precise easing than the previous
+     soft ease-out curve. Spring params live in JS (src/motion/index.js). */
+  --motion-fast: 120ms;
+  --motion-base: 220ms;
+  --motion-slow: 360ms;
+  --motion-ease: cubic-bezier(0.65, 0, 0.35, 1);
+
+  --container-max: 1400px;
+  --header-height: 76px;
 
   /* Responsive grid columns (ProductGrid) */
-  --grid-min-card: 260px;
+  --grid-min-card: 280px;
 
-  /* Exact spacing/margin scale from the Atelier Papillon mockup's Tailwind
-     config (space-xs..xl, gutter, margin) — kept alongside the existing
-     --space-1..9 scale rather than replacing it, so section-level layout can
-     match the mockup precisely without touching every existing component. */
   --sp-xs: 4px;
   --sp-sm: 8px;
   --sp-md: 16px;
-  --sp-lg: 28px;
-  --sp-xl: 48px;
+  --sp-lg: 32px;
+  --sp-xl: 64px;
   --gutter: 24px;
   --gutter-mobile: 16px;
-  --margin-x: 48px;
+  --margin-x: 56px;
   --margin-x-mobile: 20px;
 }

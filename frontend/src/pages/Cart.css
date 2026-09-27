@@ -5,12 +5,21 @@
   padding: var(--sp-sm) var(--sp-md);
   margin-top: var(--sp-md);
   border-radius: var(--radius-md);
+  border: 1px solid var(--color-success-bg);
   background: var(--color-success-bg);
   color: var(--color-success);
   font-size: 0.85rem;
   font-weight: 600;
 }
-.cart-free-shipping-banner svg { flex-shrink: 0; }
+.cart-free-shipping-banner svg {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  padding: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  box-sizing: border-box;
+}
 
 .cart-layout {
   display: grid;
@@ -44,10 +53,16 @@
   border-top: 1px solid var(--color-border);
 }
 .cart-saved-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 1rem;
   font-family: var(--font-body);
+  font-weight: 700;
+  color: var(--color-text-muted);
   margin-bottom: var(--space-4);
 }
+.cart-saved-section h3 svg { color: var(--color-accent); }
 
 @media (max-width: 860px) {
   .cart-layout { grid-template-columns: 1fr; }

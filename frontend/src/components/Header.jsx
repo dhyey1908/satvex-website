@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useScroll, useTransform, useReducedMotion } from 'framer-motion';
-import { Search, Heart, ShoppingBag, Menu, User, Package, Settings, LogOut } from 'lucide-react';
+import { Heart, ShoppingBag, Menu, User, Package, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -26,7 +26,6 @@ export function Header() {
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
   const prefersReducedMotion = useReducedMotion();
 
   const { scrollY } = useScroll();
@@ -81,22 +80,23 @@ export function Header() {
         </nav>
 
         <div className="header-actions">
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label="Search"
-            onClick={() => setSearchOpen((v) => !v)}
+          <SearchOverlay />
+          <NavLink
+            to="/wishlist"
+            className={({ isActive }) => `icon-btn ${isActive ? 'active' : ''}`}
+            aria-label={`Wishlist (${wishlistCount} items)`}
           >
-            <Search size={20} />
-          </button>
-          <Link to="/wishlist" className="icon-btn" aria-label={`Wishlist (${wishlistCount} items)`}>
             <Heart size={20} />
             {wishlistCount > 0 && <span className="badge">{wishlistCount}</span>}
-          </Link>
-          <Link to="/cart" className="icon-btn" aria-label={`Cart (${cartCount} items)`}>
+          </NavLink>
+          <NavLink
+            to="/cart"
+            className={({ isActive }) => `icon-btn ${isActive ? 'active' : ''}`}
+            aria-label={`Cart (${cartCount} items)`}
+          >
             <ShoppingBag size={20} />
             {cartCount > 0 && <span className="badge">{cartCount}</span>}
-          </Link>
+          </NavLink>
 
           <div className="header-account-desktop">
             {isAuthenticated ? (
@@ -119,8 +119,6 @@ export function Header() {
           </button>
         </div>
       </div>
-
-      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
 
       <AnimatePresence>
       {mobileOpen && (

@@ -1,12 +1,13 @@
 .auth-layout {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1.15fr 0.85fr;
   min-height: calc(100vh - var(--header-height) - 200px);
-  max-width: 1100px;
+  max-width: 1160px;
   margin: var(--sp-lg) auto;
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  border: 1px solid var(--color-border);
   box-shadow: var(--shadow-lg);
+  overflow: hidden;
 }
 
 .auth-visual {
@@ -19,7 +20,7 @@
 .auth-visual-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(9,7,7,0.75), rgba(9,7,7,0.05) 60%);
+  background: linear-gradient(to top, rgba(20,19,15,0.78), rgba(20,19,15,0.06) 60%);
 }
 .auth-visual-content {
   position: absolute;

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ChevronUp, ChevronDown, Trash2, Plus } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { useToast } from '../../context/ToastContext';
 import { MediaUploader } from '../../components/MediaUploader';
@@ -98,9 +99,9 @@ export function AdminBanners() {
               Active
             </label>
 
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => moveBanner(index, -1)} disabled={index === 0}>↑</button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => moveBanner(index, 1)} disabled={index === banners.length - 1}>↓</button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeBanner(banner.id)}>Remove</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => moveBanner(index, -1)} disabled={index === 0} aria-label="Move up"><ChevronUp size={16} /></button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => moveBanner(index, 1)} disabled={index === banners.length - 1} aria-label="Move down"><ChevronDown size={16} /></button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeBanner(banner.id)}><Trash2 size={14} /> Remove</button>
           </div>
         ))}
       </div>
@@ -147,7 +148,7 @@ export function AdminBanners() {
         </div>
 
         <button type="button" className="btn btn-outline" onClick={addBanner} disabled={!newBanner.mediaUrl}>
-          + Add Banner
+          <Plus size={16} /> Add Banner
         </button>
       </div>
     </div>

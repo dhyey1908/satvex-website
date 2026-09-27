@@ -9,7 +9,7 @@ import { CouponInput } from '../components/CouponInput';
 import { EmptyState } from '../components/EmptyState';
 import { PageHeader } from '../components/PageHeader';
 import { Loader } from '../components/Loader';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, ArrowLeft, Trash2, Bookmark } from 'lucide-react';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import './Cart.css';
 
@@ -124,14 +124,14 @@ export function Cart() {
 
           {items.length > 0 && (
             <div className="cart-actions-row">
-              <Link to="/shop" className="btn btn-ghost btn-sm">Continue Shopping</Link>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={handleClearCart}>Clear Cart</button>
+              <Link to="/shop" className="btn btn-ghost btn-sm"><ArrowLeft size={14} /> Continue Shopping</Link>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={handleClearCart}><Trash2 size={14} /> Clear Cart</button>
             </div>
           )}
 
           {savedItems.length > 0 && (
             <div className="cart-saved-section">
-              <h3>Saved for Later ({savedItems.length})</h3>
+              <h3><Bookmark size={16} /> Saved for Later ({savedItems.length})</h3>
               <AnimatePresence initial={false}>
                 {savedItems.map((item) => (
                   <CartItem

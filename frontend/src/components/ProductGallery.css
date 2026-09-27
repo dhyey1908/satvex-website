@@ -1,13 +1,17 @@
 .product-gallery { display: flex; flex-direction: column; gap: var(--space-3); }
 
 .gallery-main {
+  position: relative;
   aspect-ratio: 1 / 1;
   border-radius: var(--radius-lg);
   overflow: hidden;
   background: var(--color-surface-muted);
-  box-shadow: var(--shadow-sm);
+  border: 1.5px solid var(--color-border);
 }
-.gallery-main img { width: 100%; height: 100%; object-fit: contain; transition: transform 400ms ease; }
+/* Absolutely positioned so the outgoing and incoming image can overlap and
+   crossfade in place — without this, having both mounted at once (needed to
+   avoid a blank gap between them) would stack them instead of overlapping. */
+.gallery-main img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; transition: transform 400ms ease; }
 .gallery-main:hover img { transform: scale(1.03); }
 
 .gallery-thumbs {

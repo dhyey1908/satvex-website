@@ -2,17 +2,21 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ImagePlaceholder } from './ImagePlaceholder';
 import { crossfade } from '../motion';
+import { usePreloadedImage } from '../hooks/usePreloadedImage';
 import './ProductGallery.css';
 
 export function ProductGallery({ images, activeImage, alt }) {
   const gallery = images && images.length > 0 ? images : [];
   const [index, setIndex] = useState(0);
-  const mainImage = activeImage || gallery[index];
+  const targetImage = activeImage || gallery[index];
+  // Keeps showing the previous main image until the newly-requested one has
+  // actually loaded, so switching color/thumbnail never shows a blank gap.
+  const mainImage = usePreloadedImage(targetImage);
 
   return (
     <div className="product-gallery">
       <div className="gallery-main">
-        <AnimatePresence mode="wait">
+        <AnimatePresence>
           {mainImage ? (
             <motion.img
               key={mainImage}

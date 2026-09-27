@@ -1,6 +1,6 @@
 import { useSettings } from '../context/SettingsContext';
 
-export function BrandLogo({ height = 28, className }) {
+export function BrandLogo({ height = 28, className, light = false }) {
   const { settings } = useSettings();
 
   if (settings?.logoUrl) {
@@ -10,6 +10,7 @@ export function BrandLogo({ height = 28, className }) {
         alt={settings.brandName || 'Satvex'}
         height={height}
         className={className}
+        style={light ? { filter: 'brightness(0) invert(1)' } : undefined}
       />
     );
   }

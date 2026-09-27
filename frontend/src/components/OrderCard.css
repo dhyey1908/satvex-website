@@ -1,7 +1,7 @@
 .order-card {
   background: var(--color-surface);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  border: 1.5px solid var(--color-border);
   padding: var(--space-5);
 }
 

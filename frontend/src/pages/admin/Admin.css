@@ -32,8 +32,8 @@
   background:
     linear-gradient(to right, var(--color-surface) 30%, rgba(255, 255, 255, 0)),
     linear-gradient(to right, rgba(255, 255, 255, 0), var(--color-surface) 70%) 100% 0,
-    radial-gradient(farthest-side at 0 50%, rgba(28, 28, 25, 0.12), rgba(255, 255, 255, 0)),
-    radial-gradient(farthest-side at 100% 50%, rgba(28, 28, 25, 0.12), rgba(255, 255, 255, 0)) 100% 0;
+    radial-gradient(farthest-side at 0 50%, rgba(20, 19, 15, 0.12), rgba(255, 255, 255, 0)),
+    radial-gradient(farthest-side at 100% 50%, rgba(20, 19, 15, 0.12), rgba(255, 255, 255, 0)) 100% 0;
   background-repeat: no-repeat;
   background-color: var(--color-surface);
   background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
@@ -72,9 +72,16 @@
 .trend-chart-dot { fill: var(--color-accent); }
 
 .admin-form { max-width: 760px; }
+/* Wider variant — used by pages (e.g. Settings) whose cards should use the
+   full available content width instead of the default form max-width. */
+.admin-form-wide { max-width: none; }
 .admin-form-section { background: var(--color-surface); border-radius: var(--radius-lg); border: 1px solid var(--color-border); padding: var(--sp-lg); margin-bottom: var(--sp-md); }
 .admin-form-section h3 { margin-bottom: var(--space-4); font-family: var(--font-display); font-weight: 400; }
 .admin-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+/* Responsive multi-column field layout for wide sections — fields reflow
+   into as many columns as fit instead of stacking full-width. */
+.admin-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-4) var(--space-5); }
+.admin-form-grid .field { margin-bottom: 0; }
 
 .repeatable-row {
   display: flex;
