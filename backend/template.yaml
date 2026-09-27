@@ -1,0 +1,412 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  SATVEX — minimum-cost serverless ecommerce infrastructure.
+  API Gateway (HTTP API) -> Lambda (Express) -> DynamoDB, plus S3 + CloudFront
+  for the static frontend and product media.
+
+Parameters:
+  Stage:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, prod]
+  FrontendOrigin:
+    Type: String
+    Description: >
+      Comma-separated list of exact origins the API/media bucket should allow
+      via CORS (e.g. http://localhost:5173,https://satvex.com)
+  JwtSecret:
+    Type: String
+    NoEcho: true
+    Description: Long random secret used to sign auth JWTs
+  SesSenderEmail:
+    Type: String
+    Description: Verified SES sender address for password-reset emails
+  ResetTokenExpiresMin:
+    Type: Number
+    Default: 30
+
+Globals:
+  Function:
+    Runtime: nodejs22.x
+    MemorySize: 256
+    Timeout: 10
+
+Resources:
+  ## ---------- DynamoDB ----------
+
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub satvex_users_${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: email-index
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  ProductsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub satvex_products_${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: productId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: productId
+          KeyType: HASH
+
+  OrdersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub satvex_orders_${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: orderId
+          AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: orderId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: userId-createdAt-index
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  CartsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub satvex_carts_${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: cartItemId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: cartItemId
+          KeyType: RANGE
+
+  WishlistsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub satvex_wishlists_${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: productId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: productId
+          KeyType: RANGE
+
+  ContactsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub satvex_contacts_${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: contactId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: contactId
+          KeyType: HASH
+
+  SettingsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub satvex_settings_${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: settingsId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: settingsId
+          KeyType: HASH
+
+  AddressesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub satvex_addresses_${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: addressId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: addressId
+          KeyType: RANGE
+
+  CouponsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub satvex_coupons_${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: code
+          AttributeType: S
+      KeySchema:
+        - AttributeName: code
+          KeyType: HASH
+
+  ## ---------- API + Lambda ----------
+
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      # $default (not the Stage name) so no stage segment appears in the URL —
+      # otherwise API Gateway forwards it as part of the path (e.g. /dev/health)
+      # and Express, which expects paths like /health, 404s on every request.
+      StageName: $default
+      # No CorsConfiguration here on purpose: AWS::Serverless::HttpApi's CORS
+      # shorthand doesn't reliably resolve a dynamic (Fn::Split) AllowOrigins
+      # list at transform time (confirmed: it silently kept only the first
+      # origin). Express's own `cors` middleware in app.js already handles
+      # CORS correctly for a comma-separated FRONTEND_ORIGIN, including
+      # preflight OPTIONS (routed through via the proxy+ ANY method below), so
+      # it's the single source of truth instead of two competing CORS layers.
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub satvex-api-${Stage}
+      CodeUri: ./
+      Handler: src/lambda.handler
+      Environment:
+        Variables:
+          NODE_ENV: production
+          FRONTEND_ORIGIN: !Ref FrontendOrigin
+          # AWS_REGION is provided automatically by the Lambda runtime (it's a
+          # reserved env var name — CloudFormation would reject setting it here).
+          TABLE_USERS: !Ref UsersTable
+          TABLE_PRODUCTS: !Ref ProductsTable
+          TABLE_ORDERS: !Ref OrdersTable
+          TABLE_CARTS: !Ref CartsTable
+          TABLE_WISHLISTS: !Ref WishlistsTable
+          TABLE_CONTACTS: !Ref ContactsTable
+          TABLE_SETTINGS: !Ref SettingsTable
+          TABLE_ADDRESSES: !Ref AddressesTable
+          TABLE_COUPONS: !Ref CouponsTable
+          S3_MEDIA_BUCKET: !Ref MediaBucket
+          CLOUDFRONT_MEDIA_URL: !Sub https://${MediaDistribution.DomainName}
+          JWT_SECRET: !Ref JwtSecret
+          JWT_EXPIRES_IN: 7d
+          RESET_TOKEN_EXPIRES_MIN: !Ref ResetTokenExpiresMin
+          SES_SENDER_EMAIL: !Ref SesSenderEmail
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ProductsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrdersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref CartsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref WishlistsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ContactsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SettingsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AddressesTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref CouponsTable
+        - S3CrudPolicy:
+            BucketName: !Ref MediaBucket
+        - SESCrudPolicy:
+            IdentityName: !Ref SesSenderEmail
+      Events:
+        ProxyAll:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /{proxy+}
+            Method: ANY
+
+  ApiFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/satvex-api-${Stage}
+      RetentionInDays: 14
+
+  ## ---------- S3: product/variant media ----------
+
+  MediaBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub satvex-media-${Stage}-${AWS::AccountId}
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins: !Split [',', !Ref FrontendOrigin]
+            AllowedMethods: [GET, PUT]
+            AllowedHeaders: ['*']
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  MediaOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub satvex-media-oac-${Stage}
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  MediaDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultCacheBehavior:
+          TargetOriginId: media-s3-origin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # Managed-CachingOptimized
+        Origins:
+          - Id: media-s3-origin
+            DomainName: !GetAtt MediaBucket.RegionalDomainName
+            OriginAccessControlId: !Ref MediaOAC
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+
+  MediaBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref MediaBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub ${MediaBucket.Arn}/*
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${MediaDistribution}
+
+  ## ---------- S3 + CloudFront: static frontend ----------
+
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub satvex-frontend-${Stage}-${AWS::AccountId}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  FrontendOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub satvex-frontend-oac-${Stage}
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  FrontendDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        DefaultCacheBehavior:
+          TargetOriginId: frontend-s3-origin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # Managed-CachingOptimized
+        Origins:
+          - Id: frontend-s3-origin
+            DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            OriginAccessControlId: !Ref FrontendOAC
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        # SPA routing: unknown paths fall back to index.html
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub ${FrontendBucket.Arn}/*
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${FrontendDistribution}
+
+Outputs:
+  ApiUrl:
+    Description: Base URL for the API (set as VITE_API_URL/api in the frontend)
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com
+
+  FrontendBucketName:
+    Value: !Ref FrontendBucket
+  FrontendDistributionDomain:
+    Description: Point your custom domain (or use directly) at this CloudFront domain
+    Value: !GetAtt FrontendDistribution.DomainName
+
+  MediaBucketName:
+    Value: !Ref MediaBucket
+  MediaDistributionDomain:
+    Value: !GetAtt MediaDistribution.DomainName
+
+  UsersTableName:
+    Value: !Ref UsersTable
+  ProductsTableName:
+    Value: !Ref ProductsTable
+  OrdersTableName:
+    Value: !Ref OrdersTable
+  CartsTableName:
+    Value: !Ref CartsTable
+  WishlistsTableName:
+    Value: !Ref WishlistsTable
+  ContactsTableName:
+    Value: !Ref ContactsTable
+  SettingsTableName:
+    Value: !Ref SettingsTable
+  AddressesTableName:
+    Value: !Ref AddressesTable
+  CouponsTableName:
+    Value: !Ref CouponsTable

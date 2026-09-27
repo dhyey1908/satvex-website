@@ -1,0 +1,13 @@
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+.status-pending, .status-confirmed { background: #fdf3d9; color: #8a6d1f; }
+.status-processing, .status-shipped { background: #e3ecf9; color: #2c5ba3; }
+.status-delivered { background: var(--color-success-bg); color: var(--color-success); }
+.status-cancelled { background: var(--color-error-bg); color: var(--color-error); }

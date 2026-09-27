@@ -1,0 +1,54 @@
+const { v4: uuid } = require('uuid');
+const productService = require('../services/productService');
+const { productSchema, productUpdateSchema } = require('../validators/productValidators');
+const AppError = require('../utils/AppError');
+const { ok, created } = require('../utils/response');
+
+function assignIdsIfMissing(list, prefix) {
+  return (list || []).map((item) => ({ ...item, id: item.id || `${prefix}_${uuid()}` }));
+}
+
+async function list(req, res) {
+  const isAdmin = req.user?.role === 'admin';
+  const products = await productService.listProducts({ onlyActive: !isAdmin });
+  ok(res, { products });
+}
+
+async function getById(req, res) {
+  const product = await productService.findById(req.params.id);
+  if (!product || (!product.isActive && req.user?.role !== 'admin')) {
+    throw new AppError('Product not found.', 404, 'NOT_FOUND');
+  }
+  ok(res, { product });
+}
+
+async function getBySlug(req, res) {
+  const product = await productService.findBySlug(req.params.slug);
+  if (!product || (!product.isActive && req.user?.role !== 'admin')) {
+    throw new AppError('Product not found.', 404, 'NOT_FOUND');
+  }
+  ok(res, { product });
+}
+
+async function create(req, res) {
+  const data = productSchema.parse(req.body);
+  data.variants = assignIdsIfMissing(data.variants, 'var');
+  data.sellingOptions = assignIdsIfMissing(data.sellingOptions, 'opt');
+  const product = await productService.createProduct(data);
+  created(res, { product });
+}
+
+async function update(req, res) {
+  const data = productUpdateSchema.parse(req.body);
+  if (data.variants) data.variants = assignIdsIfMissing(data.variants, 'var');
+  if (data.sellingOptions) data.sellingOptions = assignIdsIfMissing(data.sellingOptions, 'opt');
+  const product = await productService.updateProduct(req.params.id, data);
+  ok(res, { product });
+}
+
+async function remove(req, res) {
+  await productService.deleteProduct(req.params.id);
+  ok(res, { deleted: true });
+}
+
+module.exports = { list, getById, getBySlug, create, update, remove };

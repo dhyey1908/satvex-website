@@ -1,0 +1,53 @@
+.account-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-3);
+  position: sticky;
+  top: calc(var(--header-height) + var(--space-4));
+}
+
+.account-sidebar a {
+  padding: 11px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.account-sidebar a:hover { background: var(--color-surface-muted); color: var(--color-text); }
+.account-sidebar a.active { background: var(--color-primary-light); color: var(--color-primary-dark); font-weight: 600; }
+
+.account-sidebar-logout {
+  margin-top: var(--space-2);
+  padding: 11px 14px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: 0.9rem;
+  color: var(--color-error);
+  cursor: pointer;
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-3);
+  margin-top: var(--space-2);
+}
+.account-sidebar-logout:hover { background: var(--color-error-bg); }
+
+@media (max-width: 900px) {
+  .account-sidebar {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
+    gap: var(--space-2);
+  }
+  .account-sidebar a, .account-sidebar-logout {
+    white-space: nowrap;
+    border-top: none;
+    margin-top: 0;
+    padding-top: 11px;
+  }
+}

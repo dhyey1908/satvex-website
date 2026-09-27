@@ -1,0 +1,79 @@
+.admin-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-5);
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--sp-md);
+}
+.stat-tile {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  padding: var(--sp-lg);
+}
+.stat-tile .stat-value { font-size: 2rem; font-weight: 600; font-family: var(--font-display); }
+.stat-tile .stat-label { color: var(--color-text-muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 4px; }
+
+/* Scroll-shadow affordance: subtle edge fades appear only when there's more
+   table content off-screen in that direction, so a horizontally-scrollable
+   table on mobile doesn't look like it's just been cut off. */
+.admin-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background:
+    linear-gradient(to right, var(--color-surface) 30%, rgba(255, 255, 255, 0)),
+    linear-gradient(to right, rgba(255, 255, 255, 0), var(--color-surface) 70%) 100% 0,
+    radial-gradient(farthest-side at 0 50%, rgba(28, 28, 25, 0.12), rgba(255, 255, 255, 0)),
+    radial-gradient(farthest-side at 100% 50%, rgba(28, 28, 25, 0.12), rgba(255, 255, 255, 0)) 100% 0;
+  background-repeat: no-repeat;
+  background-color: var(--color-surface);
+  background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+  background-position: 0 0, 100% 0, 0 0, 100% 0;
+  background-attachment: local, local, scroll, scroll;
+}
+.admin-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.admin-table th, .admin-table td { text-align: left; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border); white-space: nowrap; }
+.admin-table th { color: var(--color-text-muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.admin-table tr:last-child td { border-bottom: none; }
+
+.pill { padding: 3px 10px; border-radius: var(--radius-pill); font-size: 0.75rem; font-weight: 600; }
+.pill-active { background: var(--color-success-bg); color: var(--color-success); }
+.pill-inactive { background: var(--color-surface-muted); color: var(--color-text-muted); }
+
+.admin-filters { display: flex; gap: var(--space-3); margin-bottom: var(--space-4); flex-wrap: wrap; }
+.admin-filters input, .admin-filters select { padding: 9px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+
+.admin-form { max-width: 760px; }
+.admin-form-section { background: var(--color-surface); border-radius: var(--radius-lg); border: 1px solid var(--color-border); padding: var(--sp-lg); margin-bottom: var(--sp-md); }
+.admin-form-section h3 { margin-bottom: var(--space-4); font-family: var(--font-display); font-weight: 400; }
+.admin-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+
+.repeatable-row {
+  display: flex;
+  gap: var(--space-3);
+  align-items: end;
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
+}
+.repeatable-row .field { margin-bottom: 0; flex: 1; min-width: 120px; }
+.repeatable-row img { width: 44px; height: 44px; object-fit: cover; border-radius: var(--radius-sm); }
+
+.checkbox-field { display: flex; align-items: center; gap: 8px; margin-bottom: var(--space-4); }
+.checkbox-field input { width: auto; }
+
+.upload-status { font-size: 0.78rem; color: var(--color-text-muted); margin-left: 8px; }
+
+@media (max-width: 700px) {
+  .admin-form-row { grid-template-columns: 1fr; }
+}

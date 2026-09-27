@@ -1,0 +1,13 @@
+.wishlist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--grid-min-card), 300px));
+  justify-content: start;
+  gap: var(--space-6) var(--space-5);
+}
+
+@media (max-width: 900px) {
+  .wishlist-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); justify-content: stretch; }
+}
+@media (max-width: 560px) {
+  .wishlist-grid { grid-template-columns: repeat(2, 1fr); gap: var(--space-4) var(--space-3); }
+}

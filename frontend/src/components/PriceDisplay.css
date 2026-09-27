@@ -1,0 +1,11 @@
+.price-display {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.price-current { font-weight: 700; color: var(--color-text); }
+.price-compare { color: var(--color-text-muted); text-decoration: line-through; font-weight: 500; }
+.price-md .price-current { font-size: 1.05rem; }
+.price-md .price-compare { font-size: 0.9rem; }
+.price-lg .price-current { font-size: 1.6rem; }
+.price-lg .price-compare { font-size: 1.05rem; }

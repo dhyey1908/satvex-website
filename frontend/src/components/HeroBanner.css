@@ -1,0 +1,22 @@
+.hero-image video { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.hero-banner-dots {
+  position: absolute;
+  bottom: var(--sp-sm);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 2;
+}
+.hero-banner-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  padding: 0;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+}
+.hero-banner-dot.active { background: #fff; transform: scale(1.2); }

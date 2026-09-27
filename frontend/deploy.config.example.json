@@ -1,0 +1,8 @@
+{
+  "awsProfile": "REPLACE_ME",
+  "awsRegion": "ap-south-1",
+  "apiUrl": "https://REPLACE_ME.execute-api.ap-south-1.amazonaws.com/api",
+  "siteUrl": "https://REPLACE_ME.cloudfront.net",
+  "s3Bucket": "satvex-frontend-dev-REPLACE_ME",
+  "cloudfrontDistributionId": "REPLACE_ME"
+}

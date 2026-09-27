@@ -1,0 +1,10 @@
+.account-grid {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: var(--space-7);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .account-grid { grid-template-columns: 1fr; }
+}

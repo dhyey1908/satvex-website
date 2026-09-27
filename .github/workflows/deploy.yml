@@ -1,0 +1,113 @@
+name: Deploy SATVEX
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # required for AWS OIDC
+  contents: read
+
+env:
+  AWS_REGION: ap-south-1
+  STAGE: prod
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    outputs:
+      api-url: ${{ steps.stack-outputs.outputs.api-url }}
+      frontend-bucket: ${{ steps.stack-outputs.outputs.frontend-bucket }}
+      frontend-distribution-domain: ${{ steps.stack-outputs.outputs.frontend-distribution-domain }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Install AWS SAM CLI
+        run: pip install aws-sam-cli
+
+      - name: sam build
+        working-directory: backend
+        run: sam build
+
+      - name: sam deploy
+        working-directory: backend
+        run: |
+          sam deploy \
+            --stack-name satvex-backend-${{ env.STAGE }} \
+            --region ${{ env.AWS_REGION }} \
+            --resolve-s3 \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --capabilities CAPABILITY_IAM \
+            --parameter-overrides \
+              Stage=${{ env.STAGE }} \
+              FrontendOrigin=${{ secrets.FRONTEND_ORIGIN }} \
+              JwtSecret=${{ secrets.JWT_SECRET }} \
+              SesSenderEmail=${{ secrets.SES_SENDER_EMAIL }} \
+              ResetTokenExpiresMin=30
+
+      - name: Read stack outputs
+        id: stack-outputs
+        run: |
+          get_output() {
+            aws cloudformation describe-stacks \
+              --stack-name satvex-backend-${{ env.STAGE }} \
+              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" \
+              --output text
+          }
+          echo "api-url=$(get_output ApiUrl)" >> "$GITHUB_OUTPUT"
+          echo "frontend-bucket=$(get_output FrontendBucketName)" >> "$GITHUB_OUTPUT"
+          echo "frontend-distribution-domain=$(get_output FrontendDistributionDomain)" >> "$GITHUB_OUTPUT"
+
+  deploy-frontend:
+    needs: deploy-backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          VITE_API_URL: ${{ needs.deploy-backend.outputs.api-url }}
+          SITE_URL: ${{ secrets.SITE_URL }}
+        run: npm run build
+
+      - name: Sync to S3
+        run: |
+          aws s3 sync frontend/dist/ s3://${{ needs.deploy-backend.outputs.frontend-bucket }} --delete
+
+      - name: Invalidate CloudFront
+        run: |
+          DIST_ID=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?DomainName=='${{ needs.deploy-backend.outputs.frontend-distribution-domain }}'].Id" \
+            --output text)
+          aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*"

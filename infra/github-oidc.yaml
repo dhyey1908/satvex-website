@@ -1,0 +1,109 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  One-time bootstrap: lets GitHub Actions deploy SATVEX to this AWS account
+  via OIDC — no long-lived AWS access keys stored in GitHub. Deploy this
+  once, manually, before the GitHub Actions workflow can run.
+
+Parameters:
+  GitHubOrg:
+    Type: String
+    Description: GitHub org/username, e.g. dhyey1908
+  GitHubRepo:
+    Type: String
+    Description: Repo name, e.g. satvex-website
+  AllowedBranch:
+    Type: String
+    Default: main
+    Description: Only workflow runs on this branch may assume the deploy role
+
+Resources:
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        # AWS validates GitHub's OIDC endpoint via its trusted CA chain; this
+        # thumbprint is required by the resource type but effectively unused
+        # for github.com's certificate today.
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+
+  GitHubActionsDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: satvex-github-actions-deploy
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref GitHubOidcProvider
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/${AllowedBranch}
+      Policies:
+        - PolicyName: satvex-deploy-policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # CloudFormation drives the whole SAM deploy.
+              - Sid: CloudFormation
+                Effect: Allow
+                Action: cloudformation:*
+                Resource: '*'
+
+              # Resource types the SAM template creates/updates.
+              - Sid: CoreResources
+                Effect: Allow
+                Action:
+                  - lambda:*
+                  - apigateway:*
+                  - dynamodb:*
+                  - logs:*
+                  - cloudfront:*
+                Resource: '*'
+
+              # S3: the SAM deployment bucket + this project's own buckets only.
+              - Sid: S3
+                Effect: Allow
+                Action: s3:*
+                Resource:
+                  - arn:aws:s3:::satvex-*
+                  - arn:aws:s3:::satvex-*/*
+                  - arn:aws:s3:::aws-sam-cli-managed-*
+                  - arn:aws:s3:::aws-sam-cli-managed-*/*
+
+              # SES: send permission for the verified sender identity only.
+              - Sid: SES
+                Effect: Allow
+                Action:
+                  - ses:SendEmail
+                  - ses:SendRawEmail
+                Resource: '*'
+
+              # IAM: SAM creates/updates the Lambda's own execution role. Scoped
+              # to role names this project creates (never IAM users/other roles).
+              - Sid: IamForLambdaExecutionRole
+                Effect: Allow
+                Action:
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:GetRole
+                  - iam:PassRole
+                  - iam:AttachRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:PutRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:GetRolePolicy
+                  - iam:TagRole
+                  - iam:UntagRole
+                Resource: arn:aws:iam::*:role/satvex-*
+
+Outputs:
+  DeployRoleArn:
+    Description: Put this in the GitHub repo secret AWS_DEPLOY_ROLE_ARN
+    Value: !GetAtt GitHubActionsDeployRole.Arn

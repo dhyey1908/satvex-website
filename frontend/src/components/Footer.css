@@ -1,0 +1,91 @@
+.site-footer {
+  background: var(--color-surface-muted);
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-8);
+  margin-top: var(--space-9);
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: var(--space-6);
+  padding-bottom: var(--space-7);
+}
+
+.footer-brand-col p { max-width: 26rem; margin-top: var(--space-3); }
+
+.footer-newsletter { margin-top: var(--space-6); }
+.footer-newsletter-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-text);
+  margin-bottom: var(--space-2);
+}
+.footer-newsletter-copy { font-size: 0.85rem; margin-bottom: var(--space-3); max-width: 22rem; }
+.footer-newsletter-form {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--color-text);
+  max-width: 22rem;
+  transition: border-color var(--transition-fast);
+}
+.footer-newsletter-form:focus-within { border-color: var(--color-accent); }
+.footer-newsletter-form input {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-2) 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.85rem;
+}
+.footer-newsletter-form input::placeholder { color: var(--color-outline); }
+.footer-newsletter-form input:focus { outline: none; }
+.footer-newsletter-form button {
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  background: none;
+  color: var(--color-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+  white-space: nowrap;
+}
+.footer-newsletter-form button:hover:not(:disabled) { color: var(--color-accent); }
+.footer-newsletter-form button:disabled { opacity: 0.6; cursor: not-allowed; }
+/* Grid items default to min-width:auto, which refuses to shrink below an
+   unbroken string's natural width (e.g. an email address) — causing overflow
+   at narrow viewports. min-width:0 + overflow-wrap lets long tokens wrap. */
+.footer-grid > * {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.footer-grid h4 {
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: var(--space-3);
+  color: var(--color-text);
+}
+
+.footer-grid li { margin-bottom: var(--space-2); color: var(--color-text-muted); }
+.footer-grid a:hover { color: var(--color-primary-dark); }
+
+.footer-bottom {
+  border-top: 1px solid var(--color-border);
+  padding: var(--space-4) 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+.footer-bottom p { margin: 0; }
+
+@media (max-width: 760px) {
+  .footer-grid { grid-template-columns: 1fr 1fr; }
+}
