@@ -4,6 +4,8 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { AuthLayout } from '../components/AuthLayout';
+import { required, email as validateEmail, runValidators, hasErrors } from '../utils/validators';
+import { mapServerFieldErrors } from '../utils/formErrors';
 import './Auth.css';
 
 export function Login() {
@@ -12,12 +14,35 @@ export function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const [form, setForm] = useState({ email: '', password: '' });
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [touched, setTouched] = useState({});
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+
+  function validate(values) {
+    return runValidators({
+      email: () => validateEmail(values.email),
+      password: () => required(values.password, 'Password'),
+    });
+  }
+
+  function setField(key, value) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    if (fieldErrors[key]) setFieldErrors((prev) => ({ ...prev, [key]: '' }));
+  }
+
+  function handleBlur(key) {
+    setTouched((prev) => ({ ...prev, [key]: true }));
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
+    const errors = validate(form);
+    setFieldErrors(errors);
+    setTouched({ email: true, password: true });
+    if (hasErrors(errors)) return;
+
     setSubmitting(true);
     try {
       const user = await login(form);
@@ -25,7 +50,9 @@ export function Login() {
       const redirectTo = location.state?.from?.pathname || (user.role === 'admin' ? '/admin' : '/');
       navigate(redirectTo, { replace: true });
     } catch (err) {
-      setError(err.message);
+      const serverErrors = mapServerFieldErrors(err);
+      if (serverErrors) setFieldErrors((prev) => ({ ...prev, ...serverErrors }));
+      else setError(err.message);
     } finally {
       setSubmitting(false);
     }
@@ -42,18 +69,20 @@ export function Login() {
         <h1 className="text-headline-lg">Welcome Back</h1>
         <p className="auth-subcopy">Sign in to view your orders, wishlist, and saved addresses.</p>
 
-        <form onSubmit={handleSubmit}>
-          <div className="field">
+        <form onSubmit={handleSubmit} noValidate>
+          <div className={`field ${touched.email && fieldErrors.email ? 'invalid' : ''}`}>
             <label htmlFor="email">Email</label>
             <input
               id="email"
               type="email"
               required
               value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              onChange={(e) => setField('email', e.target.value)}
+              onBlur={() => handleBlur('email')}
             />
+            {touched.email && fieldErrors.email && <p className="field-error">{fieldErrors.email}</p>}
           </div>
-          <div className="field">
+          <div className={`field ${touched.password && fieldErrors.password ? 'invalid' : ''}`}>
             <div className="field-label-row">
               <label htmlFor="password">Password</label>
               <Link to="/forgot-password" className="auth-inline-link">Forgot password?</Link>
@@ -63,8 +92,10 @@ export function Login() {
               type="password"
               required
               value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              onChange={(e) => setField('password', e.target.value)}
+              onBlur={() => handleBlur('password')}
             />
+            {touched.password && fieldErrors.password && <p className="field-error">{fieldErrors.password}</p>}
           </div>
 
           {error && <p className="field-error">{error}</p>}

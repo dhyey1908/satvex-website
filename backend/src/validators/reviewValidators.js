@@ -6,8 +6,4 @@ const createReviewSchema = z.object({
   comment: z.string().trim().min(10, 'Please write at least 10 characters.').max(2000),
 });
 
-const moderateReviewSchema = z.object({
-  status: z.enum(['approved', 'rejected', 'pending']),
-});
-
-module.exports = { createReviewSchema, moderateReviewSchema };
+module.exports = { createReviewSchema };

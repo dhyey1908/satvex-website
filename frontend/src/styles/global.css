@@ -83,19 +83,36 @@ ul {
   padding: 0 var(--space-5);
 }
 
-@media (max-width: 640px) {
+/* Tablet step — between the full desktop gutter and the mobile one, so
+   content doesn't jump straight from 32px to 24px at a single breakpoint. */
+@media (max-width: 860px) {
   .container {
     padding: 0 var(--space-4);
   }
 }
 
+@media (max-width: 480px) {
+  .container {
+    padding: 0 var(--space-3);
+  }
+}
+
+/* padding-top/bottom only — many pages put `.container` and `.section` on
+   the SAME element (e.g. `className="container section shop-page"`). A
+   shorthand `padding` here would silently overwrite .container's left/right
+   padding with 0 (same property, later in the cascade), pushing that
+   page's entire content flush against the viewport edges. Vertical-only
+   properties can never clobber .container's horizontal padding, regardless
+   of which element(s) the two classes end up on. */
 .section {
-  padding: var(--space-6) 0;
+  padding-top: var(--space-6);
+  padding-bottom: var(--space-6);
 }
 
 @media (max-width: 640px) {
   .section {
-    padding: var(--space-7) 0;
+    padding-top: var(--space-7);
+    padding-bottom: var(--space-7);
   }
 }
 

@@ -125,67 +125,19 @@
   .shop-sort-select { width: 100%; }
 }
 
-/* Single-result showcase — when the catalog (or the active filters) leaves
-   exactly one product to show, present it as one wide, intentional feature
-   rather than a lone narrow card stranded in a big empty grid. Reuses the
-   existing .product-card/.product-grid classes with scoped overrides only,
-   so ProductCard itself — and every other page that uses it — is untouched. */
-.shop-single-product { margin-top: var(--space-3); }
-
+/* Single-result layout — a lone product otherwise lands in column 1 of
+   whatever multi-column grid the current breakpoint uses (auto-fill/2-col/
+   auto-fit), reading as stuck to the left. Collapsing the grid to one
+   centered, capped-width track (overriding those breakpoints via higher
+   selector specificity, no media queries needed) keeps it compact and
+   intentional instead of full-width or left-stranded. */
 .shop-single-product .product-grid {
-  grid-template-columns: 1fr;
-  max-width: 1320px;
-  margin: 0 auto;
+  grid-template-columns: minmax(0, 340px);
+  justify-content: center;
 }
 
-.shop-single-product .product-card {
-  display: grid;
-  grid-template-columns: 1.35fr 1fr;
-  gap: var(--space-7);
-  align-items: center;
-  padding: var(--space-5);
-}
-.shop-single-product .product-card:hover { box-shadow: var(--shadow-md); }
-
-/* Wide, not tall — a 16:9 frame gets significantly wider than the default
-   card's ~300px width while landing back near its ~375px height, instead of
-   growing taller as width increases (which is what a fixed portrait ratio
-   would otherwise do). The real photo itself is never stretched to fit this
-   shape — object-fit:contain (unchanged, from the base .product-card-image
-   rule) just letterboxes it, so nothing is distorted. */
-.shop-single-product .product-card-image {
-  aspect-ratio: 16 / 9;
-}
-
+/* A minimal seam between image and info — just enough to separate the two
+   without adding a shadow/box the rest of the card doesn't have. */
 .shop-single-product .product-card-body {
-  padding: 0;
-}
-.shop-single-product .product-card-body h3 {
-  font-family: var(--font-display);
-  font-size: clamp(1.6rem, 2.4vw, 2.1rem);
-  font-weight: 500;
-  margin-bottom: var(--space-2);
-}
-.shop-single-product .product-card-rating { font-size: 0.85rem; margin-bottom: 6px; }
-.shop-single-product .product-card-desc {
-  font-size: 0.98rem;
-  -webkit-line-clamp: 3;
-  margin-bottom: var(--space-4);
-  max-width: 34rem;
-}
-.shop-single-product .product-card-price { font-size: 1.5rem; }
-
-/* Below 860px the card stacks (image on top, info below), keeping the same
-   16:9 wide frame the whole way down — never reverting to a tall portrait
-   shape, on phone included, per "wider not tall" at every size. */
-@media (max-width: 860px) {
-  .shop-single-product .product-card {
-    grid-template-columns: 1fr;
-    gap: var(--space-4);
-  }
-}
-
-@media (max-width: 480px) {
-  .shop-single-product .product-card { padding: var(--space-3); }
-  .shop-single-product .product-card-image { aspect-ratio: 4 / 3; }
+  border-top: 1px solid var(--color-border);
 }

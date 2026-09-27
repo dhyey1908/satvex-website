@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Truck, Leaf, Package, ChevronDown, Loader2 } from 'lucide-react';
+import { Heart, Truck, Leaf, Package, ChevronDown, Loader2, CheckCircle2, XCircle, ShoppingBag, Zap } from 'lucide-react';
 import { productService } from '../services/productService';
 import { ProductGallery } from '../components/ProductGallery';
 import { SellingOptionSelector } from '../components/SellingOptionSelector';
@@ -10,6 +10,7 @@ import { QuantitySelector } from '../components/QuantitySelector';
 import { RatingDisplay } from '../components/RatingDisplay';
 import { ProductReviews } from '../components/ProductReviews';
 import { PriceDisplay } from '../components/PriceDisplay';
+import { PincodeCheck } from '../components/PincodeCheck';
 import { ProductGrid } from '../components/ProductGrid';
 import { Loader } from '../components/Loader';
 import { ErrorState } from '../components/ErrorState';
@@ -71,6 +72,12 @@ export function ProductDetail() {
       .then((data) => setRelatedProducts(data.products.filter((p) => p.slug !== slug && p.isActive)))
       .catch(() => setRelatedProducts([]));
   }, [slug]);
+
+  useEffect(() => {
+    if (!product || location.hash !== '#reviews') return;
+    const el = document.getElementById('reviews');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [product, location.hash]);
 
   if (error) return <ErrorState message={error} />;
   if (!product) return <Loader label="Loading product…" />;
@@ -158,7 +165,24 @@ export function ProductDetail() {
       </nav>
 
       <div className="product-detail-grid">
-        <ProductGallery images={product.images} activeImage={activeVariant?.image} alt={product.name} />
+        <div className="pdp-gallery-wrap">
+          <ProductGallery images={product.images} activeImage={activeVariant?.image} alt={product.name} />
+          <motion.button
+            type="button"
+            className={`pdp-gallery-wishlist ${inWishlist ? 'active' : ''}`}
+            onClick={toggleWishlist}
+            whileTap={{ scale: 0.9 }}
+            aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+          >
+            <motion.span
+              animate={wishlistBurst ? { scale: [1, 1.35, 1] } : { scale: 1 }}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+              style={{ display: 'inline-flex' }}
+            >
+              <Heart size={18} fill={inWishlist ? 'currentColor' : 'none'} />
+            </motion.span>
+          </motion.button>
+        </div>
 
         <div className="product-detail-info">
           <h1 className="text-headline-lg">{product.name}</h1>
@@ -172,6 +196,7 @@ export function ProductDetail() {
               size="lg"
             />
             <span className={`stock-pill ${outOfStock ? 'out' : 'in'}`}>
+              {outOfStock ? <XCircle size={14} /> : <CheckCircle2 size={14} />}
               {outOfStock ? 'Out of Stock' : 'In Stock'}
             </span>
           </div>
@@ -190,7 +215,7 @@ export function ProductDetail() {
           {sellingOption && (
             <div className="product-detail-section">
               <h3>
-                {sellingOption.quantity === 1 ? 'Choose a color' : `Choose ${sellingOption.quantity} colors`}
+                {sellingOption.quantity === 1 ? 'Select a Color' : `Select ${sellingOption.quantity} Colors`}
               </h3>
               <ComboColorSelector
                 variants={product.variants}
@@ -202,42 +227,46 @@ export function ProductDetail() {
             </div>
           )}
 
+          <PincodeCheck />
+
           <div className="product-detail-section">
             <h3>Quantity</h3>
             <QuantitySelector value={quantity} onChange={setQuantity} />
           </div>
 
           <div className="product-detail-actions">
-            <motion.button
+            <div className="pdp-primary-row">
+              <button
+                type="button"
+                className="btn btn-primary pdp-add-to-cart"
+                disabled={submitting || buyingNow || outOfStock}
+                onClick={() => handleAddToCart({ redirectToCheckout: false })}
+              >
+                {submitting ? <Loader2 size={16} className="btn-spinner" /> : (<><ShoppingBag size={16} /> Add to Cart</>)}
+              </button>
+              <motion.button
+                type="button"
+                className={`pdp-wishlist-btn ${inWishlist ? 'active' : ''}`}
+                onClick={toggleWishlist}
+                whileTap={{ scale: 0.92 }}
+                aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+              >
+                <motion.span
+                  className="pdp-wishlist-icon"
+                  animate={wishlistBurst ? { scale: [1, 1.35, 1] } : { scale: 1 }}
+                  transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <Heart size={20} fill={inWishlist ? 'currentColor' : 'none'} />
+                </motion.span>
+              </motion.button>
+            </div>
+            <button
               type="button"
               className="btn btn-outline btn-block"
-              onClick={toggleWishlist}
-              whileTap={{ scale: 0.97 }}
-            >
-              <motion.span
-                className="pdp-wishlist-icon"
-                animate={wishlistBurst ? { scale: [1, 1.35, 1] } : { scale: 1 }}
-                transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-              >
-                <Heart size={18} fill={inWishlist ? 'currentColor' : 'none'} />
-              </motion.span>
-              {inWishlist ? 'In Wishlist' : 'Add to Wishlist'}
-            </motion.button>
-            <button
-              type="button"
-              className="btn btn-primary btn-block"
-              disabled={submitting || buyingNow || outOfStock}
-              onClick={() => handleAddToCart({ redirectToCheckout: false })}
-            >
-              {submitting ? <Loader2 size={16} className="btn-spinner" /> : 'Add to Cart'}
-            </button>
-            <button
-              type="button"
-              className="btn btn-block buy-now-btn"
               disabled={submitting || buyingNow || outOfStock}
               onClick={() => handleAddToCart({ redirectToCheckout: true })}
             >
-              {buyingNow ? <Loader2 size={16} className="btn-spinner" /> : 'Buy Now'}
+              {buyingNow ? <Loader2 size={16} className="btn-spinner" /> : (<><Zap size={16} /> Buy Now</>)}
             </button>
           </div>
 
@@ -247,6 +276,28 @@ export function ProductDetail() {
             <span><Package size={16} />7-Day Easy Exchange</span>
           </div>
         </div>
+      </div>
+
+      {/* Mobile-only sticky buy bar — CSS-hidden on desktop. Calls the exact
+          same handler as the inline buttons above, so behavior (auth
+          redirect, validation, loading state) is identical either way. */}
+      <div className="pdp-mobile-bar">
+        <button
+          type="button"
+          className="btn btn-primary pdp-mobile-bar-cart"
+          disabled={submitting || buyingNow || outOfStock}
+          onClick={() => handleAddToCart({ redirectToCheckout: false })}
+        >
+          {submitting ? <Loader2 size={16} className="btn-spinner" /> : (<><ShoppingBag size={16} /> Add to Cart</>)}
+        </button>
+        <button
+          type="button"
+          className="btn btn-outline pdp-mobile-bar-buy"
+          disabled={submitting || buyingNow || outOfStock}
+          onClick={() => handleAddToCart({ redirectToCheckout: true })}
+        >
+          {buyingNow ? <Loader2 size={16} className="btn-spinner" /> : (<><Zap size={16} /> Buy Now</>)}
+        </button>
       </div>
 
       <div className="product-detail-below">
@@ -296,7 +347,7 @@ export function ProductDetail() {
           })}
         </div>
 
-        <div className="product-detail-reviews">
+        <div className="product-detail-reviews" id="reviews">
           <h3 className="text-headline-sm">Reviews</h3>
           <RatingDisplay rating={product.rating} reviewCount={product.reviewCount} size="lg" />
           <ProductReviews productId={product.productId} />

@@ -7,9 +7,12 @@ import { useConfirm } from '../../context/ConfirmContext';
 import { Loader } from '../../components/Loader';
 import { ErrorState } from '../../components/ErrorState';
 import { EmptyState } from '../../components/EmptyState';
+import { Pagination } from '../../components/Pagination';
+import { usePagination } from '../../hooks/usePagination';
 import './Admin.css';
 
 const STATUS_FILTERS = ['All', 'Active', 'Inactive', 'Featured'];
+const PAGE_SIZE = 20;
 
 export function AdminProducts() {
   const [products, setProducts] = useState(null);
@@ -39,6 +42,9 @@ export function AdminProducts() {
     if (term) list = list.filter((p) => p.name.toLowerCase().includes(term));
     return list;
   }, [products, search, status]);
+
+  const { page, setPage, totalPages, pageItems: pageProducts, total: totalVisible, rangeStart, rangeEnd } =
+    usePagination(visible, PAGE_SIZE);
 
   async function handleDelete(product) {
     const ok = await confirm({
@@ -114,7 +120,7 @@ export function AdminProducts() {
               </tr>
             </thead>
             <tbody>
-              {visible.map((p) => (
+              {pageProducts.map((p) => (
                 <tr key={p.productId}>
                   <td>{p.name}</td>
                   <td>₹{p.basePrice}</td>
@@ -139,6 +145,15 @@ export function AdminProducts() {
               ))}
             </tbody>
           </table>
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            total={totalVisible}
+            rangeStart={rangeStart}
+            rangeEnd={rangeEnd}
+            itemLabel="products"
+          />
         </div>
       )}
     </div>

@@ -71,7 +71,7 @@
 .trend-chart-line { fill: none; stroke: var(--color-accent); stroke-width: 2; }
 .trend-chart-dot { fill: var(--color-accent); }
 
-.admin-form { max-width: 760px; }
+/* .admin-form { max-width: 760px; } */
 /* Wider variant — used by pages (e.g. Settings) whose cards should use the
    full available content width instead of the default form max-width. */
 .admin-form-wide { max-width: none; }
@@ -82,6 +82,13 @@
    into as many columns as fit instead of stacking full-width. */
 .admin-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-4) var(--space-5); }
 .admin-form-grid .field { margin-bottom: 0; }
+
+.admin-discount-preview {
+  width: 100%;
+  color: var(--color-success);
+  font-weight: 600;
+  margin: -8px 0 8px;
+}
 
 .repeatable-row {
   display: flex;

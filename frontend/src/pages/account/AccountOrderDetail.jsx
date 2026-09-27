@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
+import { Star } from 'lucide-react';
 import { orderService } from '../../services/orderService';
+import { reviewService } from '../../services/reviewService';
 import { useToast } from '../../context/ToastContext';
 import { useConfirm } from '../../context/ConfirmContext';
 import { OrderStatusBadge } from '../../components/OrderStatusBadge';
@@ -19,6 +21,7 @@ export function AccountOrderDetail() {
   const confirm = useConfirm();
   const [order, setOrder] = useState(null);
   const [error, setError] = useState(null);
+  const [reviewedProductIds, setReviewedProductIds] = useState(new Set());
 
   function load() {
     setError(null);
@@ -29,6 +32,12 @@ export function AccountOrderDetail() {
   }
 
   useEffect(load, [id]);
+  useEffect(() => {
+    reviewService
+      .listMine()
+      .then((data) => setReviewedProductIds(new Set(data.reviews.map((r) => r.productId))))
+      .catch(() => {});
+  }, []);
 
   async function handleCancel() {
     const ok = await confirm({
@@ -89,6 +98,12 @@ export function AccountOrderDetail() {
                     <p className="order-card-item-meta">
                       {item.sellingOptionName} × {item.quantity}
                     </p>
+                    {order.status === 'Delivered' && item.productSlug && (
+                      <Link to={`/product/${item.productSlug}#reviews`} className="order-card-review-link">
+                        <Star size={12} />
+                        {reviewedProductIds.has(item.productId) ? 'Edit Review' : 'Write Review'}
+                      </Link>
+                    )}
                   </div>
                   <span style={{ fontWeight: 600 }}>₹{item.subtotal.toFixed(2)}</span>
                 </div>

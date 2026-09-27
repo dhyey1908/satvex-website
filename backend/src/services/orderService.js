@@ -71,9 +71,11 @@ async function listAll({ status, search } = {}) {
   return items.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
-async function hasUserPurchasedProduct(userId, productId) {
+async function hasUserReceivedDeliveredProduct(userId, productId) {
   const orders = await listForUser(userId);
-  return orders.some((order) => (order.items || []).some((item) => item.productId === productId));
+  return orders.some(
+    (order) => order.status === 'Delivered' && (order.items || []).some((item) => item.productId === productId)
+  );
 }
 
 async function updateStatus(orderId, status) {
@@ -95,5 +97,5 @@ module.exports = {
   listForUser,
   listAll,
   updateStatus,
-  hasUserPurchasedProduct,
+  hasUserReceivedDeliveredProduct,
 };

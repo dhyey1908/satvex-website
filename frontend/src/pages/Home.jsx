@@ -9,6 +9,7 @@ import { useToast } from '../context/ToastContext';
 import { useSettings } from '../context/SettingsContext';
 import { ProductGrid } from '../components/ProductGrid';
 import { ImagePlaceholder } from '../components/ImagePlaceholder';
+import { PriceDisplay } from '../components/PriceDisplay';
 import { HeroBanner } from '../components/HeroBanner';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import { usePreloadedImage } from '../hooks/usePreloadedImage';
@@ -64,7 +65,6 @@ export function Home() {
   const singleOption = activeOptions.find((o) => o.quantity === 1);
   const cheapestOption = activeOptions.reduce((min, o) => (!min || o.price < min.price ? o : min), null);
   const displayOption = singleOption || cheapestOption;
-  const onSale = displayOption?.compareAtPrice && displayOption.compareAtPrice > displayOption.price;
 
   const heroImage = selectedVariant?.image || showcase?.images?.[0];
   const showcaseImageTarget = selectedVariant?.image || showcase?.images?.[0];
@@ -236,8 +236,7 @@ export function Home() {
                   <div className="showcase-pricing">
                     <div className="showcase-pricing-row">
                       <div>
-                        <span className="showcase-price">₹{displayOption.price}</span>
-                        {onSale && <span className="showcase-compare-price">₹{displayOption.compareAtPrice}</span>}
+                        <PriceDisplay price={displayOption.price} compareAtPrice={displayOption.compareAtPrice} size="lg" />
                       </div>
                       <span className="text-label-sm showcase-pricing-note">Free Shipping</span>
                     </div>

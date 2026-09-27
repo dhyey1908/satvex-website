@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ImagePlaceholder } from './ImagePlaceholder';
+import { PriceDisplay } from './PriceDisplay';
 import './WishlistCard.css';
 
 export function WishlistCard({ item, onAddToCart, onRemove }) {
@@ -20,7 +21,9 @@ export function WishlistCard({ item, onAddToCart, onRemove }) {
         <Link to={`/product/${item.slug}`}>
           <h3>{item.name}</h3>
         </Link>
-        <p className="wishlist-card-price">₹{item.basePrice}</p>
+        <p className="wishlist-card-price">
+          <PriceDisplay price={item.basePrice} compareAtPrice={item.compareAtPrice} size="md" />
+        </p>
         {!item.isActive && <p className="wishlist-card-unavailable">No longer available</p>}
         <div className="wishlist-card-actions">
           {item.isActive && (

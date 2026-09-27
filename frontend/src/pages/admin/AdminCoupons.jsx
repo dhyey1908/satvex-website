@@ -6,9 +6,26 @@ import { useConfirm } from '../../context/ConfirmContext';
 import { Modal } from '../../components/Modal';
 import { Loader } from '../../components/Loader';
 import { EmptyState } from '../../components/EmptyState';
+import { couponCode as validateCouponCode, positiveNumber, runValidators, hasErrors } from '../../utils/validators';
+import { mapServerFieldErrors } from '../../utils/formErrors';
+import { Pagination } from '../../components/Pagination';
+import { usePagination } from '../../hooks/usePagination';
 import './Admin.css';
 
 const EMPTY_FORM = { code: '', discountType: 'percentage', discountValue: '', isActive: true, usageLimit: '' };
+const PAGE_SIZE = 20;
+
+function validate(values, { isEditing }) {
+  const errors = runValidators({
+    code: () => (isEditing ? '' : validateCouponCode(values.code)),
+    discountValue: () => positiveNumber(values.discountValue, 'Discount value'),
+    usageLimit: () => (values.usageLimit ? positiveNumber(values.usageLimit, 'Usage limit') : ''),
+  });
+  if (!errors.discountValue && values.discountType === 'percentage' && Number(values.discountValue) > 100) {
+    errors.discountValue = 'A percentage discount cannot be more than 100.';
+  }
+  return errors;
+}
 
 export function AdminCoupons() {
   const { showToast } = useToast();
@@ -17,6 +34,8 @@ export function AdminCoupons() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCode, setEditingCode] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [touched, setTouched] = useState({});
   const [saving, setSaving] = useState(false);
 
   function load() {
@@ -25,9 +44,14 @@ export function AdminCoupons() {
 
   useEffect(load, []);
 
+  const { page, setPage, totalPages, pageItems: pageCoupons, total: totalCoupons, rangeStart, rangeEnd } =
+    usePagination(coupons, PAGE_SIZE);
+
   function openNew() {
     setEditingCode(null);
     setForm(EMPTY_FORM);
+    setFieldErrors({});
+    setTouched({});
     setModalOpen(true);
   }
 
@@ -40,15 +64,27 @@ export function AdminCoupons() {
       isActive: coupon.isActive,
       usageLimit: coupon.usageLimit || '',
     });
+    setFieldErrors({});
+    setTouched({});
     setModalOpen(true);
   }
 
   function setField(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
+    if (fieldErrors[key]) setFieldErrors((prev) => ({ ...prev, [key]: '' }));
+  }
+
+  function markTouched(key) {
+    setTouched((prev) => ({ ...prev, [key]: true }));
   }
 
   async function handleSave(e) {
     e.preventDefault();
+    const errors = validate(form, { isEditing: Boolean(editingCode) });
+    setFieldErrors(errors);
+    setTouched({ code: true, discountValue: true, usageLimit: true });
+    if (hasErrors(errors)) return;
+
     setSaving(true);
     const payload = {
       discountType: form.discountType,
@@ -66,7 +102,9 @@ export function AdminCoupons() {
       load();
       showToast('Coupon saved', 'success');
     } catch (err) {
-      showToast(err.message, 'error');
+      const serverErrors = mapServerFieldErrors(err);
+      if (serverErrors) setFieldErrors((prev) => ({ ...prev, ...serverErrors }));
+      else showToast(err.message, 'error');
     } finally {
       setSaving(false);
     }
@@ -115,7 +153,7 @@ export function AdminCoupons() {
               </tr>
             </thead>
             <tbody>
-              {coupons.map((c) => (
+              {pageCoupons.map((c) => (
                 <tr key={c.code}>
                   <td>{c.code}</td>
                   <td>{c.discountType === 'percentage' ? `${c.discountValue}%` : `₹${c.discountValue}`}</td>
@@ -137,29 +175,46 @@ export function AdminCoupons() {
               ))}
             </tbody>
           </table>
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            total={totalCoupons}
+            rangeStart={rangeStart}
+            rangeEnd={rangeEnd}
+            itemLabel="coupons"
+          />
         </div>
       )}
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editingCode ? 'Edit Coupon' : 'Add Coupon'}>
-        <form onSubmit={handleSave}>
-          <div className="field">
+        <form onSubmit={handleSave} noValidate>
+          <div className={`field ${touched.code && fieldErrors.code ? 'invalid' : ''}`}>
             <label>Code</label>
             <input
               required
               disabled={Boolean(editingCode)}
               value={form.code}
               onChange={(e) => setField('code', e.target.value.toUpperCase())}
+              onBlur={() => markTouched('code')}
               placeholder="WELCOME10"
             />
+            {touched.code && fieldErrors.code && <p className="field-error">{fieldErrors.code}</p>}
           </div>
           <div className="field">
             <label>Discount Type</label>
-            <select value={form.discountType} onChange={(e) => setField('discountType', e.target.value)}>
+            <select
+              value={form.discountType}
+              onChange={(e) => {
+                setField('discountType', e.target.value);
+                if (fieldErrors.discountValue) setFieldErrors((prev) => ({ ...prev, discountValue: '' }));
+              }}
+            >
               <option value="percentage">Percentage</option>
               <option value="flat">Flat Amount</option>
             </select>
           </div>
-          <div className="field">
+          <div className={`field ${touched.discountValue && fieldErrors.discountValue ? 'invalid' : ''}`}>
             <label>Discount Value {form.discountType === 'percentage' ? '(%)' : '(₹)'}</label>
             <input
               type="number"
@@ -167,11 +222,22 @@ export function AdminCoupons() {
               min="0"
               value={form.discountValue}
               onChange={(e) => setField('discountValue', e.target.value)}
+              onBlur={() => markTouched('discountValue')}
             />
+            {touched.discountValue && fieldErrors.discountValue && (
+              <p className="field-error">{fieldErrors.discountValue}</p>
+            )}
           </div>
-          <div className="field">
+          <div className={`field ${touched.usageLimit && fieldErrors.usageLimit ? 'invalid' : ''}`}>
             <label>Usage Limit</label>
-            <input type="number" min="1" value={form.usageLimit} onChange={(e) => setField('usageLimit', e.target.value)} />
+            <input
+              type="number"
+              min="1"
+              value={form.usageLimit}
+              onChange={(e) => setField('usageLimit', e.target.value)}
+              onBlur={() => markTouched('usageLimit')}
+            />
+            {touched.usageLimit && fieldErrors.usageLimit && <p className="field-error">{fieldErrors.usageLimit}</p>}
           </div>
           <label className="checkbox-field">
             <input type="checkbox" checked={form.isActive} onChange={(e) => setField('isActive', e.target.checked)} />

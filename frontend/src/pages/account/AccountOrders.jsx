@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { orderService } from '../../services/orderService';
+import { reviewService } from '../../services/reviewService';
 import { useToast } from '../../context/ToastContext';
 import { useConfirm } from '../../context/ConfirmContext';
 import { OrderCard } from '../../components/OrderCard';
@@ -8,10 +9,13 @@ import { PageHeader } from '../../components/PageHeader';
 import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
 import { Skeleton } from '../../components/Loader';
+import { Pagination } from '../../components/Pagination';
+import { usePagination } from '../../hooks/usePagination';
 import { useDocumentMeta } from '../../hooks/useDocumentMeta';
 import './Account.css';
 
 const STATUSES = ['All', 'Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+const PAGE_SIZE = 10;
 
 export function AccountOrders() {
   useDocumentMeta({ title: 'My Orders', path: '/account/orders' });
@@ -22,6 +26,7 @@ export function AccountOrders() {
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('All');
+  const [reviewedProductIds, setReviewedProductIds] = useState(new Set());
 
   function load() {
     setError(null);
@@ -32,6 +37,12 @@ export function AccountOrders() {
   }
 
   useEffect(load, []);
+  useEffect(() => {
+    reviewService
+      .listMine()
+      .then((data) => setReviewedProductIds(new Set(data.reviews.map((r) => r.productId))))
+      .catch(() => {});
+  }, []);
 
   const visible = useMemo(() => {
     if (!orders) return null;
@@ -43,6 +54,9 @@ export function AccountOrders() {
     }
     return list;
   }, [orders, status, search]);
+
+  const { page, setPage, totalPages, pageItems, total: totalVisible, rangeStart, rangeEnd } =
+    usePagination(visible, PAGE_SIZE);
 
   async function handleCancel(orderId) {
     const ok = await confirm({
@@ -125,15 +139,28 @@ export function AccountOrders() {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {visible?.map((order) => (
+        {pageItems.map((order) => (
           <OrderCard
             key={order.orderId}
             order={order}
             onCancel={() => handleCancel(order.orderId)}
             onReorder={() => handleReorder(order.orderId)}
+            reviewedProductIds={reviewedProductIds}
           />
         ))}
       </div>
+
+      {visible && visible.length > 0 && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          total={totalVisible}
+          rangeStart={rangeStart}
+          rangeEnd={rangeEnd}
+          itemLabel="orders"
+        />
+      )}
     </div>
   );
 }

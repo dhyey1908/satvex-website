@@ -1,8 +1,8 @@
 const { PutCommand, GetCommand, QueryCommand, ScanCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
-const { v4: uuid } = require('uuid');
 const { docClient } = require('../config/dynamo');
 const env = require('../config/env');
 const productService = require('./productService');
+const AppError = require('../utils/AppError');
 
 const TABLE = env.tables.reviews;
 const PRODUCT_INDEX = 'productId-createdAt-index';
@@ -12,7 +12,7 @@ async function findById(reviewId) {
   return result.Item || null;
 }
 
-async function listForProduct(productId, { onlyApproved = true } = {}) {
+async function listForProduct(productId) {
   const result = await docClient.send(
     new QueryCommand({
       TableName: TABLE,
@@ -22,63 +22,94 @@ async function listForProduct(productId, { onlyApproved = true } = {}) {
       ScanIndexForward: false,
     })
   );
-  const items = result.Items || [];
-  return onlyApproved ? items.filter((r) => r.status === 'approved') : items;
+  return result.Items || [];
+}
+
+async function findForUser(productId, userId) {
+  return findById(`${productId}__${userId}`);
 }
 
 async function hasReviewed(productId, userId) {
-  const reviews = await listForProduct(productId, { onlyApproved: false });
-  return reviews.some((r) => r.userId === userId);
+  const existing = await findForUser(productId, userId);
+  return Boolean(existing);
 }
 
 // Review volume is expected to stay small for this store; Scan keeps the
-// admin moderation list simple, matching the Coupons/Orders admin pattern.
-async function listAllForAdmin({ status } = {}) {
+// admin review list simple, matching the Coupons/Orders admin pattern.
+async function listAllForAdmin() {
   const result = await docClient.send(new ScanCommand({ TableName: TABLE }));
-  let items = result.Items || [];
-  if (status) items = items.filter((r) => r.status === status);
+  const items = result.Items || [];
   return items.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
+async function listForUserAcrossProducts(userId) {
+  // No GSI on userId (reviews are looked up per-product elsewhere); at this
+  // store's review volume a Scan is consistent with the admin list pattern.
+  const result = await docClient.send(new ScanCommand({ TableName: TABLE }));
+  return (result.Items || []).filter((r) => r.userId === userId);
+}
+
 async function recomputeProductAggregate(productId) {
-  const approved = await listForProduct(productId, { onlyApproved: true });
-  const reviewCount = approved.length;
-  const rating = reviewCount > 0 ? approved.reduce((sum, r) => sum + r.rating, 0) / reviewCount : 0;
+  const reviews = await listForProduct(productId);
+  const reviewCount = reviews.length;
+  const rating = reviewCount > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount : 0;
   await productService.updateRatingAggregate(productId, { rating, reviewCount });
 }
 
 async function create({ productId, userId, userName, rating, title, comment }) {
   const now = new Date().toISOString();
   const review = {
-    reviewId: uuid(),
+    // Deterministic key (rather than a random uuid) so the ConditionExpression
+    // below gives us a real DB-level unique constraint on (productId, userId) —
+    // not just an app-level check — closing the race window a plain
+    // "query then put" duplicate check would leave open.
+    reviewId: `${productId}__${userId}`,
     productId,
     userId,
     userName,
     rating,
     title: title || '',
     comment,
-    status: 'pending',
     createdAt: now,
     updatedAt: now,
   };
-  await docClient.send(new PutCommand({ TableName: TABLE, Item: review }));
+  try {
+    await docClient.send(
+      new PutCommand({
+        TableName: TABLE,
+        Item: review,
+        ConditionExpression: 'attribute_not_exists(reviewId)',
+      })
+    );
+  } catch (err) {
+    if (err.name === 'ConditionalCheckFailedException') {
+      throw new AppError('You have already reviewed this product.', 409, 'ALREADY_REVIEWED');
+    }
+    throw err;
+  }
+  await recomputeProductAggregate(productId);
   return review;
 }
 
-async function setStatus(reviewId, status) {
+async function update(reviewId, { rating, title, comment }) {
   const existing = await findById(reviewId);
   if (!existing) return null;
+  const now = new Date().toISOString();
   await docClient.send(
     new UpdateCommand({
       TableName: TABLE,
       Key: { reviewId },
-      UpdateExpression: 'SET #status = :status, updatedAt = :now',
-      ExpressionAttributeNames: { '#status': 'status' },
-      ExpressionAttributeValues: { ':status': status, ':now': new Date().toISOString() },
+      UpdateExpression: 'SET rating = :rating, title = :title, comment = :comment, updatedAt = :now',
+      ExpressionAttributeValues: {
+        ':rating': rating,
+        ':title': title || '',
+        ':comment': comment,
+        ':now': now,
+      },
     })
   );
   await recomputeProductAggregate(existing.productId);
-  return { ...existing, status };
+  return { ...existing, rating, title: title || '', comment, updatedAt: now };
 }
 
 async function remove(reviewId) {
@@ -91,9 +122,12 @@ async function remove(reviewId) {
 module.exports = {
   findById,
   listForProduct,
+  findForUser,
   hasReviewed,
   listAllForAdmin,
+  listForUserAcrossProducts,
+  recomputeProductAggregate,
   create,
-  setStatus,
+  update,
   remove,
 };

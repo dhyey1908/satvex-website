@@ -4,10 +4,23 @@ import { useToast } from '../../context/ToastContext';
 import { useSettings } from '../../context/SettingsContext';
 import { ImageUploader } from '../../components/ImageUploader';
 import { Loader } from '../../components/Loader';
+import { email as validateEmail, url as validateUrl, maxLength, runValidators, hasErrors } from '../../utils/validators';
+import { mapServerFieldErrors } from '../../utils/formErrors';
 import './Admin.css';
+
+function validate(values) {
+  return runValidators({
+    brandName: () => maxLength(values.brandName, 60, 'Brand name'),
+    contactPhone: () => maxLength(values.contactPhone, 20, 'Contact phone'),
+    contactEmail: () => validateEmail(values.contactEmail, { optional: true }),
+    instagramUrl: () => validateUrl(values.instagramUrl, { optional: true }),
+  });
+}
 
 export function AdminSettings() {
   const [form, setForm] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [touched, setTouched] = useState({});
   const [saving, setSaving] = useState(false);
   const { showToast } = useToast();
   const { refresh: refreshSettings } = useSettings();
@@ -18,6 +31,11 @@ export function AdminSettings() {
 
   function setField(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
+    if (fieldErrors[key]) setFieldErrors((prev) => ({ ...prev, [key]: '' }));
+  }
+
+  function markTouched(key) {
+    setTouched((prev) => ({ ...prev, [key]: true }));
   }
 
   function setPillarField(index, key, value) {
@@ -29,6 +47,11 @@ export function AdminSettings() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    const errors = validate(form);
+    setFieldErrors(errors);
+    setTouched({ brandName: true, contactPhone: true, contactEmail: true, instagramUrl: true });
+    if (hasErrors(errors)) return;
+
     setSaving(true);
     try {
       const { settings } = await adminService.updateSettings(form);
@@ -36,7 +59,9 @@ export function AdminSettings() {
       await refreshSettings();
       showToast('Settings saved', 'success');
     } catch (err) {
-      showToast(err.message, 'error');
+      const serverErrors = mapServerFieldErrors(err);
+      if (serverErrors) setFieldErrors((prev) => ({ ...prev, ...serverErrors }));
+      else showToast(err.message, 'error');
     } finally {
       setSaving(false);
     }
@@ -49,7 +74,7 @@ export function AdminSettings() {
       <div className="admin-page-header">
         <h1>Settings</h1>
       </div>
-      <form className="admin-form admin-form-wide" onSubmit={handleSubmit}>
+      <form className="admin-form admin-form-wide" onSubmit={handleSubmit} noValidate>
         <div className="admin-form-section">
           <h3>Brand</h3>
           <div className="admin-form-grid">
@@ -65,9 +90,15 @@ export function AdminSettings() {
                 Shown in the site header and footer. Upload a transparent PNG for best results.
               </p>
             </div>
-            <div className="field">
+            <div className={`field ${touched.brandName && fieldErrors.brandName ? 'invalid' : ''}`}>
               <label htmlFor="brandName">Brand Name</label>
-              <input id="brandName" value={form.brandName} onChange={(e) => setField('brandName', e.target.value)} />
+              <input
+                id="brandName"
+                value={form.brandName}
+                onChange={(e) => setField('brandName', e.target.value)}
+                onBlur={() => markTouched('brandName')}
+              />
+              {touched.brandName && fieldErrors.brandName && <p className="field-error">{fieldErrors.brandName}</p>}
             </div>
           </div>
         </div>
@@ -128,22 +159,36 @@ export function AdminSettings() {
         <div className="admin-form-section">
           <h3>Contact Info</h3>
           <div className="admin-form-grid">
-            <div className="field">
+            <div className={`field ${touched.contactPhone && fieldErrors.contactPhone ? 'invalid' : ''}`}>
               <label htmlFor="contactPhone">Contact Phone</label>
-              <input id="contactPhone" value={form.contactPhone} onChange={(e) => setField('contactPhone', e.target.value)} />
+              <input
+                id="contactPhone"
+                value={form.contactPhone}
+                onChange={(e) => setField('contactPhone', e.target.value)}
+                onBlur={() => markTouched('contactPhone')}
+              />
+              {touched.contactPhone && fieldErrors.contactPhone && <p className="field-error">{fieldErrors.contactPhone}</p>}
             </div>
-            <div className="field">
+            <div className={`field ${touched.contactEmail && fieldErrors.contactEmail ? 'invalid' : ''}`}>
               <label htmlFor="contactEmail">Contact Email</label>
               <input
                 id="contactEmail"
                 type="email"
                 value={form.contactEmail}
                 onChange={(e) => setField('contactEmail', e.target.value)}
+                onBlur={() => markTouched('contactEmail')}
               />
+              {touched.contactEmail && fieldErrors.contactEmail && <p className="field-error">{fieldErrors.contactEmail}</p>}
             </div>
-            <div className="field">
+            <div className={`field ${touched.instagramUrl && fieldErrors.instagramUrl ? 'invalid' : ''}`}>
               <label htmlFor="instagramUrl">Instagram URL</label>
-              <input id="instagramUrl" value={form.instagramUrl} onChange={(e) => setField('instagramUrl', e.target.value)} />
+              <input
+                id="instagramUrl"
+                value={form.instagramUrl}
+                onChange={(e) => setField('instagramUrl', e.target.value)}
+                onBlur={() => markTouched('instagramUrl')}
+              />
+              {touched.instagramUrl && fieldErrors.instagramUrl && <p className="field-error">{fieldErrors.instagramUrl}</p>}
             </div>
           </div>
         </div>

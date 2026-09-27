@@ -26,6 +26,16 @@
 .order-card-item img { width: 48px; height: 48px; object-fit: contain; background: var(--color-surface-muted); border-radius: var(--radius-sm); }
 .order-card-item-name { margin: 0; font-weight: 600; font-size: 0.9rem; }
 .order-card-item-meta { margin: 0; font-size: 0.8rem; color: var(--color-text-muted); }
+.order-card-review-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+.order-card-review-link:hover { text-decoration: underline; }
 .order-card-more { font-size: 0.8rem; color: var(--color-text-muted); margin: 0; }
 
 .order-card-bottom {

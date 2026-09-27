@@ -42,7 +42,7 @@ const productSchema = z.object({
   // Empty until real photos are uploaded via the admin panel.
   images: z.array(z.string().trim().min(1)).default([]),
   videoUrl: z.string().trim().url().optional().or(z.literal('')),
-  // Computed from approved reviews (see reviewService.recomputeProductAggregate) —
+  // Computed from published reviews (see reviewService.recomputeProductAggregate) —
   // not admin-editable. Starts at 0 until the product has real reviews.
   rating: z.number().min(0).max(5).default(0),
   reviewCount: z.number().int().min(0).default(0),

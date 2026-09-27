@@ -1,11 +1,23 @@
-.price-display {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 10px;
-}
+/* Order follows plain DOM order (badge → selling price → crossed MRP), which
+   is also the order PriceDisplay.jsx renders them in — the selling price
+   must read as the strongest, most immediate value, with MRP trailing as a
+   smaller reference, not the other way around. */
+.price-display { display: inline-flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .price-current { font-weight: 700; color: var(--color-text); }
 .price-compare { color: var(--color-text-muted); text-decoration: line-through; font-weight: 500; }
+.price-discount-badge {
+  align-self: center;
+  font-weight: 700;
+  color: var(--color-success);
+  background: var(--color-success-bg);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+}
 .price-md .price-current { font-size: 1.05rem; }
 .price-md .price-compare { font-size: 0.9rem; }
-.price-lg .price-current { font-size: 1.6rem; }
-.price-lg .price-compare { font-size: 1.05rem; }
+.price-md .price-discount-badge { font-size: 0.75rem; }
+.price-lg .price-current { font-size: 1.9rem; }
+.price-lg .price-compare { font-size: 1.1rem; }
+.price-lg .price-discount-badge { font-size: 0.85rem; padding: 3px 9px; }

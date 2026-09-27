@@ -1,6 +1,6 @@
 /* HERO */
 .hero {
-  padding: var(--sp-md) 0 var(--sp-xl);
+  padding: var(--sp-md) 0 var(--space-6);
 }
 
 .hero-inner {
@@ -8,11 +8,10 @@
   grid-template-columns: 1fr 1fr;
   gap: var(--space-7);
   align-items: center;
-  min-height: 420px;
-  padding-bottom: var(--space-4);
+  min-height: 0;
 }
 
-.hero-heading { margin: var(--sp-sm) 0; }
+.hero-heading { margin: var(--space-2) 0; }
 .hero-heading em { font-style: italic; font-weight: 400; }
 
 .hero-lede { max-width: 34rem; color: var(--color-text-muted); margin-bottom: 0; }
@@ -35,7 +34,6 @@
   align-items: center;
   gap: 6px 16px;
   margin-top: var(--sp-md);
-  padding-top: var(--sp-sm);
   color: var(--color-text-muted);
   font-size: 0.7rem;
   font-weight: 600;
@@ -201,9 +199,7 @@
   border-radius: var(--radius-md);
   padding: var(--sp-md);
 }
-.showcase-pricing-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-sm); }
-.showcase-price { font-family: var(--font-display); font-size: 1.4rem; font-weight: 600; }
-.showcase-compare-price { font-size: 0.85rem; color: var(--color-text-muted); text-decoration: line-through; margin-left: 8px; }
+.showcase-pricing-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-sm); flex-wrap: wrap; }
 .showcase-pricing-note { color: var(--color-text-muted); }
 .showcase-option-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: var(--sp-sm); }
 .showcase-option-pill {

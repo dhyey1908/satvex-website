@@ -5,15 +5,17 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { AuthLayout } from '../components/AuthLayout';
 import { PasswordStrength } from '../components/PasswordStrength';
+import { minLength, email as validateEmail, phone as validatePhone, password as validatePassword, runValidators, hasErrors } from '../utils/validators';
+import { mapServerFieldErrors } from '../utils/formErrors';
 import './Auth.css';
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function validateField(key, value) {
-  if (key === 'name') return value.trim().length >= 2 ? '' : 'Enter your full name.';
-  if (key === 'email') return EMAIL_RE.test(value.trim()) ? '' : 'Enter a valid email address.';
-  if (key === 'password') return value.length >= 8 ? '' : 'Password must be at least 8 characters.';
-  return '';
+function validate(values) {
+  return runValidators({
+    name: () => minLength(values.name, 2, 'Full name'),
+    email: () => validateEmail(values.email),
+    phone: () => validatePhone(values.phone, { optional: true }),
+    password: () => validatePassword(values.password),
+  });
 }
 
 export function Signup() {
@@ -21,18 +23,14 @@ export function Signup() {
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
+  const [fieldErrors, setFieldErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const fieldErrors = {
-    name: validateField('name', form.name),
-    email: validateField('email', form.email),
-    password: validateField('password', form.password),
-  };
-
   function setField(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
+    if (fieldErrors[key]) setFieldErrors((prev) => ({ ...prev, [key]: '' }));
   }
 
   function markTouched(key) {
@@ -42,8 +40,10 @@ export function Signup() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
-    setTouched({ name: true, email: true, password: true });
-    if (Object.values(fieldErrors).some(Boolean)) return;
+    const errors = validate(form);
+    setFieldErrors(errors);
+    setTouched({ name: true, email: true, phone: true, password: true });
+    if (hasErrors(errors)) return;
 
     setSubmitting(true);
     try {
@@ -51,7 +51,9 @@ export function Signup() {
       showToast('Account created — welcome to Satvex!', 'success');
       navigate('/', { replace: true });
     } catch (err) {
-      setError(err.message);
+      const serverErrors = mapServerFieldErrors(err);
+      if (serverErrors) setFieldErrors((prev) => ({ ...prev, ...serverErrors }));
+      else setError(err.message);
     } finally {
       setSubmitting(false);
     }
@@ -92,9 +94,15 @@ export function Signup() {
             />
             {touched.email && fieldErrors.email && <p className="field-error">{fieldErrors.email}</p>}
           </div>
-          <div className="field">
+          <div className={`field ${touched.phone && fieldErrors.phone ? 'invalid' : ''}`}>
             <label htmlFor="phone">Phone</label>
-            <input id="phone" value={form.phone} onChange={(e) => setField('phone', e.target.value)} />
+            <input
+              id="phone"
+              value={form.phone}
+              onChange={(e) => setField('phone', e.target.value)}
+              onBlur={() => markTouched('phone')}
+            />
+            {touched.phone && fieldErrors.phone && <p className="field-error">{fieldErrors.phone}</p>}
           </div>
           <div className={`field ${touched.password && fieldErrors.password ? 'invalid' : ''}`}>
             <label htmlFor="password">Password</label>

@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Download, Search as SearchIcon, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Download, Search as SearchIcon, Eye } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { useToast } from '../../context/ToastContext';
 import { Loader } from '../../components/Loader';
 import { ErrorState } from '../../components/ErrorState';
 import { EmptyState } from '../../components/EmptyState';
+import { Pagination } from '../../components/Pagination';
+import { usePagination } from '../../hooks/usePagination';
 import './Admin.css';
 
 const STATUSES = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
@@ -32,7 +34,6 @@ export function AdminOrders() {
   const [error, setError] = useState(null);
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
   const [selected, setSelected] = useState([]);
   const [bulkStatus, setBulkStatus] = useState('');
   const [bulkUpdating, setBulkUpdating] = useState(false);
@@ -56,12 +57,15 @@ export function AdminOrders() {
     load();
   }
 
-  const totalPages = orders ? Math.max(1, Math.ceil(orders.length / PAGE_SIZE)) : 1;
-  const pageOrders = useMemo(() => {
-    if (!orders) return [];
-    const start = (page - 1) * PAGE_SIZE;
-    return orders.slice(start, start + PAGE_SIZE);
-  }, [orders, page]);
+  const {
+    page,
+    setPage,
+    totalPages,
+    pageItems: pageOrders,
+    total: totalOrders,
+    rangeStart,
+    rangeEnd,
+  } = usePagination(orders, PAGE_SIZE);
 
   function toggleSelect(orderId) {
     setSelected((prev) => (prev.includes(orderId) ? prev.filter((id) => id !== orderId) : [...prev, orderId]));
@@ -207,29 +211,15 @@ export function AdminOrders() {
             </table>
           </div>
 
-          {totalPages > 1 && (
-            <div className="admin-pagination">
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                disabled={page === 1}
-                onClick={() => setPage((p) => p - 1)}
-              >
-                <ChevronLeft size={14} /> Previous
-              </button>
-              <span className="text-label-sm">
-                Page {page} of {totalPages}
-              </span>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                disabled={page === totalPages}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next <ChevronRight size={14} />
-              </button>
-            </div>
-          )}
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            total={totalOrders}
+            rangeStart={rangeStart}
+            rangeEnd={rangeEnd}
+            itemLabel="orders"
+          />
         </>
       )}
     </div>

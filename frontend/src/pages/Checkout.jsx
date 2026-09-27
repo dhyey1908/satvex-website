@@ -12,7 +12,20 @@ import { AddressCard } from '../components/AddressCard';
 import { PageHeader } from '../components/PageHeader';
 import { Truck, Loader2, Plus } from 'lucide-react';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
+import { required, minLength, email as validateEmail, phone as validatePhone, pincode as validatePincode, runValidators, hasErrors } from '../utils/validators';
+import { mapServerFieldErrors } from '../utils/formErrors';
 import './Checkout.css';
+
+const CHECKOUT_SERVER_FIELD_MAP = {
+  'customer.name': 'name',
+  'customer.phone': 'phone',
+  'customer.email': 'email',
+  'address.line1': 'line1',
+  'address.city': 'city',
+  'address.state': 'state',
+  'address.pincode': 'pincode',
+  'address.country': 'country',
+};
 
 const EMPTY_FORM = {
   name: '',
@@ -33,6 +46,8 @@ export function Checkout() {
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [form, setForm] = useState(EMPTY_FORM);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [touched, setTouched] = useState({});
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -60,6 +75,27 @@ export function Checkout() {
 
   function setField(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
+    if (fieldErrors[key]) setFieldErrors((prev) => ({ ...prev, [key]: '' }));
+  }
+
+  function markTouched(key) {
+    setTouched((prev) => ({ ...prev, [key]: true }));
+  }
+
+  function validate(values, { addressRequired }) {
+    if (!addressRequired) {
+      return runValidators({ email: () => validateEmail(values.email) });
+    }
+    return runValidators({
+      name: () => minLength(values.name, 2, 'Full name'),
+      phone: () => validatePhone(values.phone, { optional: false }),
+      email: () => validateEmail(values.email),
+      line1: () => minLength(values.line1, 3, 'Address'),
+      city: () => minLength(values.city, 2, 'City'),
+      state: () => minLength(values.state, 2, 'State'),
+      pincode: () => validatePincode(values.pincode),
+      country: () => required(values.country, 'Country'),
+    });
   }
 
   useEffect(() => {
@@ -116,6 +152,15 @@ export function Checkout() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
+    const errors = validate(form, { addressRequired: showNewAddressForm });
+    setFieldErrors(errors);
+    setTouched(
+      showNewAddressForm
+        ? { name: true, phone: true, email: true, line1: true, city: true, state: true, pincode: true, country: true }
+        : { email: true }
+    );
+    if (hasErrors(errors)) return;
+
     setSubmitting(true);
     try {
       const { order } = await orderService.checkout({
@@ -157,7 +202,15 @@ export function Checkout() {
       showToast('Order placed!', 'success');
       navigate(`/order-confirmation/${order.orderId}`);
     } catch (err) {
-      setError(err.message);
+      const serverErrors = mapServerFieldErrors(err, CHECKOUT_SERVER_FIELD_MAP);
+      if (serverErrors) {
+        setFieldErrors((prev) => ({ ...prev, ...serverErrors }));
+        if (!showNewAddressForm && Object.keys(serverErrors).some((k) => k !== 'email')) {
+          setShowNewAddressForm(true);
+        }
+      } else {
+        setError(err.message);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -211,16 +264,30 @@ export function Checkout() {
           {showNewAddressForm && (
             <div className="checkout-section card">
               <h3 className="checkout-section-title">Contact &amp; Shipping</h3>
-              <div className="field">
+              <div className={`field ${touched.name && fieldErrors.name ? 'invalid' : ''}`}>
                 <label htmlFor="name">Full Name</label>
-                <input id="name" required value={form.name} onChange={(e) => setField('name', e.target.value)} />
+                <input
+                  id="name"
+                  required
+                  value={form.name}
+                  onChange={(e) => setField('name', e.target.value)}
+                  onBlur={() => markTouched('name')}
+                />
+                {touched.name && fieldErrors.name && <p className="field-error">{fieldErrors.name}</p>}
               </div>
               <div className="field-row">
-                <div className="field">
+                <div className={`field ${touched.phone && fieldErrors.phone ? 'invalid' : ''}`}>
                   <label htmlFor="phone">Phone</label>
-                  <input id="phone" required value={form.phone} onChange={(e) => setField('phone', e.target.value)} />
+                  <input
+                    id="phone"
+                    required
+                    value={form.phone}
+                    onChange={(e) => setField('phone', e.target.value)}
+                    onBlur={() => markTouched('phone')}
+                  />
+                  {touched.phone && fieldErrors.phone && <p className="field-error">{fieldErrors.phone}</p>}
                 </div>
-                <div className="field">
+                <div className={`field ${touched.email && fieldErrors.email ? 'invalid' : ''}`}>
                   <label htmlFor="email">Email</label>
                   <input
                     id="email"
@@ -228,25 +295,48 @@ export function Checkout() {
                     required
                     value={form.email}
                     onChange={(e) => setField('email', e.target.value)}
+                    onBlur={() => markTouched('email')}
                   />
+                  {touched.email && fieldErrors.email && <p className="field-error">{fieldErrors.email}</p>}
                 </div>
               </div>
-              <div className="field">
+              <div className={`field ${touched.line1 && fieldErrors.line1 ? 'invalid' : ''}`}>
                 <label htmlFor="line1">Address</label>
-                <input id="line1" required value={form.line1} onChange={(e) => setField('line1', e.target.value)} />
+                <input
+                  id="line1"
+                  required
+                  value={form.line1}
+                  onChange={(e) => setField('line1', e.target.value)}
+                  onBlur={() => markTouched('line1')}
+                />
+                {touched.line1 && fieldErrors.line1 && <p className="field-error">{fieldErrors.line1}</p>}
               </div>
               <div className="field-row">
-                <div className="field">
+                <div className={`field ${touched.city && fieldErrors.city ? 'invalid' : ''}`}>
                   <label htmlFor="city">City</label>
-                  <input id="city" required value={form.city} onChange={(e) => setField('city', e.target.value)} />
+                  <input
+                    id="city"
+                    required
+                    value={form.city}
+                    onChange={(e) => setField('city', e.target.value)}
+                    onBlur={() => markTouched('city')}
+                  />
+                  {touched.city && fieldErrors.city && <p className="field-error">{fieldErrors.city}</p>}
                 </div>
-                <div className="field">
+                <div className={`field ${touched.state && fieldErrors.state ? 'invalid' : ''}`}>
                   <label htmlFor="state">State</label>
-                  <input id="state" required value={form.state} onChange={(e) => setField('state', e.target.value)} />
+                  <input
+                    id="state"
+                    required
+                    value={form.state}
+                    onChange={(e) => setField('state', e.target.value)}
+                    onBlur={() => markTouched('state')}
+                  />
+                  {touched.state && fieldErrors.state && <p className="field-error">{fieldErrors.state}</p>}
                 </div>
               </div>
               <div className="field-row">
-                <div className="field">
+                <div className={`field ${touched.pincode && fieldErrors.pincode ? 'invalid' : ''}`}>
                   <label htmlFor="pincode">Pincode</label>
                   <input
                     id="pincode"
@@ -255,15 +345,24 @@ export function Checkout() {
                     maxLength={6}
                     value={form.pincode}
                     onChange={(e) => setField('pincode', e.target.value.replace(/\D/g, ''))}
+                    onBlur={() => markTouched('pincode')}
                   />
                   {pincodeLookupState === 'loading' && <p className="field-hint">Looking up city/state…</p>}
                   {pincodeLookupState === 'not-found' && (
                     <p className="field-hint">Couldn&apos;t auto-fill — enter city/state manually.</p>
                   )}
+                  {touched.pincode && fieldErrors.pincode && <p className="field-error">{fieldErrors.pincode}</p>}
                 </div>
-                <div className="field">
+                <div className={`field ${touched.country && fieldErrors.country ? 'invalid' : ''}`}>
                   <label htmlFor="country">Country</label>
-                  <input id="country" required value={form.country} onChange={(e) => setField('country', e.target.value)} />
+                  <input
+                    id="country"
+                    required
+                    value={form.country}
+                    onChange={(e) => setField('country', e.target.value)}
+                    onBlur={() => markTouched('country')}
+                  />
+                  {touched.country && fieldErrors.country && <p className="field-error">{fieldErrors.country}</p>}
                 </div>
               </div>
               <label className="checkbox-field">
@@ -276,7 +375,7 @@ export function Checkout() {
           {!showNewAddressForm && (
             <div className="checkout-section card">
               <h3 className="checkout-section-title">Client Information</h3>
-              <div className="field" style={{ marginBottom: 0 }}>
+              <div className={`field ${touched.email && fieldErrors.email ? 'invalid' : ''}`} style={{ marginBottom: 0 }}>
                 <label htmlFor="email-existing">Email (for order confirmation)</label>
                 <input
                   id="email-existing"
@@ -284,7 +383,9 @@ export function Checkout() {
                   required
                   value={form.email}
                   onChange={(e) => setField('email', e.target.value)}
+                  onBlur={() => markTouched('email')}
                 />
+                {touched.email && fieldErrors.email && <p className="field-error">{fieldErrors.email}</p>}
               </div>
             </div>
           )}

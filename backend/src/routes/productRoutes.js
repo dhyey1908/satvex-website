@@ -16,6 +16,8 @@ router.put('/:id', requireAuth, requireAdmin, asyncHandler(productController.upd
 router.delete('/:id', requireAuth, requireAdmin, asyncHandler(productController.remove));
 
 router.get('/:id/reviews', asyncHandler(reviewController.listForProduct));
+router.get('/:id/reviews/mine', requireAuth, asyncHandler(reviewController.getMine));
 router.post('/:id/reviews', requireAuth, asyncHandler(reviewController.create));
+router.put('/:id/reviews/mine', requireAuth, asyncHandler(reviewController.update));
 
 module.exports = router;

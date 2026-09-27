@@ -46,3 +46,15 @@
 }
 .review-star-input button.active,
 .review-star-input button:hover { color: var(--color-accent-gold); }
+
+.product-review-form-actions { display: flex; align-items: center; gap: var(--space-3); }
+
+.product-review-mine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}

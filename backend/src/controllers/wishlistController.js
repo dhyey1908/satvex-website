@@ -13,12 +13,18 @@ async function getWishlist(req, res) {
       if (!product) {
         return { productId: entry.productId, addedAt: entry.addedAt, available: false };
       }
+      // Same "cheapest active selling option" reference used by ProductCard,
+      // so the wishlist can show the same discount badge/strike-through —
+      // display only, `basePrice` itself is unchanged.
+      const activeOptions = (product.sellingOptions || []).filter((o) => o.isActive);
+      const cheapestOption = activeOptions.reduce((min, o) => (!min || o.price < min.price ? o : min), null);
       return {
         productId: product.productId,
         name: product.name,
         slug: product.slug,
         image: product.images?.[0] || null,
         basePrice: product.basePrice,
+        compareAtPrice: cheapestOption?.compareAtPrice ?? null,
         isActive: product.isActive,
         addedAt: entry.addedAt,
         available: true,

@@ -7,6 +7,7 @@ import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../context/ToastContext';
 import { ImagePlaceholder } from './ImagePlaceholder';
+import { PriceDisplay } from './PriceDisplay';
 import './ProductCard.css';
 
 export function ProductCard({ product }) {
@@ -28,7 +29,11 @@ export function ProductCard({ product }) {
   const singleOption = activeOptions.find((o) => o.quantity === 1);
   const startingPrice = startingOption?.price ?? product.basePrice;
   const compareAtPrice = startingOption?.compareAtPrice;
-  const onSale = compareAtPrice && compareAtPrice > startingPrice;
+  // "From" only makes sense when the options genuinely span more than one
+  // price point (e.g. Single vs Combo of 2) — a single-priced product just
+  // shows its price plainly.
+  const distinctPrices = new Set(activeOptions.map((o) => o.price));
+  const showFrom = distinctPrices.size > 1;
 
   const activeVariants = (product.variants || []).filter((v) => v.isActive);
   const outOfStock = !product.isActive || activeOptions.length === 0 || activeVariants.length === 0;
@@ -91,7 +96,6 @@ export function ProductCard({ product }) {
 
         <div className="product-card-badges">
           {outOfStock && <span className="badge-pill badge-outofstock">Out of Stock</span>}
-          {!outOfStock && onSale && <span className="badge-pill badge-sale">Sale</span>}
         </div>
 
         <motion.button
@@ -106,12 +110,6 @@ export function ProductCard({ product }) {
           <Heart size={18} fill={inWishlist ? 'currentColor' : 'none'} />
         </motion.button>
 
-        {canQuickAdd && (
-          <button type="button" className="product-card-quick-add" onClick={quickAdd}>
-            <ShoppingBag size={16} />
-            <span>Add to Bag</span>
-          </button>
-        )}
       </div>
       <div className="product-card-body">
         <div className="product-card-rating">
@@ -128,20 +126,28 @@ export function ProductCard({ product }) {
         <h3>{product.name}</h3>
         <p className="product-card-desc">{product.shortDescription}</p>
 
-        <div className="product-card-price-row">
-          <span className="product-card-price">From ₹{startingPrice}</span>
-          {onSale && <span className="product-card-compare-price">₹{compareAtPrice}</span>}
-          {activeVariants.length > 0 && (
-            <span className="product-card-swatches">
-              {activeVariants.slice(0, 4).map((v) => (
-                <span key={v.id} className="product-card-swatch-dot" style={{ background: v.colorCode }} />
-              ))}
-              {activeVariants.length > 4 && (
-                <span className="product-card-swatch-more">+{activeVariants.length - 4}</span>
-              )}
-            </span>
-          )}
+        <div className="product-card-price">
+          {showFrom && <span className="product-card-from">From</span>}
+          <PriceDisplay price={startingPrice} compareAtPrice={compareAtPrice} size="md" />
         </div>
+
+        {activeVariants.length > 0 && (
+          <div className="product-card-swatches">
+            {activeVariants.slice(0, 5).map((v) => (
+              <span key={v.id} className="product-card-swatch-dot" style={{ background: v.colorCode }} />
+            ))}
+            {activeVariants.length > 5 && (
+              <span className="product-card-swatch-more">+{activeVariants.length - 5}</span>
+            )}
+          </div>
+        )}
+
+        {canQuickAdd && (
+          <button type="button" className="product-card-add-btn" onClick={quickAdd}>
+            <ShoppingBag size={15} />
+            <span>Add to Bag</span>
+          </button>
+        )}
       </div>
     </Link>
   );

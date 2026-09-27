@@ -6,8 +6,12 @@ import { productService } from '../services/productService';
 import { ProductGrid } from '../components/ProductGrid';
 import { PageHeader } from '../components/PageHeader';
 import { ErrorState } from '../components/ErrorState';
+import { Pagination } from '../components/Pagination';
+import { usePagination } from '../hooks/usePagination';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import './Shop.css';
+
+const PAGE_SIZE = 12;
 
 const SORT_OPTIONS = [
   { value: 'featured', label: 'Featured' },
@@ -103,6 +107,9 @@ export function Shop() {
 
     return sorted;
   }, [products, search, sort, inStockOnly, selectedColors]);
+
+  const { page, setPage, totalPages, pageItems, total: totalVisible, rangeStart, rangeEnd } =
+    usePagination(visible, PAGE_SIZE);
 
   function toggleColor(colorName) {
     setSelectedColors((prev) =>
@@ -209,10 +216,21 @@ export function Shop() {
         {error && <ErrorState message={error} onRetry={load} />}
         {!error && (
           <ProductGrid
-            products={visible}
+            products={pageItems}
             loading={!products}
             emptyTitle="No products found"
             emptyMessage="Try a different search term or filter."
+          />
+        )}
+        {!error && products && (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            total={totalVisible}
+            rangeStart={rangeStart}
+            rangeEnd={rangeEnd}
+            itemLabel="products"
           />
         )}
       </div>

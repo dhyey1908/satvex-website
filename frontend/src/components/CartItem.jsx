@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Minus, Plus, Trash2, Bookmark, ShoppingBag } from 'lucide-react';
 import { listItem } from '../motion';
+import { PriceDisplay } from './PriceDisplay';
 import './CartItem.css';
 
 export function CartItem({ item, onQuantityChange, onRemove, onSaveForLater, onMoveToCart }) {
@@ -22,6 +23,11 @@ export function CartItem({ item, onQuantityChange, onRemove, onSaveForLater, onM
           <h4>{item.productName}</h4>
         </Link>
         <p className="cart-item-option">{item.sellingOptionName}</p>
+        {item.compareAtPrice > item.unitPrice && (
+          <div className="cart-item-unit-price">
+            <PriceDisplay price={item.unitPrice} compareAtPrice={item.compareAtPrice} size="md" /> each
+          </div>
+        )}
         {item.selectedColorDetails?.length > 0 ? (
           <div className="cart-item-colors">
             {item.selectedColorDetails.map((c, i) => (

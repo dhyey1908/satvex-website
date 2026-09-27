@@ -1,10 +1,14 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
 class ApiError extends Error {
-  constructor(message, code, status) {
+  constructor(message, code, status, details) {
     super(message);
     this.code = code;
     this.status = status;
+    // Per-field validation errors from the backend (Zod), e.g.
+    // [{ path: 'email', message: 'Invalid email' }] — see utils/formErrors.js
+    // for turning this into a { fieldName: message } map for a form's state.
+    this.details = details || null;
   }
 }
 
@@ -34,7 +38,7 @@ async function request(path, { method = 'GET', body, params } = {}) {
   if (!res.ok || !payload?.success) {
     const message = payload?.error?.message || 'Something went wrong. Please try again.';
     const code = payload?.error?.code || 'UNKNOWN_ERROR';
-    throw new ApiError(message, code, res.status);
+    throw new ApiError(message, code, res.status, payload?.error?.details);
   }
 
   return payload.data;

@@ -2,12 +2,22 @@ const reviewService = require('../services/reviewService');
 const productService = require('../services/productService');
 const orderService = require('../services/orderService');
 const userService = require('../services/userService');
-const { createReviewSchema, moderateReviewSchema } = require('../validators/reviewValidators');
+const { createReviewSchema } = require('../validators/reviewValidators');
 const AppError = require('../utils/AppError');
 const { ok, created } = require('../utils/response');
 
 async function listForProduct(req, res) {
-  const reviews = await reviewService.listForProduct(req.params.id, { onlyApproved: true });
+  const reviews = await reviewService.listForProduct(req.params.id);
+  ok(res, { reviews });
+}
+
+async function getMine(req, res) {
+  const review = await reviewService.findForUser(req.params.id, req.user.id);
+  ok(res, { review });
+}
+
+async function listMine(req, res) {
+  const reviews = await reviewService.listForUserAcrossProducts(req.user.id);
   ok(res, { reviews });
 }
 
@@ -17,9 +27,9 @@ async function create(req, res) {
     throw new AppError('Product not found.', 404, 'NOT_FOUND');
   }
 
-  const purchased = await orderService.hasUserPurchasedProduct(req.user.id, req.params.id);
-  if (!purchased) {
-    throw new AppError('You can review this product after purchasing it.', 403, 'NOT_ELIGIBLE');
+  const delivered = await orderService.hasUserReceivedDeliveredProduct(req.user.id, req.params.id);
+  if (!delivered) {
+    throw new AppError('You can review this product after it has been delivered.', 403, 'NOT_ELIGIBLE');
   }
 
   const alreadyReviewed = await reviewService.hasReviewed(req.params.id, req.user.id);
@@ -38,19 +48,20 @@ async function create(req, res) {
   created(res, { review });
 }
 
-async function adminList(req, res) {
-  const { status } = req.query;
-  const reviews = await reviewService.listAllForAdmin({ status });
-  ok(res, { reviews });
-}
-
-async function adminModerate(req, res) {
-  const { status } = moderateReviewSchema.parse(req.body);
-  const review = await reviewService.setStatus(req.params.id, status);
-  if (!review) {
+async function update(req, res) {
+  const existing = await reviewService.findForUser(req.params.id, req.user.id);
+  if (!existing) {
     throw new AppError('Review not found.', 404, 'NOT_FOUND');
   }
+
+  const data = createReviewSchema.parse(req.body);
+  const review = await reviewService.update(existing.reviewId, data);
   ok(res, { review });
+}
+
+async function adminList(req, res) {
+  const reviews = await reviewService.listAllForAdmin();
+  ok(res, { reviews });
 }
 
 async function adminRemove(req, res) {
@@ -58,4 +69,4 @@ async function adminRemove(req, res) {
   ok(res, { deleted: true });
 }
 
-module.exports = { listForProduct, create, adminList, adminModerate, adminRemove };
+module.exports = { listForProduct, getMine, listMine, create, update, adminList, adminRemove };

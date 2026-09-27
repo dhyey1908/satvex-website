@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom';
-import { XCircle, RotateCcw, ArrowRight } from 'lucide-react';
+import { XCircle, RotateCcw, ArrowRight, Star } from 'lucide-react';
 import { OrderStatusBadge } from './OrderStatusBadge';
 import './OrderCard.css';
 
-export function OrderCard({ order, onCancel, onReorder }) {
+export function OrderCard({ order, onCancel, onReorder, reviewedProductIds }) {
   const canCancel = order.status === 'Pending' || order.status === 'Confirmed';
+  const canReview = order.status === 'Delivered';
 
   return (
     <div className="order-card">
@@ -25,6 +26,12 @@ export function OrderCard({ order, onCancel, onReorder }) {
               <p className="order-card-item-meta">
                 {item.sellingOptionName} × {item.quantity}
               </p>
+              {canReview && item.productSlug && (
+                <Link to={`/product/${item.productSlug}#reviews`} className="order-card-review-link">
+                  <Star size={12} />
+                  {reviewedProductIds?.has(item.productId) ? 'Edit Review' : 'Write Review'}
+                </Link>
+              )}
             </div>
           </div>
         ))}

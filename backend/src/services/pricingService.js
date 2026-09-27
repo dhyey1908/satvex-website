@@ -58,6 +58,9 @@ async function resolveLineItem({ productId, sellingOptionId, selectedColors }) {
     selectedColors,
     selectedColorDetails,
     unitPrice: sellingOption.price,
+    // Reference-only original price for display (strike-through/discount%).
+    // Never used in any total/subtotal math — that's always unitPrice.
+    compareAtPrice: sellingOption.compareAtPrice ?? null,
   };
 }
 

@@ -8,8 +8,12 @@ import { VariantPickerModal } from '../components/VariantPickerModal';
 import { PageHeader } from '../components/PageHeader';
 import { EmptyState } from '../components/EmptyState';
 import { Skeleton } from '../components/Loader';
+import { Pagination } from '../components/Pagination';
+import { usePagination } from '../hooks/usePagination';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import './Wishlist.css';
+
+const PAGE_SIZE = 12;
 
 async function shareWishlist(showToast) {
   const url = window.location.href;
@@ -35,6 +39,7 @@ export function Wishlist() {
   const { items, loading, removeItem } = useWishlist();
   const { showToast } = useToast();
   const [modalProductId, setModalProductId] = useState(null);
+  const { page, setPage, totalPages, pageItems, total, rangeStart, rangeEnd } = usePagination(items, PAGE_SIZE);
 
   async function handleRemove(productId) {
     try {
@@ -83,7 +88,7 @@ export function Wishlist() {
 
       <div className="wishlist-grid">
         <AnimatePresence>
-          {items.map((item) => (
+          {pageItems.map((item) => (
             <WishlistCard
               key={item.productId}
               item={item}
@@ -93,6 +98,16 @@ export function Wishlist() {
           ))}
         </AnimatePresence>
       </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        total={total}
+        rangeStart={rangeStart}
+        rangeEnd={rangeEnd}
+        itemLabel="items"
+      />
 
       <VariantPickerModal
         productId={modalProductId}

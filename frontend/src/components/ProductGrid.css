@@ -6,10 +6,13 @@
   width: 100%;
 }
 
-/* Tablet: allow slightly narrower cards so 2-3 fit comfortably */
+/* Tablet: a firm 2-column layout — hardcoded rather than minmax/auto-fill,
+   since no single min-width threshold holds a clean 2-up across the whole
+   tablet range without collapsing to 1 (narrow end) or growing to 3 (wide
+   end). */
 @media (max-width: 900px) {
   .product-grid {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
     justify-content: stretch;
   }
 }

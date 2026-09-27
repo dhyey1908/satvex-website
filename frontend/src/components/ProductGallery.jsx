@@ -15,6 +15,21 @@ export function ProductGallery({ images, activeImage, alt }) {
 
   return (
     <div className="product-gallery">
+      {gallery.length > 1 && (
+        <div className="gallery-thumbs">
+          {gallery.map((src, i) => (
+            <button
+              key={src + i}
+              type="button"
+              className={`gallery-thumb ${!activeImage && i === index ? 'active' : ''}`}
+              onClick={() => setIndex(i)}
+              aria-label={`View image ${i + 1}`}
+            >
+              <img src={src} alt="" loading="lazy" />
+            </button>
+          ))}
+        </div>
+      )}
       <div className="gallery-main">
         <AnimatePresence>
           {mainImage ? (
@@ -32,21 +47,6 @@ export function ProductGallery({ images, activeImage, alt }) {
           )}
         </AnimatePresence>
       </div>
-      {gallery.length > 1 && (
-        <div className="gallery-thumbs">
-          {gallery.map((src, i) => (
-            <button
-              key={src + i}
-              type="button"
-              className={`gallery-thumb ${!activeImage && i === index ? 'active' : ''}`}
-              onClick={() => setIndex(i)}
-              aria-label={`View image ${i + 1}`}
-            >
-              <img src={src} alt="" loading="lazy" />
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

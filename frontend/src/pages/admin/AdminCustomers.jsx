@@ -3,7 +3,11 @@ import { adminService } from '../../services/adminService';
 import { Loader } from '../../components/Loader';
 import { ErrorState } from '../../components/ErrorState';
 import { EmptyState } from '../../components/EmptyState';
+import { Pagination } from '../../components/Pagination';
+import { usePagination } from '../../hooks/usePagination';
 import './Admin.css';
+
+const PAGE_SIZE = 20;
 
 export function AdminCustomers() {
   const [customers, setCustomers] = useState(null);
@@ -28,6 +32,9 @@ export function AdminCustomers() {
         c.phone?.toLowerCase().includes(term)
     );
   }, [customers, search]);
+
+  const { page, setPage, totalPages, pageItems: pageCustomers, total: totalVisible, rangeStart, rangeEnd } =
+    usePagination(visible, PAGE_SIZE);
 
   if (error) return <ErrorState message={error} />;
   if (!customers) return <Loader label="Loading customers…" />;
@@ -62,7 +69,7 @@ export function AdminCustomers() {
               </tr>
             </thead>
             <tbody>
-              {visible.map((c) => (
+              {pageCustomers.map((c) => (
                 <tr key={c.userId}>
                   <td>{c.name}</td>
                   <td>{c.email}</td>
@@ -73,6 +80,15 @@ export function AdminCustomers() {
               ))}
             </tbody>
           </table>
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            total={totalVisible}
+            rangeStart={rangeStart}
+            rangeEnd={rangeEnd}
+            itemLabel="customers"
+          />
         </div>
       )}
     </div>

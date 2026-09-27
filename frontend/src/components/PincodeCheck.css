@@ -1,0 +1,40 @@
+.pincode-check {
+  padding: var(--space-3) 0;
+}
+.pincode-check-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-2);
+}
+.pincode-check-form {
+  display: flex;
+  gap: var(--space-2);
+}
+.pincode-check-form input {
+  flex: 1;
+  min-width: 0;
+  max-width: 180px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--color-outline-variant);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.9rem;
+}
+.pincode-check-form input:focus { outline: none; border-color: var(--color-accent); box-shadow: var(--focus-ring); }
+
+.pincode-check-result {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: var(--space-2) 0 0;
+  font-size: 0.85rem;
+}
+.pincode-check-result.success { color: var(--color-success); }
+.pincode-check-result.error { color: var(--color-error); }

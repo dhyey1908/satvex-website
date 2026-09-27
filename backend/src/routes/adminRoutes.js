@@ -35,7 +35,6 @@ router.put('/coupons/:code', asyncHandler(couponController.adminUpdate));
 router.delete('/coupons/:code', asyncHandler(couponController.adminRemove));
 
 router.get('/reviews', asyncHandler(reviewController.adminList));
-router.put('/reviews/:id', asyncHandler(reviewController.adminModerate));
 router.delete('/reviews/:id', asyncHandler(reviewController.adminRemove));
 
 module.exports = router;
