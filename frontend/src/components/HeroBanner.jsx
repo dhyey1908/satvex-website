@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { crossfade } from '../motion';
 import './HeroBanner.css';
 
 const ROTATE_MS = 6000;
@@ -32,11 +34,30 @@ export function HeroBanner({ banners, fallback }) {
 
   const inner = (
     <>
-      {current.type === 'video' ? (
-        <video src={current.mediaUrl} autoPlay muted loop playsInline />
-      ) : (
-        <img src={current.mediaUrl} alt="" />
-      )}
+      <AnimatePresence mode="wait">
+        {current.type === 'video' ? (
+          <motion.video
+            key={current.id}
+            src={current.mediaUrl}
+            autoPlay
+            muted
+            loop
+            playsInline
+            initial={crossfade.initial}
+            animate={crossfade.animate}
+            exit={crossfade.exit}
+          />
+        ) : (
+          <motion.img
+            key={current.id}
+            src={current.mediaUrl}
+            alt=""
+            initial={crossfade.initial}
+            animate={crossfade.animate}
+            exit={crossfade.exit}
+          />
+        )}
+      </AnimatePresence>
       <div className="hero-image-overlay" />
       {activeBanners.length > 1 && (
         <div className="hero-banner-dots">

@@ -14,10 +14,14 @@
   }
 }
 
-/* Mobile: exactly 2 columns, no stretch-to-huge-card weirdness */
+/* Mobile: auto-fit rather than a hard 2-column split — with only 1-2
+   products (today's real catalog size) a forced 2-column grid strands a
+   single card on the left with a huge empty gap on the right. auto-fit
+   lets a lone card use the full row while still giving 2 comfortable
+   columns once there are enough products to fill them. */
 @media (max-width: 560px) {
   .product-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: var(--space-4) var(--space-3);
   }
 }

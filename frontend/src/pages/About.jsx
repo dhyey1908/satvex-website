@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Leaf, Infinity as InfinityIcon, Package, Star, Quote } from 'lucide-react';
 import { productService } from '../services/productService';
+import { useSettings } from '../context/SettingsContext';
 import { ImagePlaceholder } from '../components/ImagePlaceholder';
-import { LeafIcon, InfinityIcon, BoxIcon, StarIcon, QuoteIcon } from '../components/Icons';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
+import { revealOnScroll, staggerContainer, fadeUp } from '../motion';
 import './About.css';
 
 const VALUES = [
   { icon: InfinityIcon, title: 'Flexible', text: 'Moves comfortably with your everyday needs.' },
-  { icon: LeafIcon, title: 'Comfortable', text: 'Lightweight designs created for effortless everyday use.' },
-  { icon: BoxIcon, title: 'Durable', text: 'Made to deliver dependable performance and lasting usability.' },
-  { icon: StarIcon, title: 'Stylish', text: 'Modern aesthetics designed for today’s women.' },
+  { icon: Leaf, title: 'Comfortable', text: 'Lightweight designs created for effortless everyday use.' },
+  { icon: Package, title: 'Durable', text: 'Made to deliver dependable performance and lasting usability.' },
+  { icon: Star, title: 'Stylish', text: 'Modern aesthetics designed for today’s women.' },
 ];
 
 export function About() {
@@ -20,14 +23,18 @@ export function About() {
     path: '/about',
   });
 
-  const [heroImage, setHeroImage] = useState(null);
+  const { settings } = useSettings();
+  const [fallbackImage, setFallbackImage] = useState(null);
 
   useEffect(() => {
+    if (settings?.aboutImage) return;
     productService
       .list()
-      .then((data) => setHeroImage(data.products?.[0]?.images?.[0] || null))
+      .then((data) => setFallbackImage(data.products?.[0]?.images?.[0] || null))
       .catch(() => {});
-  }, []);
+  }, [settings?.aboutImage]);
+
+  const heroImage = settings?.aboutImage || fallbackImage;
 
   return (
     <div className="about-page">
@@ -56,22 +63,33 @@ export function About() {
         <div className="container">
           <div className="eyebrow-dot"><span>Why Satvex</span></div>
           <h2 className="text-headline-lg">Flexible. Comfortable. Durable. Stylish.</h2>
-          <div className="about-values-grid">
+          <motion.div
+            className="about-values-grid"
+            variants={staggerContainer(0.08)}
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true, margin: '-80px' }}
+          >
             {VALUES.map((v) => (
-              <div key={v.title} className="about-value-card">
-                <div className="about-value-icon"><v.icon /></div>
+              <motion.div key={v.title} className="about-value-card" variants={fadeUp}>
+                <div className="about-value-icon"><v.icon size={22} /></div>
                 <h3 className="text-title-md">{v.title}</h3>
                 <p className="text-body-sm">{v.text}</p>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
       <section className="section about-origin">
         <div className="container">
-          <div className="about-origin-banner">
-            <QuoteIcon />
+          <motion.div
+            className="about-origin-banner"
+            initial={revealOnScroll.initial}
+            whileInView={revealOnScroll.whileInView}
+            viewport={{ once: true, margin: '-80px' }}
+          >
+            <Quote size={28} fill="currentColor" />
             <blockquote className="text-headline-lg">
               Flexible. Comfortable. Durable. Distinctly SATVEX.
             </blockquote>
@@ -80,7 +98,7 @@ export function About() {
               because everyday essentials deserve the same care as anything else you wear every day.
               Designed in India.
             </p>
-          </div>
+          </motion.div>
         </div>
       </section>
 

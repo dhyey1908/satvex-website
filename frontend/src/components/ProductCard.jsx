@@ -1,10 +1,12 @@
+import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Heart, ShoppingBag, Star } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../context/ToastContext';
 import { ImagePlaceholder } from './ImagePlaceholder';
-import { HeartIcon, BagIcon, StarIcon } from './Icons';
 import './ProductCard.css';
 
 export function ProductCard({ product }) {
@@ -14,6 +16,7 @@ export function ProductCard({ product }) {
   const { showToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
+  const [justAdded, setJustAdded] = useState(false);
 
   const inWishlist = isInWishlist(product.productId);
 
@@ -69,6 +72,8 @@ export function ProductCard({ product }) {
       } else {
         await addItem(product.productId);
         showToast('Added to wishlist', 'success');
+        setJustAdded(true);
+        window.setTimeout(() => setJustAdded(false), 400);
       }
     } catch (err) {
       showToast(err.message, 'error');
@@ -89,25 +94,28 @@ export function ProductCard({ product }) {
           {!outOfStock && onSale && <span className="badge-pill badge-sale">Sale</span>}
         </div>
 
-        <button
+        <motion.button
           type="button"
           className={`wishlist-toggle ${inWishlist ? 'active' : ''}`}
           onClick={toggleWishlist}
           aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+          whileTap={{ scale: 0.85 }}
+          animate={justAdded ? { scale: [1, 1.35, 1] } : { scale: 1 }}
+          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
         >
-          <HeartIcon fill={inWishlist ? 'currentColor' : 'none'} />
-        </button>
+          <Heart size={18} fill={inWishlist ? 'currentColor' : 'none'} />
+        </motion.button>
 
         {canQuickAdd && (
           <button type="button" className="product-card-quick-add" onClick={quickAdd}>
-            <BagIcon width={16} height={16} />
+            <ShoppingBag size={16} />
             <span>Add to Bag</span>
           </button>
         )}
       </div>
       <div className="product-card-body">
         <div className="product-card-rating">
-          <StarIcon />
+          <Star size={14} fill="currentColor" />
           <span className="product-card-rating-value">{product.rating?.toFixed(1) ?? '4.8'}</span>
           {product.reviewCount > 0 && <span className="product-card-review-count">({product.reviewCount} reviews)</span>}
         </div>

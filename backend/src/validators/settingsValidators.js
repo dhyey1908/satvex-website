@@ -15,6 +15,8 @@ const updateSettingsSchema = z.object({
   brandName: z.string().trim().max(60).optional(),
   logoUrl: z.string().trim().url().optional().or(z.literal('')),
   heroBanners: z.array(heroBannerSchema).max(10).optional(),
+  authImage: z.string().trim().url().optional().or(z.literal('')),
+  aboutImage: z.string().trim().url().optional().or(z.literal('')),
 });
 
 module.exports = { updateSettingsSchema };

@@ -1,6 +1,26 @@
 # SATVEX — Claude Implementation Rules
 
-## UI/UX v2 Overhaul (current effort)
+## UI/UX v3 — Premium Motion & Icon Overhaul (current effort)
+
+`02-ui-ux-design.md` was extended (v3) for a real-animation, professional-icon,
+mobile-hardening pass on top of the v2 structural/visual redesign (which already shipped:
+design tokens, Atelier Papillon visual system, responsive layout fixes, toast/confirm
+system, admin-managed banners and site images). v3 does NOT redo v2's structural work —
+it layers motion, icon consistency, and deeper mobile polish on top of it. Process:
+
+1. Update markdown plan (`02-ui-ux-design.md`, `03-frontend.md`, and this file) — done.
+2. Two tech decisions resolved with the user before starting: add `framer-motion` for
+   real animation, add `lucide-react` replacing the hand-rolled icon set.
+3. Re-inspect the current (already-redesigned) frontend page by page — do not assume v2's
+   work is incomplete; verify what's already solid vs. what still needs motion/icon work.
+4. Implement in the order listed in `02-ui-ux-design.md`'s "v3 Implementation Phases"
+   section.
+5. Full functional regression test (existing Testing section below) — v3 must not break
+   any API integration, auth, cart, checkout, or order logic.
+6. Responsive QA at 1440 / 1280 / 1024 / 768 / 430 / 390 / 375, including with
+   `prefers-reduced-motion` forced on.
+
+## UI/UX v2 Overhaul (prior effort — shipped)
 
 `02-ui-ux-design.md` was rewritten (v2) for a full UI/UX overhaul of the shipped site. Its "Scope Decisions Needed Before Implementation" table must be resolved before Phase 3 below starts, since a few items there (coupons, saved addresses, review counts) add real backend scope beyond pure layout work. Process for this effort specifically:
 

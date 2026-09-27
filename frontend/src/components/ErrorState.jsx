@@ -1,9 +1,9 @@
-import { AlertCircleIcon } from './Icons';
+import { AlertCircle } from 'lucide-react';
 
 export function ErrorState({ message = 'Something went wrong. Please try again.', onRetry }) {
   return (
     <div className="state-block state-block-error">
-      <div className="state-icon state-icon-error"><AlertCircleIcon width={26} height={26} /></div>
+      <div className="state-icon state-icon-error"><AlertCircle size={26} /></div>
       <h3 className="text-headline-sm">We hit a snag</h3>
       <p>{message}</p>
       {onRetry && (

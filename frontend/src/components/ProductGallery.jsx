@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ImagePlaceholder } from './ImagePlaceholder';
+import { crossfade } from '../motion';
 import './ProductGallery.css';
 
 export function ProductGallery({ images, activeImage, alt }) {
@@ -10,7 +12,21 @@ export function ProductGallery({ images, activeImage, alt }) {
   return (
     <div className="product-gallery">
       <div className="gallery-main">
-        {mainImage ? <img src={mainImage} alt={alt} loading="eager" /> : <ImagePlaceholder />}
+        <AnimatePresence mode="wait">
+          {mainImage ? (
+            <motion.img
+              key={mainImage}
+              src={mainImage}
+              alt={alt}
+              loading="eager"
+              initial={crossfade.initial}
+              animate={crossfade.animate}
+              exit={crossfade.exit}
+            />
+          ) : (
+            <ImagePlaceholder />
+          )}
+        </AnimatePresence>
       </div>
       {gallery.length > 1 && (
         <div className="gallery-thumbs">

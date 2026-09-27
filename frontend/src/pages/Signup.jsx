@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { AuthLayout } from '../components/AuthLayout';
@@ -73,7 +74,7 @@ export function Signup() {
           {error && <p className="field-error">{error}</p>}
 
           <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>
-            {submitting ? 'Creating account…' : 'Create Account'}
+            {submitting ? <Loader2 size={16} className="btn-spinner" /> : 'Create Account'}
           </button>
         </form>
 

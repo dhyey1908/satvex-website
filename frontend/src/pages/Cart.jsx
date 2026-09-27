@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
@@ -8,7 +9,7 @@ import { CouponInput } from '../components/CouponInput';
 import { EmptyState } from '../components/EmptyState';
 import { PageHeader } from '../components/PageHeader';
 import { Loader } from '../components/Loader';
-import { CheckCircleIcon } from '../components/Icons';
+import { CheckCircle2 } from 'lucide-react';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import './Cart.css';
 
@@ -100,7 +101,7 @@ export function Cart() {
       <PageHeader title="Shopping Bag" count={items.length} countLabel="items" />
 
       <div className="cart-free-shipping-banner">
-        <CheckCircleIcon />
+        <CheckCircle2 size={16} />
         <span>Every order ships free — no minimum required.</span>
       </div>
 
@@ -109,15 +110,17 @@ export function Cart() {
           {items.length === 0 && (
             <EmptyState title="No items in your cart" message="Move something back from Saved for Later, or keep shopping." />
           )}
-          {items.map((item) => (
-            <CartItem
-              key={item.cartItemId}
-              item={item}
-              onQuantityChange={(qty) => handleQuantityChange(item.cartItemId, qty)}
-              onRemove={() => handleRemove(item.cartItemId)}
-              onSaveForLater={() => handleSaveForLater(item.cartItemId)}
-            />
-          ))}
+          <AnimatePresence initial={false}>
+            {items.map((item) => (
+              <CartItem
+                key={item.cartItemId}
+                item={item}
+                onQuantityChange={(qty) => handleQuantityChange(item.cartItemId, qty)}
+                onRemove={() => handleRemove(item.cartItemId)}
+                onSaveForLater={() => handleSaveForLater(item.cartItemId)}
+              />
+            ))}
+          </AnimatePresence>
 
           {items.length > 0 && (
             <div className="cart-actions-row">
@@ -129,14 +132,16 @@ export function Cart() {
           {savedItems.length > 0 && (
             <div className="cart-saved-section">
               <h3>Saved for Later ({savedItems.length})</h3>
-              {savedItems.map((item) => (
-                <CartItem
-                  key={item.cartItemId}
-                  item={item}
-                  onRemove={() => handleRemove(item.cartItemId)}
-                  onMoveToCart={() => handleMoveToCart(item.cartItemId)}
-                />
-              ))}
+              <AnimatePresence initial={false}>
+                {savedItems.map((item) => (
+                  <CartItem
+                    key={item.cartItemId}
+                    item={item}
+                    onRemove={() => handleRemove(item.cartItemId)}
+                    onMoveToCart={() => handleMoveToCart(item.cartItemId)}
+                  />
+                ))}
+              </AnimatePresence>
             </div>
           )}
         </div>

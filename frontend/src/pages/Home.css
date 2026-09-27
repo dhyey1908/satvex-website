@@ -285,7 +285,7 @@
   justify-content: space-between;
   gap: var(--sp-md);
 }
-.newsletter-card > div:first-child { max-width: 28rem; }
+.newsletter-card > div:first-child { max-width: 28rem; min-width: 0; }
 .newsletter-card h3 { margin: 4px 0 6px; }
 .newsletter-copy { color: var(--color-text-muted); margin: 0; }
 .newsletter-form { display: flex; gap: var(--sp-sm); flex: 1; min-width: 260px; max-width: 26rem; }
@@ -309,7 +309,13 @@
   .showcase-box { grid-template-columns: 1fr; }
   .why-grid { grid-template-columns: repeat(2, 1fr); }
   .newsletter-card { flex-direction: column; align-items: stretch; }
-  .newsletter-form { max-width: none; }
+  .newsletter-card > div:first-child { max-width: none; width: 100%; }
+  .newsletter-form { max-width: none; min-width: 0; width: 100%; }
+}
+
+@media (max-width: 400px) {
+  .newsletter-form { flex-direction: column; }
+  .newsletter-form .btn { width: 100%; }
 }
 
 @media (max-width: 560px) {

@@ -13,6 +13,8 @@ const DEFAULT_SETTINGS = {
   brandName: 'Satvex',
   logoUrl: '',
   heroBanners: [],
+  authImage: '',
+  aboutImage: '',
 };
 
 async function getSettings() {

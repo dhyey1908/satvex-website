@@ -11,17 +11,31 @@
 }
 
 .account-sidebar a {
+  position: relative;
   padding: 11px 14px;
   border-radius: var(--radius-sm);
   font-size: 0.9rem;
   font-weight: 500;
   color: var(--color-text-muted);
   transition: background var(--transition-fast), color var(--transition-fast);
+  overflow: hidden;
 }
 .account-sidebar a:hover { background: var(--color-surface-muted); color: var(--color-text); }
-.account-sidebar a.active { background: var(--color-primary-light); color: var(--color-primary-dark); font-weight: 600; }
+.account-sidebar a.active { color: var(--color-primary-dark); font-weight: 600; }
+
+.account-sidebar-indicator {
+  position: absolute;
+  inset: 0;
+  background: var(--color-primary-light);
+  border-radius: var(--radius-sm);
+  z-index: 0;
+}
+.account-sidebar-label { position: relative; z-index: 1; }
 
 .account-sidebar-logout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-top: var(--space-2);
   padding: 11px 14px;
   border-radius: var(--radius-sm);

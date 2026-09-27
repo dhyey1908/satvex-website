@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { contactService } from '../services/contactService';
 import { useSettings } from '../context/SettingsContext';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
-import { CheckCircleIcon } from '../components/Icons';
+import { CheckCircle2, Loader2 } from 'lucide-react';
 import './Contact.css';
 
 export function Contact() {
@@ -64,7 +64,7 @@ export function Contact() {
           </div>
 
           <p className="contact-response-note">
-            <CheckCircleIcon />
+            <CheckCircle2 size={16} />
             Response within 1 business day
           </p>
         </div>
@@ -72,7 +72,7 @@ export function Contact() {
         <div className="contact-form-col">
           {status === 'sent' ? (
             <div className="card contact-form contact-success">
-              <CheckCircleIcon width={32} height={32} />
+              <CheckCircle2 size={32} />
               <h3 className="text-headline-sm">Message Sent</h3>
               <p>Thanks — we&apos;ve received your message and will get back to you soon.</p>
             </div>
@@ -113,7 +113,7 @@ export function Contact() {
               {error && <p className="field-error">{error}</p>}
 
               <button type="submit" className="btn btn-primary btn-block" disabled={status === 'submitting'}>
-                {status === 'submitting' ? 'Sending…' : 'Send Message'}
+                {status === 'submitting' ? <Loader2 size={16} className="btn-spinner" /> : 'Send Message'}
               </button>
             </form>
           )}

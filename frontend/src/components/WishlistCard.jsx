@@ -1,10 +1,18 @@
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { ImagePlaceholder } from './ImagePlaceholder';
 import './WishlistCard.css';
 
 export function WishlistCard({ item, onAddToCart, onRemove }) {
   return (
-    <div className="wishlist-card">
+    <motion.div
+      className="wishlist-card"
+      layout
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.92, transition: { duration: 0.2 } }}
+      transition={{ duration: 0.25 }}
+    >
       <Link to={`/product/${item.slug}`} className="wishlist-card-image">
         {item.image ? <img src={item.image} alt={item.name} loading="lazy" /> : <ImagePlaceholder />}
       </Link>
@@ -25,6 +33,6 @@ export function WishlistCard({ item, onAddToCart, onRemove }) {
           </button>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

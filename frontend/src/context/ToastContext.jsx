@@ -1,13 +1,13 @@
 import { createContext, useCallback, useContext, useRef, useState } from 'react';
-import { CheckCircleIcon, AlertCircleIcon, AlertTriangleIcon, InfoIcon, CloseIcon } from '../components/Icons';
+import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
 
 const ToastContext = createContext(null);
 
 const ICONS = {
-  success: CheckCircleIcon,
-  error: AlertCircleIcon,
-  warning: AlertTriangleIcon,
-  info: InfoIcon,
+  success: CheckCircle2,
+  error: AlertCircle,
+  warning: AlertTriangle,
+  info: Info,
 };
 
 const DEFAULT_DURATIONS = {
@@ -47,10 +47,10 @@ export function ToastProvider({ children }) {
           const Icon = ICONS[t.type];
           return (
             <div key={t.id} className={`toast ${t.type} ${t.leaving ? 'leaving' : ''}`} role="status">
-              <Icon className="toast-icon" />
+              <Icon size={18} className="toast-icon" />
               <span className="toast-message">{t.message}</span>
               <button type="button" className="toast-close" aria-label="Dismiss" onClick={() => dismiss(t.id)}>
-                <CloseIcon />
+                <X size={16} />
               </button>
             </div>
           );

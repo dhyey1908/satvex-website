@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Truck, Gift, Leaf, Infinity as InfinityIcon, Package, Star, CheckCircle2, ShoppingBag, Quote } from 'lucide-react';
 import { productService } from '../services/productService';
 import { contactService } from '../services/contactService';
 import { useAuth } from '../context/AuthContext';
@@ -9,8 +11,8 @@ import { useSettings } from '../context/SettingsContext';
 import { ProductGrid } from '../components/ProductGrid';
 import { ImagePlaceholder } from '../components/ImagePlaceholder';
 import { HeroBanner } from '../components/HeroBanner';
-import { TruckIcon, GiftIcon, LeafIcon, InfinityIcon, BoxIcon, StarIcon, CheckCircleIcon, BagIcon, QuoteIcon } from '../components/Icons';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
+import { staggerContainer, fadeUp, revealOnScroll, crossfade } from '../motion';
 import './Home.css';
 
 export function Home() {
@@ -106,28 +108,33 @@ export function Home() {
       {/* HERO */}
       <section className="hero">
         <div className="container hero-inner">
-          <div className="hero-copy">
-            <div className="eyebrow-dot"><span>Satvex Collection</span></div>
-            <h1 className="text-display-xl hero-heading">
+          <motion.div
+            className="hero-copy"
+            variants={staggerContainer(0.1)}
+            initial="initial"
+            animate="animate"
+          >
+            <motion.div className="eyebrow-dot" variants={fadeUp}><span>Satvex Collection</span></motion.div>
+            <motion.h1 className="text-display-xl hero-heading" variants={fadeUp}>
               Designed for Her.<br />
               <em>Made to Move.</em>
-            </h1>
-            <p className="text-body-lg hero-lede">
+            </motion.h1>
+            <motion.p className="text-body-lg hero-lede" variants={fadeUp}>
               SATVEX creates modern women-focused essentials designed around flexibility, comfort,
               durability and effortless style.
-            </p>
-            <div className="hero-actions">
+            </motion.p>
+            <motion.div className="hero-actions" variants={fadeUp}>
               <Link to="/shop" className="btn btn-primary">Shop the Collection</Link>
               <Link to="/about" className="hero-text-link">Discover Our Story →</Link>
-            </div>
-            <div className="hero-trust-row">
-              <span className="hero-trust-item"><TruckIcon />Free Pan-India Shipping</span>
+            </motion.div>
+            <motion.div className="hero-trust-row" variants={fadeUp}>
+              <span className="hero-trust-item"><Truck size={16} />Free Pan-India Shipping</span>
               <span className="hero-trust-sep">•</span>
-              <span className="hero-trust-item"><GiftIcon />Ready to Gift</span>
+              <span className="hero-trust-item"><Gift size={16} />Ready to Gift</span>
               <span className="hero-trust-sep">•</span>
-              <span className="hero-trust-item"><LeafIcon width={16} height={16} />Skin-Friendly Materials</span>
-            </div>
-          </div>
+              <span className="hero-trust-item"><Leaf size={16} />Skin-Friendly Materials</span>
+            </motion.div>
+          </motion.div>
           <HeroBanner
             banners={settings?.heroBanners}
             fallback={
@@ -159,21 +166,35 @@ export function Home() {
       {showcase && (
         <section className="section showcase-section">
           <div className="container">
-            <div className="showcase-header">
+            <motion.div
+              className="showcase-header"
+              initial={revealOnScroll.initial}
+              whileInView={revealOnScroll.whileInView}
+              viewport={{ once: true, margin: '-80px' }}
+            >
               <div className="eyebrow-dot"><span>Signature Spectrum</span></div>
               <h2 className="text-headline-lg">{activeVariants.length} Colors, One Signature Shape</h2>
               <p className="text-body-md showcase-subcopy">
                 Every shade in the {showcase.name} collection, ready to explore.
               </p>
-            </div>
+            </motion.div>
 
             <div className="showcase-box">
               <div className="showcase-media">
-                {showcaseImage ? (
-                  <img src={showcaseImage} alt={selectedVariant?.colorName} />
-                ) : (
-                  <ImagePlaceholder />
-                )}
+                <AnimatePresence mode="wait">
+                  {showcaseImage ? (
+                    <motion.img
+                      key={showcaseImage}
+                      src={showcaseImage}
+                      alt={selectedVariant?.colorName}
+                      initial={crossfade.initial}
+                      animate={crossfade.animate}
+                      exit={crossfade.exit}
+                    />
+                  ) : (
+                    <ImagePlaceholder />
+                  )}
+                </AnimatePresence>
                 {selectedVariant && (
                   <div className="showcase-media-badge">
                     <span className="showcase-media-badge-dot" />
@@ -193,7 +214,7 @@ export function Home() {
                   </div>
                   <h3 className="text-headline-sm showcase-variant-name">{selectedVariant?.colorName}</h3>
                   <p className="showcase-stock-line">
-                    <CheckCircleIcon />
+                    <CheckCircle2 size={16} />
                     {selectedVariant?.isActive ? 'In stock, ready to ship' : 'Currently out of stock'}
                   </p>
                 </div>
@@ -202,13 +223,17 @@ export function Home() {
                   <span className="text-label-sm showcase-swatch-label">Available Colors</span>
                   <div className="showcase-swatch-tray">
                     {activeVariants.map((v) => (
-                      <button
+                      <motion.button
                         key={v.id}
                         type="button"
                         className={`showcase-swatch ${v.id === selectedVariant?.id ? 'selected' : ''}`}
                         style={{ background: v.colorCode }}
                         aria-label={v.colorName}
+                        title={v.colorName}
                         onClick={() => setSelectedVariantId(v.id)}
+                        whileHover={{ scale: 1.08 }}
+                        whileTap={{ scale: 0.92 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                       />
                     ))}
                   </div>
@@ -238,7 +263,7 @@ export function Home() {
                 <div className="showcase-cta-row">
                   {singleOption && (
                     <button type="button" className="btn btn-primary" onClick={handleQuickAdd} disabled={adding}>
-                      <BagIcon width={18} height={18} />
+                      <ShoppingBag size={18} />
                       {adding ? 'Adding…' : `Quick Add · ₹${singleOption.price}`}
                     </button>
                   )}
@@ -255,10 +280,15 @@ export function Home() {
       {/* FEATURED COLLECTION */}
       <section className="section">
         <div className="container">
-          <div className="collection-header">
+          <motion.div
+            className="collection-header"
+            initial={revealOnScroll.initial}
+            whileInView={revealOnScroll.whileInView}
+            viewport={{ once: true, margin: '-80px' }}
+          >
             <div className="eyebrow-dot"><span>Featured</span></div>
             <h2 className="text-headline-lg">Shop the Collection</h2>
-          </div>
+          </motion.div>
 
           {error && <p className="field-error">{error}</p>}
 
@@ -274,37 +304,48 @@ export function Home() {
       <section className="section why-satvex">
         <div className="container">
           <div className="eyebrow-dot"><span>Why Satvex</span></div>
-          <div className="why-grid">
-            <div className="why-card">
-              <div className="why-icon"><InfinityIcon /></div>
+          <motion.div
+            className="why-grid"
+            variants={staggerContainer(0.08)}
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true, margin: '-80px' }}
+          >
+            <motion.div className="why-card" variants={fadeUp}>
+              <div className="why-icon"><InfinityIcon size={20} /></div>
               <h3 className="text-title-md">Flexible</h3>
               <p className="text-body-sm">Moves comfortably with your everyday needs.</p>
-            </div>
-            <div className="why-card">
-              <div className="why-icon"><LeafIcon /></div>
+            </motion.div>
+            <motion.div className="why-card" variants={fadeUp}>
+              <div className="why-icon"><Leaf size={20} /></div>
               <h3 className="text-title-md">Comfortable</h3>
               <p className="text-body-sm">Lightweight designs created for effortless everyday use.</p>
-            </div>
-            <div className="why-card">
-              <div className="why-icon"><BoxIcon /></div>
+            </motion.div>
+            <motion.div className="why-card" variants={fadeUp}>
+              <div className="why-icon"><Package size={20} /></div>
               <h3 className="text-title-md">Durable</h3>
               <p className="text-body-sm">Made to deliver dependable performance and lasting usability.</p>
-            </div>
-            <div className="why-card">
-              <div className="why-icon"><StarIcon width={22} height={22} /></div>
+            </motion.div>
+            <motion.div className="why-card" variants={fadeUp}>
+              <div className="why-icon"><Star size={22} /></div>
               <h3 className="text-title-md">Stylish</h3>
               <p className="text-body-sm">Modern aesthetics designed for today&apos;s women.</p>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
       </section>
 
       {/* QUOTE BANNER */}
       <section className="section quote-section">
         <div className="container">
-          <div className="quote-banner">
+          <motion.div
+            className="quote-banner"
+            initial={revealOnScroll.initial}
+            whileInView={revealOnScroll.whileInView}
+            viewport={{ once: true, margin: '-80px' }}
+          >
             <div className="quote-banner-content">
-              <QuoteIcon />
+              <Quote size={28} fill="currentColor" />
               <blockquote className="text-headline-lg">
                 Wear a little wonder, every day.
               </blockquote>
@@ -312,14 +353,19 @@ export function Home() {
             </div>
             <div className="quote-banner-glow quote-banner-glow-1" />
             <div className="quote-banner-glow quote-banner-glow-2" />
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* NEWSLETTER */}
       <section className="section newsletter-section">
         <div className="container">
-          <div className="newsletter-card">
+          <motion.div
+            className="newsletter-card"
+            initial={revealOnScroll.initial}
+            whileInView={revealOnScroll.whileInView}
+            viewport={{ once: true, margin: '-80px' }}
+          >
             <div>
               <div className="eyebrow-dot"><span>Join the List</span></div>
               <h3 className="text-headline-sm">Receive New Releases Before Public Drops</h3>
@@ -339,7 +385,7 @@ export function Home() {
                 {subscribing ? 'Joining…' : 'Join'}
               </button>
             </form>
-          </div>
+          </motion.div>
         </div>
       </section>
     </div>

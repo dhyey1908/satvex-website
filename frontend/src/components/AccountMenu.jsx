@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { UserIcon, OrderBagIcon, HeartIcon, SettingsGearIcon, LogoutIcon, ChevronDownIcon } from './Icons';
+import { User, Package, Heart, Settings, LogOut, ChevronDown } from 'lucide-react';
 import './AccountMenu.css';
 
 function getInitials(name) {
@@ -60,7 +60,7 @@ export function AccountMenu() {
         aria-label="Account menu"
       >
         <span className="account-menu-avatar">{getInitials(user?.name)}</span>
-        <ChevronDownIcon className={`account-menu-chevron ${open ? 'open' : ''}`} />
+        <ChevronDown size={14} className={`account-menu-chevron ${open ? 'open' : ''}`} />
       </button>
 
       {open && (
@@ -72,25 +72,25 @@ export function AccountMenu() {
 
           {isAdmin ? (
             <Link to="/admin" className="account-menu-item" role="menuitem" onClick={() => setOpen(false)}>
-              <SettingsGearIcon /> Admin Panel
+              <Settings size={16} /> Admin Panel
             </Link>
           ) : (
             <>
               <Link to="/account" className="account-menu-item" role="menuitem" onClick={() => setOpen(false)}>
-                <UserIcon /> My Account
+                <User size={16} /> My Account
               </Link>
               <Link to="/account/orders" className="account-menu-item" role="menuitem" onClick={() => setOpen(false)}>
-                <OrderBagIcon /> My Orders
+                <Package size={16} /> My Orders
               </Link>
               <Link to="/wishlist" className="account-menu-item" role="menuitem" onClick={() => setOpen(false)}>
-                <HeartIcon /> Wishlist
+                <Heart size={16} /> Wishlist
               </Link>
             </>
           )}
 
           <div className="account-menu-divider" />
           <button type="button" className="account-menu-item account-menu-logout" role="menuitem" onClick={handleLogout}>
-            <LogoutIcon /> Log Out
+            <LogOut size={16} /> Log Out
           </button>
         </div>
       )}

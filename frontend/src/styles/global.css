@@ -374,6 +374,10 @@ ul {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* Shared inline button-loading spinner (Lucide Loader2 icon) — used inside
+   any submit button while its action is in flight. */
+.btn-spinner { animation: spin 700ms linear infinite; }
+
 .visually-hidden {
   position: absolute;
   width: 1px;

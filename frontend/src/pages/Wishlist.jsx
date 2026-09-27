@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../context/ToastContext';
 import { WishlistCard } from '../components/WishlistCard';
@@ -81,14 +82,16 @@ export function Wishlist() {
       </PageHeader>
 
       <div className="wishlist-grid">
-        {items.map((item) => (
-          <WishlistCard
-            key={item.productId}
-            item={item}
-            onAddToCart={() => setModalProductId(item.productId)}
-            onRemove={() => handleRemove(item.productId)}
-          />
-        ))}
+        <AnimatePresence>
+          {items.map((item) => (
+            <WishlistCard
+              key={item.productId}
+              item={item}
+              onAddToCart={() => setModalProductId(item.productId)}
+              onRemove={() => handleRemove(item.productId)}
+            />
+          ))}
+        </AnimatePresence>
       </div>
 
       <VariantPickerModal

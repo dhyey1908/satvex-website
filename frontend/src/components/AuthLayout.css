@@ -42,3 +42,15 @@
 @media (min-width: 860px) {
   .auth-visual { display: block; }
 }
+
+/* Below 860px .auth-visual is display:none, but the grid's explicit 1fr 1fr
+   track definition doesn't shrink just because one item is hidden — it was
+   leaving a full empty column's worth of blank space next to the form. */
+@media (max-width: 859px) {
+  .auth-layout { grid-template-columns: 1fr; min-height: auto; }
+  .auth-panel { padding: var(--sp-xl) var(--sp-lg); }
+}
+
+@media (max-width: 420px) {
+  .auth-panel { padding: var(--sp-lg) var(--sp-md); }
+}

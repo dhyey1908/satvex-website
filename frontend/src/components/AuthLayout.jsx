@@ -1,19 +1,24 @@
 import { useEffect, useState } from 'react';
 import { productService } from '../services/productService';
+import { useSettings } from '../context/SettingsContext';
 import './AuthLayout.css';
 
 export function AuthLayout({ children }) {
-  const [image, setImage] = useState(null);
+  const { settings } = useSettings();
+  const [fallbackImage, setFallbackImage] = useState(null);
 
   useEffect(() => {
+    if (settings?.authImage) return;
     productService
       .list()
       .then((data) => {
         const first = data.products?.[0];
-        setImage(first?.images?.[0] || null);
+        setFallbackImage(first?.images?.[0] || null);
       })
       .catch(() => {});
-  }, []);
+  }, [settings?.authImage]);
+
+  const image = settings?.authImage || fallbackImage;
 
   return (
     <div className="auth-layout">

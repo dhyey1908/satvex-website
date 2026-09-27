@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Heart, Truck, Leaf, Package, ChevronDown, Loader2 } from 'lucide-react';
 import { productService } from '../services/productService';
 import { ProductGallery } from '../components/ProductGallery';
 import { SellingOptionSelector } from '../components/SellingOptionSelector';
@@ -8,7 +10,6 @@ import { QuantitySelector } from '../components/QuantitySelector';
 import { RatingDisplay } from '../components/RatingDisplay';
 import { PriceDisplay } from '../components/PriceDisplay';
 import { ProductGrid } from '../components/ProductGrid';
-import { HeartIcon, TruckIcon, LeafIcon, BoxIcon } from '../components/Icons';
 import { Loader } from '../components/Loader';
 import { ErrorState } from '../components/ErrorState';
 import { useAuth } from '../context/AuthContext';
@@ -35,7 +36,9 @@ export function ProductDetail() {
   const [selectedColors, setSelectedColors] = useState([]);
   const [quantity, setQuantity] = useState(1);
   const [submitting, setSubmitting] = useState(false);
+  const [buyingNow, setBuyingNow] = useState(false);
   const [openInfo, setOpenInfo] = useState('materials');
+  const [wishlistBurst, setWishlistBurst] = useState(false);
 
   useDocumentMeta({
     title: product?.name,
@@ -101,11 +104,12 @@ export function ProductDetail() {
   async function handleAddToCart({ redirectToCheckout } = {}) {
     if (!requireAuthOrRedirect()) return;
     if (!validSelection()) {
-      showToast(`Select ${sellingOption.quantity} color(s) to continue.`, 'error');
+      showToast(`Select ${sellingOption.quantity} color(s) to continue.`, 'warning');
       return;
     }
 
-    setSubmitting(true);
+    if (redirectToCheckout) setBuyingNow(true);
+    else setSubmitting(true);
     try {
       await addItem({
         productId: product.productId,
@@ -119,6 +123,7 @@ export function ProductDetail() {
       showToast(err.message, 'error');
     } finally {
       setSubmitting(false);
+      setBuyingNow(false);
     }
   }
 
@@ -131,6 +136,8 @@ export function ProductDetail() {
       } else {
         await addWishlistItem(product.productId);
         showToast('Added to wishlist', 'success');
+        setWishlistBurst(true);
+        window.setTimeout(() => setWishlistBurst(false), 400);
       }
     } catch (err) {
       showToast(err.message, 'error');
@@ -200,32 +207,43 @@ export function ProductDetail() {
           </div>
 
           <div className="product-detail-actions">
-            <button type="button" className="btn btn-outline btn-block" onClick={toggleWishlist}>
-              <HeartIcon fill={inWishlist ? 'currentColor' : 'none'} style={{ marginRight: 6 }} />
+            <motion.button
+              type="button"
+              className="btn btn-outline btn-block"
+              onClick={toggleWishlist}
+              whileTap={{ scale: 0.97 }}
+            >
+              <motion.span
+                className="pdp-wishlist-icon"
+                animate={wishlistBurst ? { scale: [1, 1.35, 1] } : { scale: 1 }}
+                transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <Heart size={18} fill={inWishlist ? 'currentColor' : 'none'} />
+              </motion.span>
               {inWishlist ? 'In Wishlist' : 'Add to Wishlist'}
-            </button>
+            </motion.button>
             <button
               type="button"
               className="btn btn-primary btn-block"
-              disabled={submitting || outOfStock}
+              disabled={submitting || buyingNow || outOfStock}
               onClick={() => handleAddToCart({ redirectToCheckout: false })}
             >
-              Add to Cart
+              {submitting ? <Loader2 size={16} className="btn-spinner" /> : 'Add to Cart'}
             </button>
             <button
               type="button"
               className="btn btn-block buy-now-btn"
-              disabled={submitting || outOfStock}
+              disabled={submitting || buyingNow || outOfStock}
               onClick={() => handleAddToCart({ redirectToCheckout: true })}
             >
-              Buy Now
+              {buyingNow ? <Loader2 size={16} className="btn-spinner" /> : 'Buy Now'}
             </button>
           </div>
 
           <div className="pdp-trust-row">
-            <span><TruckIcon />Free Pan-India Shipping</span>
-            <span><LeafIcon width={16} height={16} />Skin-Friendly Materials</span>
-            <span><BoxIcon width={16} height={16} />7-Day Easy Exchange</span>
+            <span><Truck size={16} />Free Pan-India Shipping</span>
+            <span><Leaf size={16} />Skin-Friendly Materials</span>
+            <span><Package size={16} />7-Day Easy Exchange</span>
           </div>
         </div>
       </div>
@@ -234,67 +252,46 @@ export function ProductDetail() {
         <h3 className="text-headline-sm pdp-below-heading">The Details</h3>
 
         <div className="pdp-accordion">
-          <div className="pdp-accordion-item">
-            <button
-              type="button"
-              className="pdp-accordion-trigger"
-              onClick={() => setOpenInfo(openInfo === 'description' ? null : 'description')}
-            >
-              <span>Description</span>
-              <span className={`pdp-accordion-chevron ${openInfo === 'description' ? 'open' : ''}`}>⌄</span>
-            </button>
-            {openInfo === 'description' && (
-              <div className="pdp-accordion-body"><p>{product.description}</p></div>
-            )}
-          </div>
-
-          <div className="pdp-accordion-item">
-            <button
-              type="button"
-              className="pdp-accordion-trigger"
-              onClick={() => setOpenInfo(openInfo === 'materials' ? null : 'materials')}
-            >
-              <span>Materials &amp; Care</span>
-              <span className={`pdp-accordion-chevron ${openInfo === 'materials' ? 'open' : ''}`}>⌄</span>
-            </button>
-            {openInfo === 'materials' && (
-              <div className="pdp-accordion-body">
-                <p>Crafted from premium, skin-friendly materials. Wipe clean with a soft, dry cloth. Avoid contact with water and perfume.</p>
+          {[
+            { key: 'description', label: 'Description', body: product.description },
+            { key: 'materials', label: 'Materials & Care', body: 'Crafted from premium, skin-friendly materials. Wipe clean with a soft, dry cloth. Avoid contact with water and perfume.' },
+            { key: 'shipping', label: 'Shipping', body: 'Free shipping on all orders. Orders are typically processed within 1-2 business days.' },
+            { key: 'returns', label: 'Returns', body: "Contact us within 7 days of delivery if there's an issue with your order — we're happy to help." },
+          ].map((item) => {
+            const isOpen = openInfo === item.key;
+            return (
+              <div key={item.key} className="pdp-accordion-item">
+                <button
+                  type="button"
+                  className="pdp-accordion-trigger"
+                  aria-expanded={isOpen}
+                  onClick={() => setOpenInfo(isOpen ? null : item.key)}
+                >
+                  <span>{item.label}</span>
+                  <motion.span
+                    className="pdp-accordion-chevron"
+                    animate={{ rotate: isOpen ? 180 : 0 }}
+                    transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <ChevronDown size={18} />
+                  </motion.span>
+                </button>
+                <AnimatePresence initial={false}>
+                  {isOpen && (
+                    <motion.div
+                      className="pdp-accordion-body-wrap"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                    >
+                      <div className="pdp-accordion-body"><p>{item.body}</p></div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-            )}
-          </div>
-
-          <div className="pdp-accordion-item">
-            <button
-              type="button"
-              className="pdp-accordion-trigger"
-              onClick={() => setOpenInfo(openInfo === 'shipping' ? null : 'shipping')}
-            >
-              <span>Shipping</span>
-              <span className={`pdp-accordion-chevron ${openInfo === 'shipping' ? 'open' : ''}`}>⌄</span>
-            </button>
-            {openInfo === 'shipping' && (
-              <div className="pdp-accordion-body">
-                <p>Free shipping on all orders. Orders are typically processed within 1-2 business days.</p>
-              </div>
-            )}
-          </div>
-
-          <div className="pdp-accordion-item">
-            <button
-              type="button"
-              className="pdp-accordion-trigger"
-              onClick={() => setOpenInfo(openInfo === 'returns' ? null : 'returns')}
-            >
-              <span>Returns</span>
-              <span className={`pdp-accordion-chevron ${openInfo === 'returns' ? 'open' : ''}`}>⌄</span>
-            </button>
-            {openInfo === 'returns' && (
-              <div className="pdp-accordion-body">
-                <p>Contact us within 7 days of delivery if there&apos;s an issue with your order — we&apos;re happy to help.</p>
-              </div>
-            )}
-          </div>
+            );
+          })}
         </div>
 
         <div className="product-detail-reviews">

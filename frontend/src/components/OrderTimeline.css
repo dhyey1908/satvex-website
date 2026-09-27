@@ -38,6 +38,7 @@
   height: 2px;
   background: var(--color-border);
   z-index: 0;
+  transition: background-color 400ms ease 200ms;
 }
 .order-timeline-step.done .order-timeline-line { background: var(--color-primary); }
 

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { X } from 'lucide-react';
 import './Drawer.css';
 
 /**
@@ -34,7 +35,7 @@ export function Drawer({ open, onClose, title, children, side = 'right' }) {
         <div className="drawer-header">
           <h3>{title}</h3>
           <button type="button" className="drawer-close" onClick={onClose} aria-label="Close">
-            ×
+            <X size={20} />
           </button>
         </div>
         <div className="drawer-body">{children}</div>

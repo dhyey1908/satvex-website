@@ -1,6 +1,8 @@
+import { motion } from 'framer-motion';
 import { ProductCard } from './ProductCard';
 import { Skeleton } from './Loader';
 import { EmptyState } from './EmptyState';
+import { fadeUp } from '../motion';
 import './ProductGrid.css';
 
 /**
@@ -27,10 +29,18 @@ export function ProductGrid({ products, loading, skeletonCount = 6, emptyTitle =
   }
 
   return (
-    <div className="product-grid">
+    <motion.div
+      className="product-grid"
+      initial="initial"
+      whileInView="animate"
+      viewport={{ once: true, margin: '-40px' }}
+      transition={{ staggerChildren: 0.05 }}
+    >
       {products.map((p) => (
-        <ProductCard key={p.productId} product={p} />
+        <motion.div key={p.productId} variants={fadeUp}>
+          <ProductCard product={p} />
+        </motion.div>
       ))}
-    </div>
+    </motion.div>
   );
 }

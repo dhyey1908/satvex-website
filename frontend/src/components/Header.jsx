@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence, useScroll, useTransform, useReducedMotion } from 'framer-motion';
+import { Search, Heart, ShoppingBag, Menu, User, Package, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
-import { SearchIcon, HeartIcon, BagIcon, MenuIcon, UserIcon, OrderBagIcon, SettingsGearIcon, LogoutIcon } from './Icons';
 import { BrandLogo } from './BrandLogo';
 import { SearchOverlay } from './SearchOverlay';
 import { AccountMenu } from './AccountMenu';
 import { useToast } from '../context/ToastContext';
+import { SPRING_SOFT } from '../motion';
 import './Header.css';
 
 const NAV_LINKS = [
@@ -25,6 +27,15 @@ export function Header() {
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
+
+  const { scrollY } = useScroll();
+  const headerShadowOpacity = useTransform(scrollY, [0, 80], [0, 1]);
+
+  useEffect(() => {
+    document.body.style.overflow = mobileOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileOpen]);
 
   async function handleMobileLogout() {
     setMobileOpen(false);
@@ -38,7 +49,13 @@ export function Header() {
   }
 
   return (
-    <header className="site-header">
+    <motion.header
+      className="site-header"
+      initial={prefersReducedMotion ? false : { opacity: 0, y: -12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+      style={{ boxShadow: useTransform(headerShadowOpacity, (v) => `0 8px 24px -12px rgba(9,7,7,${v * 0.15})`) }}
+    >
       <div className="container site-header-inner">
         <Link to="/" className="brand-logo" aria-label="Satvex home">
           <BrandLogo height={36} />
@@ -47,7 +64,18 @@ export function Header() {
         <nav className="nav-desktop" aria-label="Primary">
           {NAV_LINKS.map((link) => (
             <NavLink key={link.to} to={link.to} end={link.end} className={({ isActive }) => (isActive ? 'active' : '')}>
-              {link.label}
+              {({ isActive }) => (
+                <>
+                  {link.label}
+                  {isActive && (
+                    <motion.span
+                      className="nav-underline"
+                      layoutId="nav-underline"
+                      transition={prefersReducedMotion ? { duration: 0 } : SPRING_SOFT}
+                    />
+                  )}
+                </>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -59,14 +87,14 @@ export function Header() {
             aria-label="Search"
             onClick={() => setSearchOpen((v) => !v)}
           >
-            <SearchIcon />
+            <Search size={20} />
           </button>
           <Link to="/wishlist" className="icon-btn" aria-label={`Wishlist (${wishlistCount} items)`}>
-            <HeartIcon />
+            <Heart size={20} />
             {wishlistCount > 0 && <span className="badge">{wishlistCount}</span>}
           </Link>
           <Link to="/cart" className="icon-btn" aria-label={`Cart (${cartCount} items)`}>
-            <BagIcon />
+            <ShoppingBag size={20} />
             {cartCount > 0 && <span className="badge">{cartCount}</span>}
           </Link>
 
@@ -87,15 +115,23 @@ export function Header() {
             aria-expanded={mobileOpen}
             onClick={() => setMobileOpen((v) => !v)}
           >
-            <MenuIcon />
+            <Menu size={20} />
           </button>
         </div>
       </div>
 
       <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
 
+      <AnimatePresence>
       {mobileOpen && (
-        <nav className="nav-mobile container" aria-label="Mobile">
+        <motion.nav
+          className="nav-mobile container"
+          aria-label="Mobile"
+          initial={prefersReducedMotion ? false : { opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+        >
           {NAV_LINKS.map((link) => (
             <NavLink key={link.to} to={link.to} end={link.end} onClick={() => setMobileOpen(false)}>
               {link.label}
@@ -106,23 +142,23 @@ export function Header() {
               <div className="nav-mobile-divider" />
               {user?.role === 'admin' ? (
                 <Link to="/admin" className="nav-mobile-account-link" onClick={() => setMobileOpen(false)}>
-                  <SettingsGearIcon /> Admin Panel
+                  <Settings size={18} /> Admin Panel
                 </Link>
               ) : (
                 <>
                   <Link to="/account" className="nav-mobile-account-link" onClick={() => setMobileOpen(false)}>
-                    <UserIcon /> My Account
+                    <User size={18} /> My Account
                   </Link>
                   <Link to="/account/orders" className="nav-mobile-account-link" onClick={() => setMobileOpen(false)}>
-                    <OrderBagIcon /> My Orders
+                    <Package size={18} /> My Orders
                   </Link>
                   <Link to="/wishlist" className="nav-mobile-account-link" onClick={() => setMobileOpen(false)}>
-                    <HeartIcon /> Wishlist
+                    <Heart size={18} /> Wishlist
                   </Link>
                 </>
               )}
               <button type="button" className="nav-mobile-account-link nav-mobile-logout" onClick={handleMobileLogout}>
-                <LogoutIcon /> Log Out
+                <LogOut size={18} /> Log Out
               </button>
             </>
           ) : (
@@ -130,8 +166,9 @@ export function Header() {
               Login / Signup
             </Link>
           )}
-        </nav>
+        </motion.nav>
       )}
-    </header>
+      </AnimatePresence>
+    </motion.header>
   );
 }

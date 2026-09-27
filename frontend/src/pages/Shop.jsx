@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X } from 'lucide-react';
 import { productService } from '../services/productService';
 import { ProductGrid } from '../components/ProductGrid';
 import { PageHeader } from '../components/PageHeader';
@@ -152,27 +154,35 @@ export function Shop() {
         </select>
       </div>
 
-      {activeFilterCount > 0 && (
-        <div className="shop-active-filters">
-          <span className="text-label-sm shop-active-label">Active:</span>
-          {search && (
-            <button type="button" className="shop-active-chip" onClick={() => setSearchParams({})}>
-              &ldquo;{search}&rdquo; ✕
-            </button>
-          )}
-          {inStockOnly && (
-            <button type="button" className="shop-active-chip" onClick={() => setInStockOnly(false)}>
-              In Stock ✕
-            </button>
-          )}
-          {selectedColors.map((c) => (
-            <button type="button" key={c} className="shop-active-chip" onClick={() => toggleColor(c)}>
-              {c} ✕
-            </button>
-          ))}
-          <button type="button" className="shop-clear-all" onClick={clearAll}>Clear All</button>
-        </div>
-      )}
+      <AnimatePresence>
+        {activeFilterCount > 0 && (
+          <motion.div
+            className="shop-active-filters"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <span className="text-label-sm shop-active-label">Active:</span>
+            {search && (
+              <button type="button" className="shop-active-chip" onClick={() => setSearchParams({})}>
+                &ldquo;{search}&rdquo; <X size={12} />
+              </button>
+            )}
+            {inStockOnly && (
+              <button type="button" className="shop-active-chip" onClick={() => setInStockOnly(false)}>
+                In Stock <X size={12} />
+              </button>
+            )}
+            {selectedColors.map((c) => (
+              <button type="button" key={c} className="shop-active-chip" onClick={() => toggleColor(c)}>
+                {c} <X size={12} />
+              </button>
+            ))}
+            <button type="button" className="shop-clear-all" onClick={clearAll}>Clear All</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="shop-results">
         {error && <ErrorState message={error} onRetry={load} />}

@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Loader2, Tag } from 'lucide-react';
+import { fade } from '../motion';
 import './CouponInput.css';
 
 export function CouponInput({ appliedCoupon, onApply, onClear }) {
@@ -21,31 +24,44 @@ export function CouponInput({ appliedCoupon, onApply, onClear }) {
     }
   }
 
-  if (appliedCoupon) {
-    return (
-      <div className="coupon-input coupon-applied">
-        <span>
-          Coupon <strong>{appliedCoupon.code}</strong> applied — saved ₹{appliedCoupon.discountAmount.toFixed(2)}
-        </span>
-        <button type="button" className="btn-ghost btn-sm" onClick={onClear}>
-          Remove
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <form className="coupon-input" onSubmit={handleApply}>
-      <input
-        type="text"
-        placeholder="Enter coupon code"
-        value={code}
-        onChange={(e) => setCode(e.target.value.toUpperCase())}
-      />
-      <button type="submit" className="btn btn-outline btn-sm" disabled={submitting || !code.trim()}>
-        {submitting ? 'Applying…' : 'Apply'}
-      </button>
-      {error && <p className="field-error coupon-error">{error}</p>}
-    </form>
+    <AnimatePresence mode="wait">
+      {appliedCoupon ? (
+        <motion.div
+          key="applied"
+          className="coupon-input coupon-applied"
+          initial={fade.initial}
+          animate={fade.animate}
+          exit={fade.exit}
+        >
+          <span>
+            <Tag size={14} /> Coupon <strong>{appliedCoupon.code}</strong> applied — saved ₹{appliedCoupon.discountAmount.toFixed(2)}
+          </span>
+          <button type="button" className="btn-ghost btn-sm" onClick={onClear}>
+            Remove
+          </button>
+        </motion.div>
+      ) : (
+        <motion.form
+          key="form"
+          className="coupon-input"
+          onSubmit={handleApply}
+          initial={fade.initial}
+          animate={fade.animate}
+          exit={fade.exit}
+        >
+          <input
+            type="text"
+            placeholder="Enter coupon code"
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+          />
+          <button type="submit" className="btn btn-outline btn-sm" disabled={submitting || !code.trim()}>
+            {submitting ? <Loader2 size={14} className="btn-spinner" /> : 'Apply'}
+          </button>
+          {error && <p className="field-error coupon-error">{error}</p>}
+        </motion.form>
+      )}
+    </AnimatePresence>
   );
 }

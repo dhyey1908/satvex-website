@@ -42,40 +42,76 @@ export function AdminSettings() {
       <div className="admin-page-header">
         <h1>Settings</h1>
       </div>
-      <form className="admin-form admin-form-section" onSubmit={handleSubmit}>
-        <div className="field">
-          <label>Logo</label>
-          {form.logoUrl && (
-            <div style={{ marginBottom: 12, padding: 12, background: 'var(--color-surface-muted)', borderRadius: 'var(--radius-sm)', display: 'inline-block' }}>
-              <img src={form.logoUrl} alt="Current logo" height="40" />
-            </div>
-          )}
-          <ImageUploader folder="branding" onUploaded={(url) => setField('logoUrl', url)} />
-          <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
-            Shown in the site header and footer. Upload a transparent PNG for best results.
-          </p>
+      <form className="admin-form" onSubmit={handleSubmit}>
+        <div className="admin-form-section">
+          <h3>Brand</h3>
+          <div className="field">
+            <label>Logo</label>
+            {form.logoUrl && (
+              <div style={{ marginBottom: 12, padding: 12, background: 'var(--color-surface-muted)', borderRadius: 'var(--radius-sm)', display: 'inline-block' }}>
+                <img src={form.logoUrl} alt="Current logo" height="40" />
+              </div>
+            )}
+            <ImageUploader folder="branding" onUploaded={(url) => setField('logoUrl', url)} />
+            <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
+              Shown in the site header and footer. Upload a transparent PNG for best results.
+            </p>
+          </div>
+          <div className="field">
+            <label htmlFor="brandName">Brand Name</label>
+            <input id="brandName" value={form.brandName} onChange={(e) => setField('brandName', e.target.value)} />
+          </div>
         </div>
-        <div className="field">
-          <label htmlFor="brandName">Brand Name</label>
-          <input id="brandName" value={form.brandName} onChange={(e) => setField('brandName', e.target.value)} />
+
+        <div className="admin-form-section">
+          <h3>Site Images</h3>
+          <div className="field">
+            <label>Sign In / Create Account Page Image</label>
+            {form.authImage && (
+              <div style={{ marginBottom: 12, width: 160, height: 128, background: 'var(--color-surface-muted)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+                <img src={form.authImage} alt="Sign-in page" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </div>
+            )}
+            <ImageUploader folder="branding" onUploaded={(url) => setField('authImage', url)} />
+            <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
+              Shown beside the sign in / create account form. Leave empty to fall back to a product photo. See IMAGE_GUIDE.md for the recommended size.
+            </p>
+          </div>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label>About Page Image</label>
+            {form.aboutImage && (
+              <div style={{ marginBottom: 12, width: 160, height: 128, background: 'var(--color-surface-muted)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+                <img src={form.aboutImage} alt="About page" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </div>
+            )}
+            <ImageUploader folder="branding" onUploaded={(url) => setField('aboutImage', url)} />
+            <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
+              Shown on the About page hero. Leave empty to fall back to a product photo. See IMAGE_GUIDE.md for the recommended size.
+            </p>
+          </div>
         </div>
-        <div className="field">
-          <label htmlFor="contactPhone">Contact Phone</label>
-          <input id="contactPhone" value={form.contactPhone} onChange={(e) => setField('contactPhone', e.target.value)} />
+
+        <div className="admin-form-section">
+          <h3>Contact Info</h3>
+          <div className="field">
+            <label htmlFor="contactPhone">Contact Phone</label>
+            <input id="contactPhone" value={form.contactPhone} onChange={(e) => setField('contactPhone', e.target.value)} />
+          </div>
+          <div className="field">
+            <label htmlFor="contactEmail">Contact Email</label>
+            <input
+              id="contactEmail"
+              type="email"
+              value={form.contactEmail}
+              onChange={(e) => setField('contactEmail', e.target.value)}
+            />
+          </div>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label htmlFor="instagramUrl">Instagram URL</label>
+            <input id="instagramUrl" value={form.instagramUrl} onChange={(e) => setField('instagramUrl', e.target.value)} />
+          </div>
         </div>
-        <div className="field">
-          <label htmlFor="contactEmail">Contact Email</label>
-          <input
-            id="contactEmail"
-            type="email"
-            value={form.contactEmail}
-            onChange={(e) => setField('contactEmail', e.target.value)}
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="instagramUrl">Instagram URL</label>
-          <input id="instagramUrl" value={form.instagramUrl} onChange={(e) => setField('instagramUrl', e.target.value)} />
-        </div>
+
         <button type="submit" className="btn btn-primary" disabled={saving}>
           {saving ? 'Saving…' : 'Save Settings'}
         </button>

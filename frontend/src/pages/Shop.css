@@ -95,9 +95,13 @@
   gap: var(--sp-sm);
   padding: var(--sp-sm) 4px;
   margin-bottom: var(--sp-lg);
+  overflow: hidden;
 }
 .shop-active-label { color: var(--color-text-muted); }
 .shop-active-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   padding: 4px 10px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--color-accent);

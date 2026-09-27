@@ -21,12 +21,18 @@
   color: var(--color-text-muted);
   padding-bottom: 6px;
   border-bottom: 2px solid transparent;
+  white-space: nowrap;
 }
 .auth-tab.active { color: var(--color-text); border-color: var(--color-primary); }
 
 .auth-subcopy { color: var(--color-text-muted); margin-bottom: var(--sp-lg); }
 
-.field-label-row { display: flex; align-items: center; justify-content: space-between; }
+.field-label-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; }
+
+@media (max-width: 380px) {
+  .auth-tabs { gap: var(--sp-sm); }
+  .auth-tab { font-size: 0.7rem; letter-spacing: 0.08em; }
+}
 .auth-inline-link { font-size: 0.78rem; color: var(--color-accent); }
 .auth-inline-link:hover { text-decoration: underline; }
 

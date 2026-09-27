@@ -1,6 +1,15 @@
 # SATVEX — UI/UX Design Requirements
 
-**Status: v2 — complete UI/UX overhaul.** Supersedes the v1 version of this file. Written to fix production issues in the shipped v1 UI: excessive empty space, poor use of desktop width, undersized product grids, and several pages (Account, Orders, Checkout, Wishlist, Cart, Search, Contact, About) that read as prototypes rather than a finished premium ecommerce site.
+**Status: v3 — Premium Motion & Icon Overhaul (current).** v2 (below, through the
+Performance/Data Rule sections) **shipped**: design tokens, the "Atelier Papillon" visual
+system (EB Garamond + Plus Jakarta Sans, sharp/architectural radius scale, charcoal
+primary + rose accent), the full page rebuild list in v2, responsive layout fixes across
+every page including admin, a global toast + confirm-dialog system, admin-managed
+homepage banners and site images (login/about hero images). v3 does not redo that
+structural work — it adds a real animation/motion layer, replaces the hand-rolled icon
+set with Lucide, and hardens mobile further per the acceptance criteria below. See "v3 —
+Motion, Icons & Deeper Mobile Polish" near the end of this file for the new requirements
+and implementation phases.
 
 Implementation order for this overhaul: see `17-implementation-rules.md`.
 
@@ -194,8 +203,202 @@ Keyboard navigation, visible focus states, accessible icon buttons (`aria-label`
 
 ## Performance
 
-Lazy-load below-the-fold images (existing `loading="lazy"` usage — keep, extend to new grids), keep the bundle lean (no new heavy UI libraries — build grids/drawers/modals with the existing plain-CSS approach, consistent with the "no framework" decision made at project start), avoid unnecessary animation, keep CloudFront caching behavior unchanged.
+Lazy-load below-the-fold images (existing `loading="lazy"` usage — keep, extend to new grids). **Updated for v3:** `framer-motion` and `lucide-react` are the two approved exceptions to "no new heavy UI libraries" (see v3 section below) — both are tree-shakeable and justified by the real-animation/icon-consistency requirement. No other new UI libraries without the same sign-off. Animate only `transform`/`opacity` wherever possible (GPU-friendly, no layout thrash). Avoid continuous/looping expensive animations. Keep CloudFront caching behavior unchanged.
 
 ## Data Rule (unchanged, restated for this overhaul)
 
 Frontend must use real backend/API data. Never hardcode price, stock, order status, customer info, wishlist, cart, reviews, or coupons. Static content is allowed only for genuine brand copy (story, philosophy, marketing copy, FAQ-style content) — never for anything that looks like transactional/product data.
+
+---
+
+# v3 — Motion, Icons & Deeper Mobile Polish
+
+Adds a real animation/interaction layer and icon-system consistency on top of the shipped
+v2 visual redesign. Everything in v2 above (layout, grids, page structure, components)
+stays as-is unless a specific v3 item below says otherwise.
+
+## Resolved Tech Decisions
+
+| Decision | Resolution |
+|---|---|
+| Animation library | **`framer-motion`.** Used for spring transitions, orchestrated/staggered reveals, crossfades, directional image transitions, scroll-triggered reveals, drawer/modal motion. |
+| Icon library | **`lucide-react`.** Replaces the hand-rolled `components/Icons.jsx` (22 custom SVGs). Import only specific icons per usage (tree-shakeable), never bulk-import. |
+
+## Motion System — Principles
+
+- Every animation has a specific purpose: communicate state change, direction, or
+  hierarchy — not decoration for its own sake.
+- Standard timing tokens (add to `tokens.css` alongside the existing spacing/radius
+  scale): `--motion-fast: 150ms`, `--motion-base: 250ms`, `--motion-slow: 400ms`,
+  `--motion-spring: { type: 'spring', stiffness: 300, damping: 30 }` (Framer Motion
+  transition object, used for selection states — color swatches, tabs, toggles).
+- Easing: standard eases for fades/slides (`cubic-bezier(0.16, 1, 0.3, 1)` — already used
+  in v2's modal/toast CSS, keep consistent), spring physics (not eased curves) for
+  anything that represents a physical selection/toggle (ring indicator, drawer handle).
+- Respect `prefers-reduced-motion: reduce` globally — Framer Motion's `useReducedMotion`
+  hook (or a shared wrapper) must disable non-essential motion (parallax, entrance
+  staggers, floating effects) and fall back to instant/simple opacity transitions.
+  Functional transitions (drawer open/close, modal appear) may keep a very short
+  fade instead of a slide.
+- No animation may block interaction — a user must be able to click "Add to Cart" the
+  instant it's visually present, never mid-entrance-animation-locked.
+- Stagger children sparingly (product grid entrance, list reveals) — cap total stagger
+  delay so a 12-item grid doesn't take a full second to finish appearing (~40–60ms per
+  item, max ~6 items staggered, rest appear together).
+
+## Icon System — Lucide Mapping
+
+Replace `components/Icons.jsx` usages 1:1. Suggested mapping (adjust during
+implementation if a closer Lucide icon exists):
+
+| Area | Old custom icon | Lucide icon |
+|---|---|---|
+| Nav / header | SearchIcon, HeartIcon, BagIcon, MenuIcon | `Search`, `Heart`, `ShoppingBag`, `Menu` |
+| Account menu | UserIcon, OrderBagIcon, SettingsGearIcon, LogoutIcon | `User`, `Package`, `Settings`, `LogOut` |
+| Toast | CheckCircleIcon, AlertCircleIcon, AlertTriangleIcon, InfoIcon, CloseIcon | `CheckCircle2`, `AlertCircle`, `AlertTriangle`, `Info`, `X` |
+| Trust rows / pillars | TruckIcon, GiftIcon, LeafIcon, InfinityIcon, BoxIcon, StarIcon | `Truck`, `Gift`, `Leaf`, `Infinity`, `Package`, `Star` |
+| Misc | ChevronDownIcon, LocationIcon, QuoteIcon | `ChevronDown`, `MapPin`, `Quote` |
+| Orders (new, currently missing) | — | Pending `Clock`, Confirmed `CheckCircle2`, Processing `Package`, Shipped `Truck`, Delivered `PackageCheck`, Cancelled `XCircle` |
+| Checkout (new) | — | `MapPin`, `Check`, `ChevronRight`, `Pencil`, `Plus` |
+| Cart drawer (new) | — | `Trash2`, `Minus`, `Plus`, `ArrowRight`, `Tag` |
+| Quick View / zoom (new) | — | `Eye`, `ZoomIn` |
+
+`ProductCard`'s star rating, wishlist heart, and quick-add bag icon all switch to Lucide
+equivalents (`Star`, `Heart`, `ShoppingBag`) with the same fill-on-active behavior already
+implemented.
+
+## Per-Area Animation Requirements
+
+Only the delta from what's already shipped (v2) is listed — don't rebuild layout, just
+add motion.
+
+**Navbar** — subtle entrance on first load (fade + slight slide-down, once, not on every
+route change). Scroll: background/shadow smoothly interpolates (not a hard jump) once
+scrolled past ~40px. Active nav-link underline animates its width/position between links
+(shared layout animation) instead of the current instant CSS state.
+
+**Hero (Home)** — staged entrance: eyebrow → heading → paragraph → CTAs, each offset by
+~80–120ms (Framer Motion `staggerChildren`). Hero image: very subtle parallax on scroll
+(a few px of translateY, not aggressive) and a soft entrance (fade + slight
+scale-from-1.03, once). Banner carousel crossfades between slides instead of a hard cut.
+
+**Product images / gallery (PDP)** — switching selected thumbnail crossfades the main
+image (no instant swap). Variant/color switch on Home's showcase and PDP: main image
+crossfades, price/stock/color-label update with a short fade, not an instant text swap.
+
+**Color swatches** — selection ring uses a spring transition (already has the visual ring
+via CSS; add the spring motion to the ring scale/opacity). Hover shows a name tooltip
+(new — currently only a `title`/no visible tooltip). Keyboard-focusable with the same
+visual selected/hover state as pointer interaction (arrow-key navigation between
+swatches is a nice-to-have, not required).
+
+**ProductCard hover** — keep existing lift/shadow; add: product info block shifts up
+slightly as the "Add to Bag" button reveals (already reveals on hover — add the
+coordinated motion instead of a plain opacity pop), wishlist heart does a small
+fill+scale burst on click (spring, ~200ms), not just an instant color change.
+
+**Buttons** — shared motion behavior across all `.btn` usages: hover = smooth
+background/elevation transition (mostly CSS already), active/press = brief scale-down
+(~0.97, existing `:active` transform — keep, verify consistent everywhere), loading state
+= small inline spinner replacing/beside the label (new — several submit buttons currently
+only change their text, e.g. "Saving…"; add a shared spinner treatment), disabled = clear
+opacity/cursor state (existing).
+
+**Cart** — this project has no drawer-based cart (cart is a full page, by design —
+confirmed in v2). Keep it a page, not a drawer, for v3 too (don't introduce a slide-out
+cart drawer; the pasted spec's "Cart Drawer" section assumes a drawer pattern this app
+doesn't use). Add: quantity change animates the number (short crossfade/roll, not an
+instant digit swap), item removal animates the row out and remaining rows smoothly
+reposition (`AnimatePresence` + `layout` on the cart item list), coupon apply shows a
+loading → success/error transition on the button itself.
+
+**Wishlist** — heart-fill burst on add (shared with ProductCard). Removing an item
+animates the card out (`AnimatePresence`) rather than an instant disappearance. The
+existing `VariantPickerModal` (used for "Add to Cart" from a wishlist card) keeps its
+current modal-on-desktop behavior; on mobile it becomes a bottom sheet (see Modals/Drawers
+below).
+
+**Account / Orders** — `AccountSidebar` active-tab indicator animates its position
+(shared layout animation) instead of an instant background swap. `OrderTimeline` steps
+animate progressively (each completed step's fill/checkmark animates in sequence, not all
+at once) when the order detail page first renders.
+
+**Checkout** — the existing single-page-with-grouped-sections approach (confirmed in v2,
+keep — no literal multi-step routing) gets: address-card selection uses the same spring
+ring/selected-state as color swatches, "Place Order" button gets the shared loading-state
+treatment and is disabled during submission (already prevents duplicate submits
+server-side — this is a UI affordance on top), success navigates to Order Confirmation
+with a brief fade transition.
+
+**Modals / Drawers / Bottom sheets** — existing `Modal` component keeps centered-modal
+behavior on desktop (fade + scale-in, already added in the UX-polish pass). **New for
+v3:** on mobile (≤640px), the same `Modal` component (and `Drawer`) renders as a
+bottom sheet — slides up from the bottom, rounded top corners, drag-down-to-dismiss
+affordance optional (a visible close button is sufficient if drag gestures add too much
+complexity), internal scroll when content is tall, respects safe-area-inset-bottom. Apply
+this to: `VariantPickerModal`, `SearchOverlay` (already full-screen-ish on mobile per v2 —
+verify it matches this bottom-sheet/full-screen pattern), the Shop page filter panel
+(currently inline pills per v2 — decide during implementation whether filters need a
+mobile bottom sheet given the pill bar already works well at narrow widths, or keep pills
+and skip this one).
+
+**Scroll animations** — section-level reveal (fade + slight translateY, once, via
+`whileInView`) on: Home's showcase/featured/pillars/quote/newsletter sections, About
+page's pillar cards, Shop's product grid (staggered, capped per the Motion System
+principles above). Do not add parallax beyond the hero image.
+
+**Loading / skeleton states** — extend the existing `Skeleton` component's shimmer
+(already implemented) to any remaining raw "Loading…" text call sites — audit
+`Loader` usages across Account/Orders/Admin and replace bare-text loading with skeleton
+shapes matching the eventual content layout where practical (list/card-shaped skeletons,
+not just a spinner, for pages that render lists).
+
+**Toast** — already has enter/leave animation and icon-per-type (shipped in the UX-polish
+pass) — swap the four icons to Lucide equivalents per the mapping table, no other change
+needed.
+
+## Mobile — Acceptance Criteria (v3 hardening pass)
+
+v2 already fixed layout-level mobile issues (verified via automated overflow sweeps across
+every page at 360/390/768px — zero horizontal overflow found). v3's mobile work is about
+interaction quality, not layout breakage:
+
+- Re-verify zero horizontal overflow at 375 / 390 / 430px specifically (v2's sweep used
+  360/390/768 — add 375 and 430 to the matrix since real devices vary).
+- Every tappable control (icon buttons, swatches, quantity steppers, close buttons) is at
+  least 44×44px hit area, even if the visible icon is smaller (padding, not icon size,
+  achieves this — verify `icon-btn`, swatch buttons, modal close buttons).
+- No control relies on `:hover` alone to reveal required functionality on mobile (e.g.
+  ProductCard's "Add to Bag" reveal-on-hover needs a mobile-visible equivalent — either
+  always-visible on touch devices or accessible via tap-through to PDP, verify current
+  behavior and fix if hover-only).
+- Modals/drawers/bottom sheets never exceed viewport height awkwardly — internal scroll,
+  respect safe-area insets on iOS (notch/home-indicator).
+- Sticky elements (header, checkout order-summary-on-desktop, PDP add-to-cart-on-mobile if
+  added) never overlap content or get obscured by the mobile browser's own UI chrome.
+
+## v3 Implementation Phases
+
+1. Install `framer-motion` + `lucide-react`. Add motion timing tokens to `tokens.css`.
+2. Icon swap: replace `components/Icons.jsx` usages file-by-file with Lucide imports
+   (global nav/account/toast first — highest visibility — then page-specific icons).
+   Delete `Icons.jsx` once every usage is migrated (verify with a repo-wide grep for the
+   old import path before deleting).
+3. Shared motion primitives: a small `motion/` helpers module (fade-in, stagger
+   container, spring-ring, page-transition wrappers) so every page reuses the same
+   building blocks instead of ad hoc Framer Motion configs per component.
+4. Navbar + Hero (Home) — highest visibility, sets the tone for the rest.
+5. Product surfaces: ProductCard, ProductGallery/crossfade, color swatches (Home
+   showcase + PDP), Shop grid stagger + scroll reveal.
+6. Cart (quantity/removal motion, coupon state), Wishlist (heart burst, removal motion).
+7. Account/Orders (sidebar indicator, order timeline sequence), Checkout (address
+   selection ring, button loading state).
+8. Modal/Drawer → bottom-sheet-on-mobile behavior; apply to VariantPickerModal first
+   (most-used), then audit others.
+9. About/Contact scroll reveals, remaining icon-audit cleanup.
+10. Mobile acceptance-criteria pass (44px targets, hover-only functionality audit,
+    375/390/430 overflow re-sweep).
+11. Full functional regression test (existing Testing section in
+    `17-implementation-rules.md`) + `prefers-reduced-motion` forced-on visual check on
+    every page touched.
+12. Final visual QA at 1440 / 1280 / 1024 / 768 / 430 / 390 / 375.

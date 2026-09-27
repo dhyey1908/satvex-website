@@ -8,7 +8,7 @@ import { EmptyState } from '../components/EmptyState';
 import { OrderSummary } from '../components/OrderSummary';
 import { AddressCard } from '../components/AddressCard';
 import { PageHeader } from '../components/PageHeader';
-import { TruckIcon } from '../components/Icons';
+import { Truck, Loader2 } from 'lucide-react';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import './Checkout.css';
 
@@ -245,7 +245,7 @@ export function Checkout() {
           <div className="checkout-section card">
             <h3 className="checkout-section-title">Delivery Method</h3>
             <div className="checkout-delivery-card">
-              <TruckIcon width={20} height={20} />
+              <Truck size={20} />
               <div>
                 <p className="checkout-delivery-name">Standard Delivery</p>
                 <p className="checkout-delivery-meta">Dispatched within 1-2 business days</p>
@@ -261,7 +261,7 @@ export function Checkout() {
             {error && <p className="field-error">{error}</p>}
 
             <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>
-              {submitting ? 'Placing order…' : `Place Order · ₹${grandTotal.toFixed(2)}`}
+              {submitting ? <Loader2 size={16} className="btn-spinner" /> : `Place Order · ₹${grandTotal.toFixed(2)}`}
             </button>
           </div>
         </form>

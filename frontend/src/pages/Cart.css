@@ -20,6 +20,11 @@
   margin-top: var(--space-5);
 }
 
+/* Grid items default to min-width:auto — without this, .cart-items refuses
+   to shrink below its content's natural width (the unwrapped cart-item
+   controls row), pushing the whole grid wider than the viewport on mobile. */
+.cart-items, .cart-summary-col { min-width: 0; }
+
 .cart-summary-col {
   position: sticky;
   top: calc(var(--header-height) + var(--space-4));
@@ -27,6 +32,8 @@
 
 .cart-actions-row {
   display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
   justify-content: space-between;
   padding-top: var(--space-4);
 }

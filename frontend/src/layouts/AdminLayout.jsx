@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { MenuIcon } from '../components/Icons';
+import { Menu } from 'lucide-react';
 import './AdminLayout.css';
 
 const LINKS = [
@@ -52,7 +52,7 @@ export function AdminLayout() {
             aria-label="Toggle menu"
             onClick={() => setSidebarOpen((v) => !v)}
           >
-            <MenuIcon />
+            <Menu size={20} />
           </button>
           <NavLink to="/" className="btn btn-ghost btn-sm">
             ← Back to site

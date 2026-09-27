@@ -5,6 +5,19 @@ Use React.js with a maintainable component architecture.
 
 Do not introduce Redux unless complexity actually requires it.
 
+**As of the v3 Premium Motion & Icon overhaul (see `02-ui-ux-design.md`):** two additional
+dependencies are approved and in use —
+- **`framer-motion`** for real animation (spring transitions, orchestrated/staggered
+  reveals, crossfades, scroll-triggered reveals, drawer/modal motion). Prefer
+  `transform`/`opacity`-only animations for performance; respect
+  `prefers-reduced-motion` everywhere (see the Motion System section of
+  `02-ui-ux-design.md`).
+- **`lucide-react`** replaces the hand-rolled `components/Icons.jsx` SVG set. Import only
+  the specific icons used per file (tree-shakeable) — never `import * as icons`.
+
+No other UI/animation/icon libraries should be added without the same explicit
+sign-off process.
+
 ## Suggested Structure
 frontend/
   src/
