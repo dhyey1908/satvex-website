@@ -25,6 +25,7 @@ const env = {
     settings: required('TABLE_SETTINGS', 'satvex_settings'),
     addresses: required('TABLE_ADDRESSES', 'satvex_addresses'),
     coupons: required('TABLE_COUPONS', 'satvex_coupons'),
+    reviews: required('TABLE_REVIEWS', 'satvex_reviews'),
   },
 
   s3: {

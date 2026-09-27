@@ -115,9 +115,15 @@ export function ProductCard({ product }) {
       </div>
       <div className="product-card-body">
         <div className="product-card-rating">
-          <Star size={14} fill="currentColor" />
-          <span className="product-card-rating-value">{product.rating?.toFixed(1) ?? '4.8'}</span>
-          {product.reviewCount > 0 && <span className="product-card-review-count">({product.reviewCount} reviews)</span>}
+          {product.reviewCount > 0 ? (
+            <>
+              <Star size={14} fill="currentColor" />
+              <span className="product-card-rating-value">{product.rating.toFixed(1)}</span>
+              <span className="product-card-review-count">({product.reviewCount} reviews)</span>
+            </>
+          ) : (
+            <span className="product-card-review-count">New — no reviews yet</span>
+          )}
         </div>
         <h3>{product.name}</h3>
         <p className="product-card-desc">{product.shortDescription}</p>

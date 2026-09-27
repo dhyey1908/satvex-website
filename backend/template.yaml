@@ -177,6 +177,31 @@ Resources:
         - AttributeName: code
           KeyType: HASH
 
+  ReviewsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub satvex_reviews_${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: reviewId
+          AttributeType: S
+        - AttributeName: productId
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: reviewId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: productId-createdAt-index
+          KeySchema:
+            - AttributeName: productId
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
   ## ---------- API + Lambda ----------
 
   HttpApi:
@@ -215,6 +240,7 @@ Resources:
           TABLE_SETTINGS: !Ref SettingsTable
           TABLE_ADDRESSES: !Ref AddressesTable
           TABLE_COUPONS: !Ref CouponsTable
+          TABLE_REVIEWS: !Ref ReviewsTable
           S3_MEDIA_BUCKET: !Ref MediaBucket
           CLOUDFRONT_MEDIA_URL: !Sub https://${MediaDistribution.DomainName}
           JWT_SECRET: !Ref JwtSecret
@@ -240,6 +266,8 @@ Resources:
             TableName: !Ref AddressesTable
         - DynamoDBCrudPolicy:
             TableName: !Ref CouponsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ReviewsTable
         - S3CrudPolicy:
             BucketName: !Ref MediaBucket
         - SESCrudPolicy:
@@ -410,3 +438,5 @@ Outputs:
     Value: !Ref AddressesTable
   CouponsTableName:
     Value: !Ref CouponsTable
+  ReviewsTableName:
+    Value: !Ref ReviewsTable

@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { adminService } from '../../services/adminService';
 import { Loader } from '../../components/Loader';
 import { ErrorState } from '../../components/ErrorState';
+import { TrendChart } from '../../components/TrendChart';
 import './Admin.css';
 
 const LABELS = {
@@ -13,16 +14,51 @@ const LABELS = {
   totalCustomers: 'Total Customers',
 };
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function buildDailySeries(orders, days) {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const buckets = new Map();
+  for (let i = days - 1; i >= 0; i -= 1) {
+    const d = new Date(now.getTime() - i * DAY_MS);
+    buckets.set(d.toISOString().slice(0, 10), { orders: 0, revenue: 0 });
+  }
+  orders.forEach((o) => {
+    const key = new Date(o.createdAt).toISOString().slice(0, 10);
+    if (buckets.has(key)) {
+      const bucket = buckets.get(key);
+      bucket.orders += 1;
+      bucket.revenue += o.total;
+    }
+  });
+  return Array.from(buckets.entries()).map(([date, v]) => ({
+    label: new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+    orderCount: v.orders,
+    revenue: v.revenue,
+  }));
+}
+
 export function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [error, setError] = useState(null);
+  const [orders, setOrders] = useState(null);
+  const [range, setRange] = useState(7);
 
   useEffect(() => {
     adminService
       .dashboard()
       .then((data) => setStats(data.stats))
       .catch((err) => setError(err.message));
+    adminService
+      .orders({})
+      .then((data) => setOrders(data.orders))
+      .catch(() => setOrders([]));
   }, []);
+
+  const series = useMemo(() => (orders ? buildDailySeries(orders, range) : []), [orders, range]);
+  const ordersSeries = series.map((s) => ({ label: s.label, value: s.orderCount }));
+  const revenueSeries = series.map((s) => ({ label: s.label, value: s.revenue }));
 
   if (error) return <ErrorState message={error} />;
   if (!stats) return <Loader label="Loading dashboard…" />;
@@ -40,6 +76,31 @@ export function AdminDashboard() {
           </div>
         ))}
       </div>
+
+      <div className="admin-page-header" style={{ marginTop: 'var(--sp-xl)' }}>
+        <h3 className="checkout-section-title" style={{ margin: 0 }}>Trends</h3>
+        <div className="admin-filters" style={{ margin: 0 }}>
+          <select value={range} onChange={(e) => setRange(Number(e.target.value))}>
+            <option value={7}>Last 7 days</option>
+            <option value={30}>Last 30 days</option>
+          </select>
+        </div>
+      </div>
+
+      {!orders && <Loader label="Loading trends…" />}
+
+      {orders && (
+        <div className="trend-chart-grid">
+          <div className="stat-tile">
+            <div className="stat-label">Orders</div>
+            <TrendChart data={ordersSeries} />
+          </div>
+          <div className="stat-tile">
+            <div className="stat-label">Revenue</div>
+            <TrendChart data={revenueSeries} formatValue={(v) => `₹${v.toFixed(0)}`} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

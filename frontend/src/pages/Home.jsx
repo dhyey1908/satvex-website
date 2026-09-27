@@ -15,6 +15,14 @@ import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import { staggerContainer, fadeUp, revealOnScroll, crossfade } from '../motion';
 import './Home.css';
 
+const WHY_PILLAR_ICONS = [InfinityIcon, Leaf, Package, Star];
+const DEFAULT_WHY_PILLARS = [
+  { title: 'Flexible', description: 'Moves comfortably with your everyday needs.' },
+  { title: 'Comfortable', description: 'Lightweight designs created for effortless everyday use.' },
+  { title: 'Durable', description: 'Made to deliver dependable performance and lasting usability.' },
+  { title: 'Stylish', description: 'Modern aesthetics designed for today’s women.' },
+];
+
 export function Home() {
   useDocumentMeta({
     title: 'Beauty & Fashion Accessories',
@@ -60,6 +68,7 @@ export function Home() {
 
   const heroImage = selectedVariant?.image || showcase?.images?.[0];
   const showcaseImage = selectedVariant?.image || showcase?.images?.[0];
+  const isSingleProduct = (products?.length ?? 0) <= 1;
 
   async function handleQuickAdd() {
     if (!isAuthenticated) {
@@ -124,7 +133,7 @@ export function Home() {
               durability and effortless style.
             </motion.p>
             <motion.div className="hero-actions" variants={fadeUp}>
-              <Link to="/shop" className="btn btn-primary">Shop the Collection</Link>
+              <Link to="/shop" className="btn btn-primary">{isSingleProduct ? 'Shop Now' : 'Shop the Collection'}</Link>
               <Link to="/about" className="hero-text-link">Discover Our Story →</Link>
             </motion.div>
             <motion.div className="hero-trust-row" variants={fadeUp}>
@@ -277,28 +286,32 @@ export function Home() {
         </section>
       )}
 
-      {/* FEATURED COLLECTION */}
-      <section className="section">
-        <div className="container">
-          <motion.div
-            className="collection-header"
-            initial={revealOnScroll.initial}
-            whileInView={revealOnScroll.whileInView}
-            viewport={{ once: true, margin: '-80px' }}
-          >
-            <div className="eyebrow-dot"><span>Featured</span></div>
-            <h2 className="text-headline-lg">Shop the Collection</h2>
-          </motion.div>
+      {/* FEATURED COLLECTION — hidden when there's only one product, since the
+          Interactive Showcase above already spotlights it; this grid earns
+          its place back automatically once a 2nd product exists. */}
+      {(!products || products.length > 1) && (
+        <section className="section">
+          <div className="container">
+            <motion.div
+              className="collection-header"
+              initial={revealOnScroll.initial}
+              whileInView={revealOnScroll.whileInView}
+              viewport={{ once: true, margin: '-80px' }}
+            >
+              <div className="eyebrow-dot"><span>Featured</span></div>
+              <h2 className="text-headline-lg">Shop the Collection</h2>
+            </motion.div>
 
-          {error && <p className="field-error">{error}</p>}
+            {error && <p className="field-error">{error}</p>}
 
-          {!error && (
-            <div className="home-product-grid">
-              <ProductGrid products={featured.length > 0 ? featured : products} loading={!products} />
-            </div>
-          )}
-        </div>
-      </section>
+            {!error && (
+              <div className="home-product-grid">
+                <ProductGrid products={featured.length > 0 ? featured : products} loading={!products} />
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* TRUST PILLARS */}
       <section className="section why-satvex">
@@ -311,26 +324,16 @@ export function Home() {
             whileInView="animate"
             viewport={{ once: true, margin: '-80px' }}
           >
-            <motion.div className="why-card" variants={fadeUp}>
-              <div className="why-icon"><InfinityIcon size={20} /></div>
-              <h3 className="text-title-md">Flexible</h3>
-              <p className="text-body-sm">Moves comfortably with your everyday needs.</p>
-            </motion.div>
-            <motion.div className="why-card" variants={fadeUp}>
-              <div className="why-icon"><Leaf size={20} /></div>
-              <h3 className="text-title-md">Comfortable</h3>
-              <p className="text-body-sm">Lightweight designs created for effortless everyday use.</p>
-            </motion.div>
-            <motion.div className="why-card" variants={fadeUp}>
-              <div className="why-icon"><Package size={20} /></div>
-              <h3 className="text-title-md">Durable</h3>
-              <p className="text-body-sm">Made to deliver dependable performance and lasting usability.</p>
-            </motion.div>
-            <motion.div className="why-card" variants={fadeUp}>
-              <div className="why-icon"><Star size={22} /></div>
-              <h3 className="text-title-md">Stylish</h3>
-              <p className="text-body-sm">Modern aesthetics designed for today&apos;s women.</p>
-            </motion.div>
+            {(settings?.whyPillars || DEFAULT_WHY_PILLARS).map((pillar, i) => {
+              const Icon = WHY_PILLAR_ICONS[i];
+              return (
+                <motion.div className="why-card" variants={fadeUp} key={pillar.title}>
+                  <div className="why-icon"><Icon size={i === 3 ? 22 : 20} /></div>
+                  <h3 className="text-title-md">{pillar.title}</h3>
+                  <p className="text-body-sm">{pillar.description}</p>
+                </motion.div>
+              );
+            })}
           </motion.div>
         </div>
       </section>

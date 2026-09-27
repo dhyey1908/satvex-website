@@ -84,10 +84,21 @@
 
 .checkout-summary-item {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
   font-size: 0.88rem;
   color: var(--color-text-muted);
 }
+.checkout-summary-item-image {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  object-fit: contain;
+  background: var(--color-surface-muted);
+  flex-shrink: 0;
+}
+.checkout-summary-item-info { flex: 1; min-width: 0; }
+.checkout-summary-item-price { flex-shrink: 0; }
 
 @media (max-width: 860px) {
   .checkout-layout, .field-row { grid-template-columns: 1fr; }

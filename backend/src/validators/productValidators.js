@@ -34,11 +34,17 @@ const productSchema = z.object({
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must be lowercase, alphanumeric and hyphen-separated'),
   shortDescription: z.string().trim().min(1).max(200),
   description: z.string().trim().min(1).max(5000),
+  // Optional "How to Wear" / fit content for the PDP — left blank until real
+  // copy is written; the frontend hides the accordion item when empty rather
+  // than showing filler text.
+  howToWear: z.string().trim().max(2000).default('').optional(),
   basePrice: z.number().min(0),
   // Empty until real photos are uploaded via the admin panel.
   images: z.array(z.string().trim().min(1)).default([]),
   videoUrl: z.string().trim().url().optional().or(z.literal('')),
-  rating: z.number().min(0).max(5).default(4.8),
+  // Computed from approved reviews (see reviewService.recomputeProductAggregate) —
+  // not admin-editable. Starts at 0 until the product has real reviews.
+  rating: z.number().min(0).max(5).default(0),
   reviewCount: z.number().int().min(0).default(0),
   variants: z.array(variantSchema).min(1, 'At least one color variant is required'),
   sellingOptions: z.array(sellingOptionSchema).min(1, 'At least one selling option is required'),

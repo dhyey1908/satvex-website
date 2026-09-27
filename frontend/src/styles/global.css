@@ -261,6 +261,37 @@ ul {
   font-size: 0.8rem;
   margin-top: var(--space-1);
 }
+.field.invalid input,
+.field.invalid textarea,
+.field.invalid select {
+  border-color: var(--color-error);
+}
+.field-hint {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
+}
+
+.password-strength {
+  display: flex;
+  gap: 4px;
+  margin-top: var(--space-2);
+}
+.password-strength-bar {
+  height: 3px;
+  flex: 1;
+  border-radius: 2px;
+  background: var(--color-border);
+  transition: background var(--transition-fast);
+}
+.password-strength-bar.filled.weak { background: var(--color-error); }
+.password-strength-bar.filled.fair { background: #b8860b; }
+.password-strength-bar.filled.strong { background: var(--color-success); }
+.password-strength-label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
+}
 
 /* Card — resting state relies on a hairline border, not a shadow; shadow
    only appears on hover/elevation (per the Atelier Papillon elevation model). */

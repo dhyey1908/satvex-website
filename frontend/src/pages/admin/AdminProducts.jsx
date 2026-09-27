@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { productService } from '../../services/productService';
 import { useToast } from '../../context/ToastContext';
@@ -8,9 +8,13 @@ import { ErrorState } from '../../components/ErrorState';
 import { EmptyState } from '../../components/EmptyState';
 import './Admin.css';
 
+const STATUS_FILTERS = ['All', 'Active', 'Inactive', 'Featured'];
+
 export function AdminProducts() {
   const [products, setProducts] = useState(null);
   const [error, setError] = useState(null);
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('All');
   const { showToast } = useToast();
   const confirm = useConfirm();
 
@@ -23,6 +27,17 @@ export function AdminProducts() {
   }
 
   useEffect(load, []);
+
+  const visible = useMemo(() => {
+    if (!products) return null;
+    let list = products;
+    if (status === 'Active') list = list.filter((p) => p.isActive);
+    else if (status === 'Inactive') list = list.filter((p) => !p.isActive);
+    else if (status === 'Featured') list = list.filter((p) => p.isFeatured);
+    const term = search.trim().toLowerCase();
+    if (term) list = list.filter((p) => p.name.toLowerCase().includes(term));
+    return list;
+  }, [products, search, status]);
 
   async function handleDelete(product) {
     const ok = await confirm({
@@ -65,6 +80,27 @@ export function AdminProducts() {
       {!error && products?.length === 0 && <EmptyState title="No products yet" />}
 
       {!error && products?.length > 0 && (
+        <form className="admin-filters" onSubmit={(e) => e.preventDefault()}>
+          <input
+            placeholder="Search by product name…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <select value={status} onChange={(e) => setStatus(e.target.value)}>
+            {STATUS_FILTERS.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </form>
+      )}
+
+      {!error && products?.length > 0 && visible?.length === 0 && (
+        <EmptyState title="No products match your search" />
+      )}
+
+      {!error && visible?.length > 0 && (
         <div className="admin-table-wrap">
           <table className="admin-table">
             <thead>
@@ -77,7 +113,7 @@ export function AdminProducts() {
               </tr>
             </thead>
             <tbody>
-              {products.map((p) => (
+              {visible.map((p) => (
                 <tr key={p.productId}>
                   <td>{p.name}</td>
                   <td>₹{p.basePrice}</td>

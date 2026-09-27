@@ -37,6 +37,7 @@ import { AdminOrderDetail } from './pages/admin/AdminOrderDetail';
 import { AdminCustomers } from './pages/admin/AdminCustomers';
 import { AdminContacts } from './pages/admin/AdminContacts';
 import { AdminCoupons } from './pages/admin/AdminCoupons';
+import { AdminReviews } from './pages/admin/AdminReviews';
 import { AdminBanners } from './pages/admin/AdminBanners';
 import { AdminSettings } from './pages/admin/AdminSettings';
 
@@ -102,6 +103,7 @@ export default function App() {
           <Route path="customers" element={<AdminCustomers />} />
           <Route path="contacts" element={<AdminContacts />} />
           <Route path="coupons" element={<AdminCoupons />} />
+          <Route path="reviews" element={<AdminReviews />} />
           <Route path="banners" element={<AdminBanners />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>

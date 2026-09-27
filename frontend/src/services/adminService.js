@@ -14,4 +14,7 @@ export const adminService = {
   createCoupon: (data) => api.post('/admin/coupons', data),
   updateCoupon: (code, data) => api.put(`/admin/coupons/${encodeURIComponent(code)}`, data),
   deleteCoupon: (code) => api.delete(`/admin/coupons/${encodeURIComponent(code)}`),
+  reviews: (params) => api.get('/admin/reviews', params),
+  moderateReview: (id, status) => api.put(`/admin/reviews/${encodeURIComponent(id)}`, { status }),
+  deleteReview: (id) => api.delete(`/admin/reviews/${encodeURIComponent(id)}`),
 };

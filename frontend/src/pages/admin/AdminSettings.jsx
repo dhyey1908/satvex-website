@@ -20,6 +20,13 @@ export function AdminSettings() {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  function setPillarField(index, key, value) {
+    setForm((prev) => ({
+      ...prev,
+      whyPillars: prev.whyPillars.map((p, i) => (i === index ? { ...p, [key]: value } : p)),
+    }));
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setSaving(true);
@@ -89,6 +96,29 @@ export function AdminSettings() {
               Shown on the About page hero. Leave empty to fall back to a product photo. See IMAGE_GUIDE.md for the recommended size.
             </p>
           </div>
+        </div>
+
+        <div className="admin-form-section">
+          <h3>Why Satvex — Homepage &amp; About Pillars</h3>
+          <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: 12 }}>
+            Shown as 4 cards on the Homepage and About page. Fill in real, specific claims
+            (materials, testing, durability) rather than generic marketing language.
+          </p>
+          {form.whyPillars.map((pillar, i) => (
+            <div key={i} className="repeatable-row">
+              <div className="field">
+                <label>Title {i + 1}</label>
+                <input value={pillar.title} onChange={(e) => setPillarField(i, 'title', e.target.value)} />
+              </div>
+              <div className="field">
+                <label>Description {i + 1}</label>
+                <input
+                  value={pillar.description}
+                  onChange={(e) => setPillarField(i, 'description', e.target.value)}
+                />
+              </div>
+            </div>
+          ))}
         </div>
 
         <div className="admin-form-section">

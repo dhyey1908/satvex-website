@@ -3,6 +3,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { attachUserIfPresent, requireAuth } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/admin');
 const productController = require('../controllers/productController');
+const reviewController = require('../controllers/reviewController');
 
 const router = express.Router();
 
@@ -13,5 +14,8 @@ router.get('/:id', attachUserIfPresent, asyncHandler(productController.getById))
 router.post('/', requireAuth, requireAdmin, asyncHandler(productController.create));
 router.put('/:id', requireAuth, requireAdmin, asyncHandler(productController.update));
 router.delete('/:id', requireAuth, requireAdmin, asyncHandler(productController.remove));
+
+router.get('/:id/reviews', asyncHandler(reviewController.listForProduct));
+router.post('/:id/reviews', requireAuth, asyncHandler(reviewController.create));
 
 module.exports = router;

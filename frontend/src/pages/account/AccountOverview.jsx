@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { orderService } from '../../services/orderService';
 import { addressService } from '../../services/addressService';
+import { OrderCard } from '../../components/OrderCard';
 import { useDocumentMeta } from '../../hooks/useDocumentMeta';
 import './Account.css';
 
@@ -14,9 +15,16 @@ export function AccountOverview() {
   const { itemCount: wishlistCount } = useWishlist();
   const [orderCount, setOrderCount] = useState(null);
   const [addressCount, setAddressCount] = useState(null);
+  const [latestOrder, setLatestOrder] = useState(null);
 
   useEffect(() => {
-    orderService.list().then((data) => setOrderCount(data.orders.length)).catch(() => setOrderCount(0));
+    orderService
+      .list()
+      .then((data) => {
+        setOrderCount(data.orders.length);
+        setLatestOrder(data.orders[0] || null);
+      })
+      .catch(() => setOrderCount(0));
     addressService.list().then((data) => setAddressCount(data.addresses.length)).catch(() => setAddressCount(0));
   }, []);
 
@@ -55,6 +63,13 @@ export function AccountOverview() {
           <div className="account-stat-label">Saved Addresses</div>
         </div>
       </div>
+
+      {latestOrder && (
+        <>
+          <h3 className="account-section-title">Most Recent Order</h3>
+          <OrderCard order={latestOrder} />
+        </>
+      )}
 
       <h3 className="account-section-title">Quick Actions</h3>
       <div className="account-quick-actions">

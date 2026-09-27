@@ -1,0 +1,48 @@
+.product-reviews { margin-top: var(--space-4); }
+.product-reviews-empty { color: var(--color-text-muted); }
+
+.product-reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+.product-review-item {
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+.product-review-item-top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+.product-review-stars { color: var(--color-accent-gold); letter-spacing: 1px; }
+.product-review-author { font-weight: 600; }
+.product-review-date { color: var(--color-text-muted); margin-left: auto; }
+.product-review-title { font-weight: 600; margin: 6px 0 2px; }
+.product-review-comment { color: var(--color-text-muted); margin: 0; }
+
+.product-review-form {
+  max-width: 480px;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+.product-review-form h4 { margin-bottom: var(--space-3); }
+
+.review-star-input {
+  display: flex;
+  gap: 4px;
+  margin-bottom: var(--space-4);
+}
+.review-star-input button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-outline);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+.review-star-input button.active,
+.review-star-input button:hover { color: var(--color-accent-gold); }

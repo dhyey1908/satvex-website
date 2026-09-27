@@ -105,7 +105,9 @@ export function Shop() {
     <div className="container section shop-page">
       <PageHeader eyebrow="Shop" title="All Products" count={visible?.length} countLabel="products" />
       <p className="shop-subcopy text-body-md">
-        The complete Satvex collection — thoughtfully designed essentials, sold single or as a curated combo.
+        {products && products.length <= 1
+          ? 'Thoughtfully designed, sold single or as a curated combo.'
+          : 'The complete Satvex collection — thoughtfully designed essentials, sold single or as a curated combo.'}
       </p>
 
       <div className="shop-filter-bar">
@@ -145,13 +147,15 @@ export function Shop() {
           </div>
         </div>
 
-        <select className="shop-sort-select" value={sort} onChange={(e) => setSort(e.target.value)}>
-          {SORT_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              Sort: {opt.label}
-            </option>
-          ))}
-        </select>
+        {products && products.length > 1 && (
+          <select className="shop-sort-select" value={sort} onChange={(e) => setSort(e.target.value)}>
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                Sort: {opt.label}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       <AnimatePresence>

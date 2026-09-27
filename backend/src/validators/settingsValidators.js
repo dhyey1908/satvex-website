@@ -8,6 +8,11 @@ const heroBannerSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
+const pillarSchema = z.object({
+  title: z.string().trim().min(1).max(40),
+  description: z.string().trim().min(1).max(200),
+});
+
 const updateSettingsSchema = z.object({
   contactPhone: z.string().trim().max(20).optional(),
   contactEmail: z.string().trim().email().optional().or(z.literal('')),
@@ -17,6 +22,7 @@ const updateSettingsSchema = z.object({
   heroBanners: z.array(heroBannerSchema).max(10).optional(),
   authImage: z.string().trim().url().optional().or(z.literal('')),
   aboutImage: z.string().trim().url().optional().or(z.literal('')),
+  whyPillars: z.array(pillarSchema).length(4).optional(),
 });
 
 module.exports = { updateSettingsSchema };

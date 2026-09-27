@@ -9,7 +9,7 @@ export function PageHeader({ eyebrow, title, count, countLabel = 'items', childr
           <h1 className="text-headline-lg">{title}</h1>
           {typeof count === 'number' && (
             <p className="page-header-count">
-              {count} {countLabel}
+              {count} {count === 1 && countLabel.endsWith('s') ? countLabel.slice(0, -1) : countLabel}
             </p>
           )}
         </div>

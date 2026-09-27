@@ -52,9 +52,11 @@ export function ComboColorSelector({ variants, requiredCount, allowDuplicateColo
       </div>
 
       <div className="combo-selection-summary">
-        <span>
-          {selectedIds.length} / {requiredCount} selected
-        </span>
+        {requiredCount > 1 && (
+          <span>
+            {selectedIds.length} / {requiredCount} selected
+          </span>
+        )}
         {selectedIds.length > 0 && (
           <div className="combo-selected-chips">
             {selectedIds.map((id, index) => {
@@ -74,7 +76,7 @@ export function ComboColorSelector({ variants, requiredCount, allowDuplicateColo
             })}
           </div>
         )}
-        {!allowDuplicateColors && (
+        {requiredCount > 1 && !allowDuplicateColors && (
           <p className="combo-hint">Duplicate colors are not allowed for this option.</p>
         )}
       </div>

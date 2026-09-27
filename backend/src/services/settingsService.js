@@ -15,6 +15,12 @@ const DEFAULT_SETTINGS = {
   heroBanners: [],
   authImage: '',
   aboutImage: '',
+  whyPillars: [
+    { title: 'Flexible', description: 'Moves comfortably with your everyday needs.' },
+    { title: 'Comfortable', description: 'Lightweight designs created for effortless everyday use.' },
+    { title: 'Durable', description: 'Made to deliver dependable performance and lasting usability.' },
+    { title: 'Stylish', description: 'Modern aesthetics designed for today’s women.' },
+  ],
 };
 
 async function getSettings() {

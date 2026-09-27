@@ -10,8 +10,9 @@ const LINKS = [
   { to: '/admin/orders', label: 'Orders' },
   { to: '/admin/customers', label: 'Customers' },
   { to: '/admin/coupons', label: 'Coupons' },
+  { to: '/admin/reviews', label: 'Reviews' },
   { to: '/admin/banners', label: 'Banners' },
-  { to: '/admin/contacts', label: 'Messages' },
+  { to: '/admin/contacts', label: 'Contacts' },
   { to: '/admin/settings', label: 'Settings' },
 ];
 

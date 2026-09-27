@@ -9,11 +9,12 @@ import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import { revealOnScroll, staggerContainer, fadeUp } from '../motion';
 import './About.css';
 
-const VALUES = [
-  { icon: InfinityIcon, title: 'Flexible', text: 'Moves comfortably with your everyday needs.' },
-  { icon: Leaf, title: 'Comfortable', text: 'Lightweight designs created for effortless everyday use.' },
-  { icon: Package, title: 'Durable', text: 'Made to deliver dependable performance and lasting usability.' },
-  { icon: Star, title: 'Stylish', text: 'Modern aesthetics designed for today’s women.' },
+const VALUE_ICONS = [InfinityIcon, Leaf, Package, Star];
+const DEFAULT_VALUES = [
+  { title: 'Flexible', description: 'Moves comfortably with your everyday needs.' },
+  { title: 'Comfortable', description: 'Lightweight designs created for effortless everyday use.' },
+  { title: 'Durable', description: 'Made to deliver dependable performance and lasting usability.' },
+  { title: 'Stylish', description: 'Modern aesthetics designed for today’s women.' },
 ];
 
 export function About() {
@@ -70,13 +71,16 @@ export function About() {
             whileInView="animate"
             viewport={{ once: true, margin: '-80px' }}
           >
-            {VALUES.map((v) => (
-              <motion.div key={v.title} className="about-value-card" variants={fadeUp}>
-                <div className="about-value-icon"><v.icon size={22} /></div>
-                <h3 className="text-title-md">{v.title}</h3>
-                <p className="text-body-sm">{v.text}</p>
-              </motion.div>
-            ))}
+            {(settings?.whyPillars || DEFAULT_VALUES).map((v, i) => {
+              const Icon = VALUE_ICONS[i];
+              return (
+                <motion.div key={v.title} className="about-value-card" variants={fadeUp}>
+                  <div className="about-value-icon"><Icon size={22} /></div>
+                  <h3 className="text-title-md">{v.title}</h3>
+                  <p className="text-body-sm">{v.description}</p>
+                </motion.div>
+              );
+            })}
           </motion.div>
         </div>
       </section>

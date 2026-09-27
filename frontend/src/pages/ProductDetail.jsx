@@ -8,6 +8,7 @@ import { SellingOptionSelector } from '../components/SellingOptionSelector';
 import { ComboColorSelector } from '../components/ComboColorSelector';
 import { QuantitySelector } from '../components/QuantitySelector';
 import { RatingDisplay } from '../components/RatingDisplay';
+import { ProductReviews } from '../components/ProductReviews';
 import { PriceDisplay } from '../components/PriceDisplay';
 import { ProductGrid } from '../components/ProductGrid';
 import { Loader } from '../components/Loader';
@@ -254,10 +255,11 @@ export function ProductDetail() {
         <div className="pdp-accordion">
           {[
             { key: 'description', label: 'Description', body: product.description },
+            product.howToWear ? { key: 'howToWear', label: 'How to Wear', body: product.howToWear } : null,
             { key: 'materials', label: 'Materials & Care', body: 'Crafted from premium, skin-friendly materials. Wipe clean with a soft, dry cloth. Avoid contact with water and perfume.' },
             { key: 'shipping', label: 'Shipping', body: 'Free shipping on all orders. Orders are typically processed within 1-2 business days.' },
             { key: 'returns', label: 'Returns', body: "Contact us within 7 days of delivery if there's an issue with your order — we're happy to help." },
-          ].map((item) => {
+          ].filter(Boolean).map((item) => {
             const isOpen = openInfo === item.key;
             return (
               <div key={item.key} className="pdp-accordion-item">
@@ -297,6 +299,7 @@ export function ProductDetail() {
         <div className="product-detail-reviews">
           <h3 className="text-headline-sm">Reviews</h3>
           <RatingDisplay rating={product.rating} reviewCount={product.reviewCount} size="lg" />
+          <ProductReviews productId={product.productId} />
         </div>
       </div>
 

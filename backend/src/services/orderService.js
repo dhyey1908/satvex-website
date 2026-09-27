@@ -71,6 +71,11 @@ async function listAll({ status, search } = {}) {
   return items.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
+async function hasUserPurchasedProduct(userId, productId) {
+  const orders = await listForUser(userId);
+  return orders.some((order) => (order.items || []).some((item) => item.productId === productId));
+}
+
 async function updateStatus(orderId, status) {
   await docClient.send(
     new UpdateCommand({
@@ -83,4 +88,12 @@ async function updateStatus(orderId, status) {
   );
 }
 
-module.exports = { ORDER_STATUSES, createOrder, findById, listForUser, listAll, updateStatus };
+module.exports = {
+  ORDER_STATUSES,
+  createOrder,
+  findById,
+  listForUser,
+  listAll,
+  updateStatus,
+  hasUserPurchasedProduct,
+};

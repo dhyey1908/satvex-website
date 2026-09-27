@@ -11,10 +11,12 @@ const EMPTY_PRODUCT = {
   slug: '',
   shortDescription: '',
   description: '',
+  howToWear: '',
   basePrice: 0,
   images: [],
   videoUrl: '',
-  rating: 4.8,
+  rating: 0,
+  reviewCount: 0,
   variants: [],
   sellingOptions: [],
   isActive: true,
@@ -195,6 +197,16 @@ export function AdminProductForm() {
               onChange={(e) => setField('description', e.target.value)}
             />
           </div>
+          <div className="field">
+            <label htmlFor="howToWear">How to Wear / Fit Notes (optional)</label>
+            <textarea
+              id="howToWear"
+              rows={3}
+              value={form.howToWear || ''}
+              onChange={(e) => setField('howToWear', e.target.value)}
+              placeholder="Shown as an extra accordion section on the product page. Leave blank to hide it."
+            />
+          </div>
           <div className="admin-form-row">
             <div className="field">
               <label htmlFor="basePrice">Base Price (₹)</label>
@@ -208,16 +220,14 @@ export function AdminProductForm() {
               />
             </div>
             <div className="field">
-              <label htmlFor="rating">Display Rating</label>
-              <input
-                id="rating"
-                type="number"
-                min="0"
-                max="5"
-                step="0.1"
-                value={form.rating}
-                onChange={(e) => setField('rating', Number(e.target.value))}
-              />
+              <label>Rating</label>
+              <p className="field-hint" style={{ marginTop: 10 }}>
+                {form.reviewCount > 0
+                  ? `${form.rating.toFixed(1)} ★ from ${form.reviewCount} approved review${form.reviewCount === 1 ? '' : 's'}`
+                  : 'No approved reviews yet'}
+                {' — '}computed automatically, see{' '}
+                <a href="/admin/reviews">Reviews</a>.
+              </p>
             </div>
           </div>
           <div className="field">

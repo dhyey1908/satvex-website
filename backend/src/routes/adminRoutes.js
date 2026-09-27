@@ -8,6 +8,7 @@ const orderController = require('../controllers/orderController');
 const contactController = require('../controllers/contactController');
 const mediaController = require('../controllers/mediaController');
 const couponController = require('../controllers/couponController');
+const reviewController = require('../controllers/reviewController');
 
 const router = express.Router();
 
@@ -32,5 +33,9 @@ router.get('/coupons', asyncHandler(couponController.adminList));
 router.post('/coupons', asyncHandler(couponController.adminCreate));
 router.put('/coupons/:code', asyncHandler(couponController.adminUpdate));
 router.delete('/coupons/:code', asyncHandler(couponController.adminRemove));
+
+router.get('/reviews', asyncHandler(reviewController.adminList));
+router.put('/reviews/:id', asyncHandler(reviewController.adminModerate));
+router.delete('/reviews/:id', asyncHandler(reviewController.adminRemove));
 
 module.exports = router;

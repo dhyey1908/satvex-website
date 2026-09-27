@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { orderService } from '../services/orderService';
 import { addressService } from '../services/addressService';
+import { authService } from '../services/authService';
 import { useToast } from '../context/ToastContext';
 import { EmptyState } from '../components/EmptyState';
 import { OrderSummary } from '../components/OrderSummary';
@@ -27,6 +29,7 @@ export function Checkout() {
   useDocumentMeta({ title: 'Checkout', path: '/checkout' });
 
   const { items, total, refresh, appliedCoupon, clearCoupon } = useCart();
+  const { user, refreshUser } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [form, setForm] = useState(EMPTY_FORM);
@@ -37,6 +40,7 @@ export function Checkout() {
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [saveAddress, setSaveAddress] = useState(false);
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
+  const [pincodeLookupState, setPincodeLookupState] = useState('idle');
 
   useEffect(() => {
     addressService
@@ -57,6 +61,36 @@ export function Checkout() {
   function setField(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
+
+  useEffect(() => {
+    const pincode = form.pincode.trim();
+    if (!/^\d{6}$/.test(pincode)) {
+      setPincodeLookupState('idle');
+      return;
+    }
+    let cancelled = false;
+    setPincodeLookupState('loading');
+    const timer = setTimeout(() => {
+      fetch(`https://api.postalpincode.in/pincode/${pincode}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (cancelled) return;
+          const office = data?.[0]?.PostOffice?.[0];
+          if (data?.[0]?.Status === 'Success' && office) {
+            setForm((prev) => ({ ...prev, city: office.District, state: office.State }));
+            setPincodeLookupState('success');
+          } else {
+            setPincodeLookupState('not-found');
+          }
+        })
+        .catch(() => !cancelled && setPincodeLookupState('idle'));
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.pincode]);
 
   function applyAddress(addr) {
     setSelectedAddressId(addr.addressId);
@@ -108,6 +142,13 @@ export function Checkout() {
             pincode: form.pincode,
             country: form.country,
           })
+          .catch(() => {});
+      }
+
+      if (user && (!user.name?.trim() || !user.phone?.trim())) {
+        authService
+          .updateProfile({ name: user.name?.trim() || form.name, phone: user.phone?.trim() || form.phone })
+          .then(refreshUser)
           .catch(() => {});
       }
 
@@ -210,9 +251,15 @@ export function Checkout() {
                   <input
                     id="pincode"
                     required
+                    inputMode="numeric"
+                    maxLength={6}
                     value={form.pincode}
-                    onChange={(e) => setField('pincode', e.target.value)}
+                    onChange={(e) => setField('pincode', e.target.value.replace(/\D/g, ''))}
                   />
+                  {pincodeLookupState === 'loading' && <p className="field-hint">Looking up city/state…</p>}
+                  {pincodeLookupState === 'not-found' && (
+                    <p className="field-hint">Couldn&apos;t auto-fill — enter city/state manually.</p>
+                  )}
                 </div>
                 <div className="field">
                   <label htmlFor="country">Country</label>
@@ -276,10 +323,16 @@ export function Checkout() {
               <div className="checkout-summary-items">
                 {items.map((item) => (
                   <div key={item.cartItemId} className="checkout-summary-item">
-                    <span>
+                    <img
+                      className="checkout-summary-item-image"
+                      src={item.productImage}
+                      alt={item.productName}
+                      loading="lazy"
+                    />
+                    <span className="checkout-summary-item-info">
                       {item.productName} · {item.sellingOptionName} × {item.quantity}
                     </span>
-                    <span>₹{item.subtotal.toFixed(2)}</span>
+                    <span className="checkout-summary-item-price">₹{item.subtotal.toFixed(2)}</span>
                   </div>
                 ))}
               </div>

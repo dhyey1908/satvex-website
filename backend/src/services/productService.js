@@ -106,6 +106,17 @@ async function setActive(productId, isActive) {
   );
 }
 
+async function updateRatingAggregate(productId, { rating, reviewCount }) {
+  await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE,
+      Key: { productId },
+      UpdateExpression: 'SET rating = :rating, reviewCount = :reviewCount, updatedAt = :now',
+      ExpressionAttributeValues: { ':rating': rating, ':reviewCount': reviewCount, ':now': new Date().toISOString() },
+    })
+  );
+}
+
 module.exports = {
   listProducts,
   findById,
@@ -114,4 +125,5 @@ module.exports = {
   updateProduct,
   deleteProduct,
   setActive,
+  updateRatingAggregate,
 };
