@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
 import { orderService } from '../services/orderService';
 import { Banknote, Wallet } from 'lucide-react';
 import { addressService } from '../services/addressService';
 import { authService } from '../services/authService';
+import { redirectToCashfreeCheckout } from '../utils/cashfree';
 import { useToast } from '../context/ToastContext';
 import { EmptyState } from '../components/EmptyState';
 import { OrderSummary } from '../components/OrderSummary';
@@ -13,7 +15,7 @@ import { AddressCard } from '../components/AddressCard';
 import { PageHeader } from '../components/PageHeader';
 import { Truck, Loader2, Plus } from 'lucide-react';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
-import { required, minLength, email as validateEmail, phone as validatePhone, pincode as validatePincode, runValidators, hasErrors } from '../utils/validators';
+import { required, minLength, email as validateEmail, phone as validatePhone, sanitizePhoneInput, pincode as validatePincode, runValidators, hasErrors } from '../utils/validators';
 import { mapServerFieldErrors } from '../utils/formErrors';
 import './Checkout.css';
 
@@ -44,6 +46,7 @@ export function Checkout() {
 
   const { items, total, refresh, appliedCoupon, clearCoupon } = useCart();
   const { user, refreshUser } = useAuth();
+  const { settings, refresh: refreshSettings } = useSettings();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [form, setForm] = useState(EMPTY_FORM);
@@ -59,6 +62,14 @@ export function Checkout() {
   const [pincodeLookupState, setPincodeLookupState] = useState('idle');
   const [paymentMethod, setPaymentMethod] = useState('COD');
   const [quote, setQuote] = useState(null);
+
+  // Refetch settings on entering checkout — SettingsContext fetches once at
+  // app mount, which can predate a same-session login, so an allowlisted
+  // test user's paymentsOnlineAvailable flag could otherwise be stale.
+  useEffect(() => {
+    refreshSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     addressService
@@ -179,7 +190,7 @@ export function Checkout() {
 
     setSubmitting(true);
     try {
-      const { order } = await orderService.checkout({
+      const response = await orderService.checkout({
         customer: { name: form.name, phone: form.phone, email: form.email },
         address: {
           line1: form.line1,
@@ -216,8 +227,17 @@ export function Checkout() {
 
       clearCoupon();
       await refresh();
+
+      if (paymentMethod === 'Online' && response.paymentSessionId) {
+        // Redirects the whole browser to Cashfree's hosted payment page —
+        // nothing after this line runs until the customer is redirected
+        // back to the return_url set at order creation.
+        await redirectToCashfreeCheckout(response.paymentSessionId);
+        return;
+      }
+
       showToast('Order placed!', 'success');
-      navigate(`/order-confirmation/${order.orderId}`);
+      navigate(`/order-confirmation/${response.order.orderId}`);
     } catch (err) {
       const serverErrors = mapServerFieldErrors(err, CHECKOUT_SERVER_FIELD_MAP);
       if (serverErrors) {
@@ -298,8 +318,10 @@ export function Checkout() {
                   <input
                     id="phone"
                     required
+                    inputMode="numeric"
+                    maxLength={10}
                     value={form.phone}
-                    onChange={(e) => setField('phone', e.target.value)}
+                    onChange={(e) => setField('phone', sanitizePhoneInput(e.target.value))}
                     onBlur={() => markTouched('phone')}
                   />
                   {touched.phone && fieldErrors.phone && <p className="field-error">{fieldErrors.phone}</p>}
@@ -441,20 +463,22 @@ export function Checkout() {
                   </p>
                 </div>
               </label>
-              <label className={`payment-method-option ${paymentMethod === 'Online' ? 'selected' : ''}`}>
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  value="Online"
-                  checked={paymentMethod === 'Online'}
-                  onChange={() => setPaymentMethod('Online')}
-                />
-                <Wallet size={18} />
-                <div>
-                  <p className="payment-method-name">Online Payment</p>
-                  <p className="payment-method-meta">UPI / Card — no extra charge.</p>
-                </div>
-              </label>
+              {settings?.paymentsOnlineAvailable && (
+                <label className={`payment-method-option ${paymentMethod === 'Online' ? 'selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="Online"
+                    checked={paymentMethod === 'Online'}
+                    onChange={() => setPaymentMethod('Online')}
+                  />
+                  <Wallet size={18} />
+                  <div>
+                    <p className="payment-method-name">Online Payment</p>
+                    <p className="payment-method-meta">UPI / Card — no extra charge.</p>
+                  </div>
+                </label>
+              )}
             </div>
 
             {error && <p className="field-error">{error}</p>}

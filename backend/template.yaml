@@ -25,6 +25,23 @@ Parameters:
   ResetTokenExpiresMin:
     Type: Number
     Default: 30
+  CashfreeAppId:
+    Type: String
+    NoEcho: true
+    Description: Cashfree x-client-id — sandbox key for dev, live key after cutover
+  CashfreeSecretKey:
+    Type: String
+    NoEcho: true
+    Description: >
+      Cashfree x-client-secret — also used to verify webhook signatures
+      (Cashfree has no separate webhook-signing secret)
+  CashfreeEnv:
+    Type: String
+    Default: sandbox
+    AllowedValues: [sandbox, production]
+  CashfreeApiVersion:
+    Type: String
+    Default: '2023-08-01'
 
 Globals:
   Function:
@@ -80,6 +97,10 @@ Resources:
           AttributeType: S
         - AttributeName: createdAt
           AttributeType: S
+        - AttributeName: paymentStatus
+          AttributeType: S
+        - AttributeName: paymentExpiresAt
+          AttributeType: S
       KeySchema:
         - AttributeName: orderId
           KeyType: HASH
@@ -89,6 +110,19 @@ Resources:
             - AttributeName: userId
               KeyType: HASH
             - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        # Lets the hourly expiry sweep Query just the awaiting_payment
+        # orders past their deadline instead of Scanning the whole table.
+        # Orders without paymentExpiresAt (COD, or legacy Online orders)
+        # simply have no entry in this index — DynamoDB omits an item from
+        # a GSI whenever any of the index's key attributes are missing.
+        - IndexName: paymentStatus-paymentExpiresAt-index
+          KeySchema:
+            - AttributeName: paymentStatus
+              KeyType: HASH
+            - AttributeName: paymentExpiresAt
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
@@ -273,6 +307,10 @@ Resources:
           JWT_EXPIRES_IN: 7d
           RESET_TOKEN_EXPIRES_MIN: !Ref ResetTokenExpiresMin
           SES_SENDER_EMAIL: !Ref SesSenderEmail
+          CASHFREE_APP_ID: !Ref CashfreeAppId
+          CASHFREE_SECRET_KEY: !Ref CashfreeSecretKey
+          CASHFREE_ENV: !Ref CashfreeEnv
+          CASHFREE_API_VERSION: !Ref CashfreeApiVersion
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UsersTable
@@ -312,6 +350,45 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/satvex-api-${Stage}
+      RetentionInDays: 14
+
+  # Hourly sweep that expires stale awaiting_payment orders and releases
+  # their coupons — see src/expirePayments.js and 18-payment-gateway.md §8.
+  # Separate function (not routed through the Express app/API Gateway)
+  # since EventBridge invokes it directly.
+  ExpirePaymentsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub satvex-expire-payments-${Stage}
+      CodeUri: ./
+      Handler: src/expirePayments.handler
+      Timeout: 60
+      Environment:
+        Variables:
+          TABLE_ORDERS: !Ref OrdersTable
+          TABLE_COUPONS: !Ref CouponsTable
+          TABLE_COUPON_REDEMPTIONS: !Ref CouponRedemptionsTable
+          CASHFREE_APP_ID: !Ref CashfreeAppId
+          CASHFREE_SECRET_KEY: !Ref CashfreeSecretKey
+          CASHFREE_ENV: !Ref CashfreeEnv
+          CASHFREE_API_VERSION: !Ref CashfreeApiVersion
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrdersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref CouponsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref CouponRedemptionsTable
+      Events:
+        HourlySweep:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 hour)
+
+  ExpirePaymentsFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/satvex-expire-payments-${Stage}
       RetentionInDays: 14
 
   ## ---------- S3: product/variant media ----------

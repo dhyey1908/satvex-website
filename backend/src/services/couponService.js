@@ -69,4 +69,25 @@ async function incrementUsage(code, usageLimit) {
   }
 }
 
-module.exports = { findByCode, listAll, create, update, remove, incrementUsage };
+// Rollback counterpart to incrementUsage — used when an online order that
+// had already committed a coupon redemption ends up failed/expired, so the
+// coupon's usage count isn't permanently burned by a payment that never
+// completed. Conditioned on usageCount > 0 so it can never go negative;
+// silently no-ops if there's nothing to roll back (e.g. called twice).
+async function decrementUsage(code) {
+  try {
+    await docClient.send(
+      new UpdateCommand({
+        TableName: TABLE,
+        Key: { code },
+        UpdateExpression: 'ADD usageCount :neg SET updatedAt = :now',
+        ConditionExpression: 'usageCount > :zero',
+        ExpressionAttributeValues: { ':neg': -1, ':zero': 0, ':now': new Date().toISOString() },
+      })
+    );
+  } catch (err) {
+    if (err.name !== 'ConditionalCheckFailedException') throw err;
+  }
+}
+
+module.exports = { findByCode, listAll, create, update, remove, incrementUsage, decrementUsage };

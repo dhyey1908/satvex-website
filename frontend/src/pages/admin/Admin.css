@@ -7,6 +7,22 @@
   gap: var(--space-3);
 }
 
+.admin-alert-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--color-warning-bg, #fdf3d9);
+  color: var(--color-warning, #8a5a10);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+.admin-alert-banner svg { flex-shrink: 0; }
+
+.admin-needs-review-icon { color: var(--color-warning, #8a5a10); margin-left: 6px; vertical-align: middle; }
+
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

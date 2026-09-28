@@ -7,4 +7,6 @@ export const orderService = {
   getById: (id) => api.get(`/orders/${encodeURIComponent(id)}`),
   cancel: (id) => api.post(`/orders/${encodeURIComponent(id)}/cancel`),
   reorder: (id) => api.post(`/orders/${encodeURIComponent(id)}/reorder`),
+  paymentStatus: (id) => api.get(`/orders/${encodeURIComponent(id)}/payment-status`),
+  retryPayment: (id) => api.post(`/orders/${encodeURIComponent(id)}/retry-payment`),
 };

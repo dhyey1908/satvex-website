@@ -18,6 +18,11 @@ const DEFAULT_SETTINGS = {
   tax: { enabled: true, percent: 18 },
   shipping: { enabled: true, charge: 50, freeThreshold: 999 },
   cod: { enabled: true, charge: 40 },
+  // Sandbox keys must never be reachable by real customers — onlineEnabled
+  // stays false until the live-cutover checklist is complete.
+  // onlineTestUserIds lets specific accounts exercise the real Cashfree
+  // sandbox flow while it's invisible to everyone else.
+  payments: { onlineEnabled: false, onlineTestUserIds: [] },
   whyPillars: [
     { title: 'Flexible', description: 'Moves comfortably with your everyday needs.' },
     { title: 'Comfortable', description: 'Lightweight designs created for effortless everyday use.' },

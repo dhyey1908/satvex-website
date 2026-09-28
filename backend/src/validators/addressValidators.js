@@ -3,7 +3,7 @@ const { z } = require('zod');
 const addressSchema = z.object({
   label: z.string().trim().min(1).max(40).default('Home'),
   fullName: z.string().trim().min(2).max(100),
-  phone: z.string().trim().regex(/^[0-9+\-\s()]{7,15}$/, 'Invalid phone number'),
+  phone: z.string().trim().regex(/^[0-9]{10}$/, 'Enter a valid 10-digit mobile number.'),
   line1: z.string().trim().min(3).max(200),
   city: z.string().trim().min(2).max(100),
   state: z.string().trim().min(2).max(100),

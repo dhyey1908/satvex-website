@@ -8,7 +8,7 @@ import { Modal } from '../../components/Modal';
 import { EmptyState } from '../../components/EmptyState';
 import { Loader } from '../../components/Loader';
 import { useDocumentMeta } from '../../hooks/useDocumentMeta';
-import { minLength, phone as validatePhone, postalCode, required, runValidators, hasErrors } from '../../utils/validators';
+import { minLength, phone as validatePhone, sanitizePhoneInput, postalCode, required, runValidators, hasErrors } from '../../utils/validators';
 import { mapServerFieldErrors } from '../../utils/formErrors';
 import './Account.css';
 
@@ -169,8 +169,10 @@ export function AccountAddresses() {
             <label>Phone</label>
             <input
               required
+              inputMode="numeric"
+              maxLength={10}
               value={form.phone}
-              onChange={(e) => setField('phone', e.target.value)}
+              onChange={(e) => setField('phone', sanitizePhoneInput(e.target.value))}
               onBlur={() => markTouched('phone')}
             />
             {touched.phone && fieldErrors.phone && <p className="field-error">{fieldErrors.phone}</p>}

@@ -1,18 +1,33 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import { orderService } from '../services/orderService';
 import { OrderSummary } from '../components/OrderSummary';
 import { Loader } from '../components/Loader';
 import { ErrorState } from '../components/ErrorState';
+import { useToast } from '../context/ToastContext';
+import { redirectToCashfreeCheckout } from '../utils/cashfree';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import './OrderConfirmation.css';
+
+// Poll for up to ~60s (20 tries, 3s apart) before giving up and asking the
+// customer to wait rather than immediately offering a retry — a slow
+// webhook is far more likely than an actual failure, and an early retry
+// button risks a double payment.
+const POLL_INTERVAL_MS = 3000;
+const MAX_POLLS = 20;
 
 export function OrderConfirmation() {
   useDocumentMeta({ title: 'Order Confirmed' });
 
   const { id } = useParams();
+  const { showToast } = useToast();
   const [order, setOrder] = useState(null);
   const [error, setError] = useState(null);
+  const [pollTimedOut, setPollTimedOut] = useState(false);
+  const [pollTick, setPollTick] = useState(0);
+  const [retrying, setRetrying] = useState(false);
+  const pollCount = useRef(0);
 
   useEffect(() => {
     orderService
@@ -21,8 +36,98 @@ export function OrderConfirmation() {
       .catch((err) => setError(err.message));
   }, [id]);
 
+  const awaitingPayment = order?.paymentMethod === 'Online' && order?.paymentStatus === 'awaiting_payment';
+
+  useEffect(() => {
+    if (!awaitingPayment) return;
+    if (pollCount.current >= MAX_POLLS) {
+      setPollTimedOut(true);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      pollCount.current += 1;
+      orderService
+        .paymentStatus(id)
+        .then(({ paymentStatus }) => {
+          if (paymentStatus !== 'awaiting_payment') {
+            orderService.getById(id).then(({ order: o }) => setOrder(o));
+          } else {
+            setPollTick((t) => t + 1); // advances the effect dependency to schedule the next poll
+          }
+        })
+        .catch(() => setPollTick((t) => t + 1));
+    }, POLL_INTERVAL_MS);
+
+    return () => clearTimeout(timer);
+  }, [awaitingPayment, pollTick, id]);
+
+  async function handleRetry() {
+    setRetrying(true);
+    try {
+      const { paymentSessionId, alreadyPaid } = await orderService.retryPayment(id);
+      if (alreadyPaid) {
+        const { order: o } = await orderService.getById(id);
+        setOrder(o);
+        showToast('Good news — this order is already paid.', 'success');
+        return;
+      }
+      await redirectToCashfreeCheckout(paymentSessionId);
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setRetrying(false);
+    }
+  }
+
   if (error) return <ErrorState message={error} />;
   if (!order) return <Loader label="Loading order…" />;
+
+  const paymentFailed = order.paymentMethod === 'Online' && order.paymentStatus === 'expired';
+
+  if (awaitingPayment && !pollTimedOut) {
+    return (
+      <div className="container section order-confirmation">
+        <Loader2 size={40} className="btn-spinner order-confirmation-verifying-icon" />
+        <h1>Verifying your payment…</h1>
+        <p className="order-confirmation-thanks">This only takes a few seconds — please don&apos;t close this page.</p>
+      </div>
+    );
+  }
+
+  if (awaitingPayment && pollTimedOut) {
+    return (
+      <div className="container section order-confirmation">
+        <h1>Still confirming your payment</h1>
+        <p className="order-confirmation-thanks">
+          We&apos;re still waiting for your bank/UPI app to confirm this payment.{' '}
+          <strong>Please don&apos;t pay again</strong> — we&apos;ll update this order automatically once it&apos;s
+          confirmed. You can check back here or in{' '}
+          <Link to="/account/orders">My Orders</Link>.
+        </p>
+      </div>
+    );
+  }
+
+  if (paymentFailed) {
+    return (
+      <div className="container section order-confirmation">
+        <h1>Payment didn&apos;t go through</h1>
+        <p className="order-confirmation-thanks">
+          This order&apos;s payment window has closed without a successful payment. You can try again below, or
+          place a new order.
+        </p>
+        <div className="order-confirmation-actions">
+          <button type="button" className="btn btn-primary" onClick={handleRetry} disabled={retrying}>
+            {retrying ? <Loader2 size={16} className="btn-spinner" /> : 'Retry Payment'}
+          </button>
+          <Link to="/shop" className="btn btn-outline">
+            Shop Again
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container section order-confirmation">
@@ -40,6 +145,10 @@ export function OrderConfirmation() {
           subtotal={order.subtotal}
           discountAmount={order.discountAmount}
           couponCode={order.couponCode}
+          gstPercent={order.gstPercent}
+          gstAmount={order.gstAmount}
+          shipping={order.shipping}
+          codCharge={order.codCharge}
           total={order.total}
           itemsSlot={
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8 }}>

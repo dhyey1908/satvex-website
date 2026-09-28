@@ -4,7 +4,7 @@
 // error message string, or '' when the value is valid.
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_RE = /^[0-9+\-\s()]{7,15}$/;
+const PHONE_RE = /^[0-9]{10}$/;
 const PINCODE_RE = /^[0-9]{6}$/;
 // Backend's address-book rule is looser (4-10 digits, not India-only 6) —
 // used for the account address book, while Checkout keeps the stricter
@@ -30,7 +30,14 @@ export function email(value, { optional = false } = {}) {
 export function phone(value, { optional = true } = {}) {
   const v = (value || '').trim();
   if (!v) return optional ? '' : 'Phone number is required.';
-  return PHONE_RE.test(v) ? '' : 'Enter a valid phone number (7–15 digits).';
+  return PHONE_RE.test(v) ? '' : 'Enter a valid 10-digit mobile number.';
+}
+
+// Strips anything that isn't a digit and caps at 10 chars — used as the
+// onChange transform for every phone <input> so an invalid character or an
+// 11th digit can never even be typed/pasted in, not just flagged on blur.
+export function sanitizePhoneInput(value) {
+  return (value || '').replace(/\D/g, '').slice(0, 10);
 }
 
 export function pincode(value, { optional = false } = {}) {

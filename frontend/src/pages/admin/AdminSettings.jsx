@@ -289,6 +289,43 @@ export function AdminSettings() {
           )}
         </div>
 
+        <div className="admin-form-section">
+          <h3>Online Payments (Cashfree)</h3>
+          <label className="checkbox-field">
+            <input
+              type="checkbox"
+              checked={form.payments?.onlineEnabled ?? false}
+              onChange={(e) => setNestedField('payments', 'onlineEnabled', e.target.checked)}
+            />
+            Show Online Payment to all customers
+          </label>
+          <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', margin: '4px 0 12px' }}>
+            Keep this off while testing with Cashfree sandbox keys — it must never be reachable by
+            real customers until real payments are confirmed working end to end (see the
+            live-cutover checklist in 18-payment-gateway.md).
+          </p>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label htmlFor="onlineTestUserIds">Test User IDs (one per line)</label>
+            <textarea
+              id="onlineTestUserIds"
+              rows={3}
+              value={(form.payments?.onlineTestUserIds || []).join('\n')}
+              onChange={(e) =>
+                setNestedField(
+                  'payments',
+                  'onlineTestUserIds',
+                  e.target.value.split('\n').map((v) => v.trim()).filter(Boolean)
+                )
+              }
+              placeholder="userId1&#10;userId2"
+            />
+            <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
+              These accounts see and can use Online Payment even while the toggle above is off —
+              use this to test the real Cashfree sandbox flow without exposing it publicly.
+            </p>
+          </div>
+        </div>
+
         <button type="submit" className="btn btn-primary" disabled={saving}>
           {saving ? 'Saving…' : 'Save Settings'}
         </button>

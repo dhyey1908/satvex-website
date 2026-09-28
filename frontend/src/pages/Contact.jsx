@@ -3,7 +3,7 @@ import { contactService } from '../services/contactService';
 import { useSettings } from '../context/SettingsContext';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import { CheckCircle2, Loader2 } from 'lucide-react';
-import { minLength, email as validateEmail, phone as validatePhone, runValidators, hasErrors } from '../utils/validators';
+import { minLength, email as validateEmail, phone as validatePhone, sanitizePhoneInput, runValidators, hasErrors } from '../utils/validators';
 import { mapServerFieldErrors } from '../utils/formErrors';
 import './Contact.css';
 
@@ -138,8 +138,10 @@ export function Contact() {
                   <label htmlFor="phone">Phone</label>
                   <input
                     id="phone"
+                    inputMode="numeric"
+                    maxLength={10}
                     value={form.phone}
-                    onChange={(e) => setField('phone', e.target.value)}
+                    onChange={(e) => setField('phone', sanitizePhoneInput(e.target.value))}
                     onBlur={() => markTouched('phone')}
                   />
                   {touched.phone && fieldErrors.phone && <p className="field-error">{fieldErrors.phone}</p>}

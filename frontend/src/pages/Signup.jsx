@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { AuthLayout } from '../components/AuthLayout';
 import { PasswordStrength } from '../components/PasswordStrength';
-import { minLength, email as validateEmail, phone as validatePhone, password as validatePassword, runValidators, hasErrors } from '../utils/validators';
+import { minLength, email as validateEmail, phone as validatePhone, sanitizePhoneInput, password as validatePassword, runValidators, hasErrors } from '../utils/validators';
 import { mapServerFieldErrors } from '../utils/formErrors';
 import './Auth.css';
 
@@ -98,8 +98,10 @@ export function Signup() {
             <label htmlFor="phone">Phone</label>
             <input
               id="phone"
+              inputMode="numeric"
+              maxLength={10}
               value={form.phone}
-              onChange={(e) => setField('phone', e.target.value)}
+              onChange={(e) => setField('phone', sanitizePhoneInput(e.target.value))}
               onBlur={() => markTouched('phone')}
             />
             {touched.phone && fieldErrors.phone && <p className="field-error">{fieldErrors.phone}</p>}

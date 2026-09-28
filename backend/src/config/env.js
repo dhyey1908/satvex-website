@@ -34,6 +34,14 @@ const env = {
     cloudFrontMediaUrl: process.env.CLOUDFRONT_MEDIA_URL,
   },
 
+  cashfree: {
+    appId: process.env.CASHFREE_APP_ID,
+    secretKey: process.env.CASHFREE_SECRET_KEY,
+    // 'sandbox' | 'production' — controls which Cashfree base URL is used.
+    env: process.env.CASHFREE_ENV || 'sandbox',
+    apiVersion: process.env.CASHFREE_API_VERSION || '2023-08-01',
+  },
+
   jwt: {
     secret: required('JWT_SECRET', 'dev-only-insecure-secret'),
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',

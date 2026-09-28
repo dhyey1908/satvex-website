@@ -30,6 +30,11 @@ const codSettingsSchema = z.object({
   charge: z.number().min(0).default(40),
 });
 
+const paymentsSettingsSchema = z.object({
+  onlineEnabled: z.boolean().default(false),
+  onlineTestUserIds: z.array(z.string().trim().min(1)).max(50).default([]),
+});
+
 const updateSettingsSchema = z.object({
   contactPhone: z.string().trim().max(20).optional(),
   contactEmail: z.string().trim().email().optional().or(z.literal('')),
@@ -43,6 +48,7 @@ const updateSettingsSchema = z.object({
   tax: taxSettingsSchema.optional(),
   shipping: shippingSettingsSchema.optional(),
   cod: codSettingsSchema.optional(),
+  payments: paymentsSettingsSchema.optional(),
 });
 
 module.exports = { updateSettingsSchema };

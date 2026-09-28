@@ -1,19 +1,10 @@
 # SATVEX — Checkout and Orders
 
 ## Payment
-Payment gateway is NOT required in version 1.
-
-Do not integrate:
-- Razorpay
-- Stripe
-- PayPal
-
-Create the order without online payment.
-
-Show a placeholder such as:
-"Payment integration coming soon."
-
-Keep architecture ready for future payment integration.
+v1 shipped COD-only, no gateway. v2 (in progress, see
+`18-payment-gateway.md`) adds a real Cashfree Hosted Checkout integration
+(UPI + Cards) behind the existing "Cash on Delivery / Online Payment"
+checkout toggle. COD remains fully supported and unaffected either way.
 
 ## Checkout
 Authenticated users can access checkout.

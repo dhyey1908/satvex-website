@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Download, Search as SearchIcon, Eye } from 'lucide-react';
+import { Download, Search as SearchIcon, Eye, AlertTriangle } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { useToast } from '../../context/ToastContext';
 import { Loader } from '../../components/Loader';
@@ -177,6 +177,7 @@ export function AdminOrders() {
                   <th>Customer</th>
                   <th>Total</th>
                   <th>Status</th>
+                  <th>Payment</th>
                   <th>Date</th>
                   <th></th>
                 </tr>
@@ -198,6 +199,16 @@ export function AdminOrders() {
                       <span className={`pill ${o.status === 'Cancelled' ? 'pill-inactive' : 'pill-active'}`}>
                         {o.status}
                       </span>
+                    </td>
+                    <td>
+                      {o.paymentMethod === 'Online' ? (
+                        <span className={`pill ${o.paymentStatus === 'paid' ? 'pill-active' : 'pill-inactive'}`}>
+                          {o.paymentStatus === 'paid' ? 'Paid' : o.paymentStatus === 'expired' ? 'Expired' : 'Awaiting'}
+                        </span>
+                      ) : (
+                        <span className="text-label-sm">COD</span>
+                      )}
+                      {o.needsReview && <AlertTriangle size={14} className="admin-needs-review-icon" title="Needs review" />}
                     </td>
                     <td>{new Date(o.createdAt).toLocaleDateString()}</td>
                     <td>

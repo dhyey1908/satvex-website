@@ -21,6 +21,7 @@ router.get('/customers', asyncHandler(adminController.listCustomers));
 router.get('/orders', asyncHandler(orderController.adminListOrders));
 router.get('/orders/:id', asyncHandler(orderController.adminGetOrder));
 router.put('/orders/:id/status', asyncHandler(orderController.adminUpdateStatus));
+router.post('/orders/:id/refund', asyncHandler(orderController.adminRefund));
 
 router.get('/contacts', asyncHandler(contactController.adminList));
 

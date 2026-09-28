@@ -11,6 +11,8 @@ router.post('/quote', asyncHandler(orderController.quote));
 router.post('/', asyncHandler(orderController.checkout));
 router.get('/', asyncHandler(orderController.listMyOrders));
 router.get('/:id', asyncHandler(orderController.getMyOrder));
+router.get('/:id/payment-status', asyncHandler(orderController.getPaymentStatus));
+router.post('/:id/retry-payment', asyncHandler(orderController.retryPayment));
 router.post('/:id/cancel', asyncHandler(orderController.cancelMyOrder));
 router.post('/:id/reorder', asyncHandler(orderController.reorder));
 

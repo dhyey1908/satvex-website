@@ -44,6 +44,12 @@
   justify-content: center;
 }
 
+.order-confirmation-verifying-icon {
+  color: var(--color-accent);
+  margin: 0 auto var(--space-4);
+  display: block;
+}
+
 @media (max-width: 700px) {
   .order-confirmation-grid { grid-template-columns: 1fr; }
 }

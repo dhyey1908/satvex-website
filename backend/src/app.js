@@ -17,7 +17,21 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json({ limit: '1mb' }));
+// The Cashfree webhook needs the exact raw bytes of the request body to
+// verify its HMAC signature — re-serializing the parsed JSON can produce
+// different bytes (key order/whitespace) and silently break verification.
+// Scoped to that one route only (via the `verify` callback checking the
+// path) rather than capturing/retaining a raw buffer for every request.
+app.use(
+  express.json({
+    limit: '1mb',
+    verify: (req, _res, buf) => {
+      if (req.originalUrl === '/api/payments/cashfree/webhook') {
+        req.rawBody = buf.toString('utf8');
+      }
+    },
+  })
+);
 app.use(cookieParser());
 
 app.get('/health', (req, res) => res.json({ success: true, data: { status: 'ok' } }));

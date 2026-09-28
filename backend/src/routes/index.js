@@ -10,6 +10,7 @@ const settingsRoutes = require('./settingsRoutes');
 const addressRoutes = require('./addressRoutes');
 const couponRoutes = require('./couponRoutes');
 const reviewRoutes = require('./reviewRoutes');
+const paymentRoutes = require('./paymentRoutes');
 
 const router = express.Router();
 
@@ -24,5 +25,6 @@ router.use('/settings', settingsRoutes);
 router.use('/addresses', addressRoutes);
 router.use('/coupons', couponRoutes);
 router.use('/reviews', reviewRoutes);
+router.use('/payments', paymentRoutes);
 
 module.exports = router;

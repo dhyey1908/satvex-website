@@ -6,7 +6,7 @@ const contactSchema = z.object({
   phone: z
     .string()
     .trim()
-    .regex(/^[0-9+\-\s()]{7,15}$/, 'Invalid phone number')
+    .regex(/^[0-9]{10}$/, 'Enter a valid 10-digit mobile number.')
     .optional()
     .or(z.literal('')),
   message: z.string().trim().min(5).max(2000),

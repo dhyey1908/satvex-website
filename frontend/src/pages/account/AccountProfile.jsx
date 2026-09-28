@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../services/authService';
 import { useToast } from '../../context/ToastContext';
 import { useDocumentMeta } from '../../hooks/useDocumentMeta';
-import { minLength, phone as validatePhone, runValidators, hasErrors } from '../../utils/validators';
+import { minLength, phone as validatePhone, sanitizePhoneInput, runValidators, hasErrors } from '../../utils/validators';
 import { mapServerFieldErrors } from '../../utils/formErrors';
 import './Account.css';
 
@@ -73,8 +73,10 @@ export function AccountProfile() {
           <label htmlFor="phone">Phone</label>
           <input
             id="phone"
+            inputMode="numeric"
+            maxLength={10}
             value={form.phone}
-            onChange={(e) => setField('phone', e.target.value)}
+            onChange={(e) => setField('phone', sanitizePhoneInput(e.target.value))}
             onBlur={() => markTouched('phone')}
           />
           {touched.phone && fieldErrors.phone && <p className="field-error">{fieldErrors.phone}</p>}

@@ -3,7 +3,7 @@ const { z } = require('zod');
 const checkoutSchema = z.object({
   customer: z.object({
     name: z.string().trim().min(2).max(100),
-    phone: z.string().trim().regex(/^[0-9+\-\s()]{7,15}$/, 'Invalid phone number'),
+    phone: z.string().trim().regex(/^[0-9]{10}$/, 'Enter a valid 10-digit mobile number.'),
     email: z.string().trim().email('Invalid email address'),
   }),
   address: z.object({
@@ -26,4 +26,10 @@ const updateOrderStatusSchema = z.object({
   status: z.enum(['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled']),
 });
 
-module.exports = { checkoutSchema, quoteSchema, updateOrderStatusSchema };
+// Refund amount is never taken from the client (Phase 1 is full-refund-only
+// — always the order's own stored total); this just allows an optional note.
+const refundSchema = z.object({
+  note: z.string().trim().max(300).optional(),
+});
+
+module.exports = { checkoutSchema, quoteSchema, updateOrderStatusSchema, refundSchema };
