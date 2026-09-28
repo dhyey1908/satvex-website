@@ -109,10 +109,19 @@ export function ProductDetail() {
     return selectedColors.length === sellingOption.quantity;
   }
 
+  function hasOutOfStockSelection() {
+    const variantsById = new Map(product.variants.map((v) => [v.id, v]));
+    return selectedColors.some((id) => variantsById.get(id)?.inStock === false);
+  }
+
   async function handleAddToCart({ redirectToCheckout } = {}) {
     if (!requireAuthOrRedirect()) return;
     if (!validSelection()) {
       showToast(`Select ${sellingOption.quantity} color(s) to continue.`, 'warning');
+      return;
+    }
+    if (hasOutOfStockSelection()) {
+      showToast('One or more selected colors are out of stock.', 'error');
       return;
     }
 
@@ -270,11 +279,6 @@ export function ProductDetail() {
             </button>
           </div>
 
-          <div className="pdp-trust-row">
-            <span><Truck size={16} />Free Pan-India Shipping</span>
-            <span><Leaf size={16} />Skin-Friendly Materials</span>
-            <span><Package size={16} />7-Day Easy Exchange</span>
-          </div>
         </div>
       </div>
 

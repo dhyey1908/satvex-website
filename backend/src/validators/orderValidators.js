@@ -14,10 +14,16 @@ const checkoutSchema = z.object({
     country: z.string().trim().min(2).max(100),
   }),
   couponCode: z.string().trim().min(1).optional(),
+  paymentMethod: z.enum(['COD', 'Online']).default('COD'),
+});
+
+const quoteSchema = z.object({
+  couponCode: z.string().trim().min(1).optional(),
+  paymentMethod: z.enum(['COD', 'Online']).default('COD'),
 });
 
 const updateOrderStatusSchema = z.object({
   status: z.enum(['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled']),
 });
 
-module.exports = { checkoutSchema, updateOrderStatusSchema };
+module.exports = { checkoutSchema, quoteSchema, updateOrderStatusSchema };

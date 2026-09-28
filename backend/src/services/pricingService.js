@@ -1,5 +1,7 @@
 const productService = require('./productService');
 const couponService = require('./couponService');
+const couponRedemptionService = require('./couponRedemptionService');
+const settingsService = require('./settingsService');
 const AppError = require('../utils/AppError');
 
 /**
@@ -26,12 +28,18 @@ async function resolveLineItem({ productId, sellingOptionId, selectedColors }) {
     );
   }
 
-  const activeVariantIds = new Set(
-    (product.variants || []).filter((v) => v.isActive).map((v) => v.id)
-  );
+  const variantsById = new Map((product.variants || []).map((v) => [v.id, v]));
   for (const colorId of selectedColors) {
-    if (!activeVariantIds.has(colorId)) {
+    const variant = variantsById.get(colorId);
+    if (!variant || !variant.isActive) {
       throw new AppError('One or more selected colors are not available.', 400, 'INVALID_COLOR_SELECTION');
+    }
+    // Re-checked here (not just on the frontend) since this is the single
+    // choke point every add-to-cart/checkout/reorder path already runs
+    // through — a color marked out of stock after it was added to a cart
+    // must still be rejected at purchase time.
+    if (variant.inStock === false) {
+      throw new AppError(`"${variant.colorName}" is currently out of stock.`, 400, 'COLOR_OUT_OF_STOCK');
     }
   }
 
@@ -42,7 +50,6 @@ async function resolveLineItem({ productId, sellingOptionId, selectedColors }) {
     }
   }
 
-  const variantsById = new Map((product.variants || []).map((v) => [v.id, v]));
   const selectedColorDetails = selectedColors.map((id) => {
     const v = variantsById.get(id);
     return { id, colorName: v.colorName, colorCode: v.colorCode };
@@ -71,7 +78,7 @@ async function resolveLineItem({ productId, sellingOptionId, selectedColors }) {
  * separately (via couponService.incrementUsage) so a preview never consumes
  * a redemption.
  */
-async function validateCoupon(code, subtotal) {
+async function validateCoupon(code, subtotal, userId) {
   const coupon = await couponService.findByCode(code);
   if (!coupon || !coupon.isActive) {
     throw new AppError('Invalid coupon code.', 400, 'INVALID_COUPON');
@@ -82,6 +89,12 @@ async function validateCoupon(code, subtotal) {
   if (coupon.usageLimit && coupon.usageCount >= coupon.usageLimit) {
     throw new AppError('This coupon has reached its usage limit.', 400, 'COUPON_EXHAUSTED');
   }
+  if (coupon.oneUsePerCustomer && userId) {
+    const already = await couponRedemptionService.hasRedeemed(coupon.code, userId);
+    if (already) {
+      throw new AppError('You have already used this coupon.', 409, 'COUPON_ALREADY_USED');
+    }
+  }
 
   const rawDiscount =
     coupon.discountType === 'percentage' ? (subtotal * coupon.discountValue) / 100 : coupon.discountValue;
@@ -90,4 +103,59 @@ async function validateCoupon(code, subtotal) {
   return { code: coupon.code, discountType: coupon.discountType, discountValue: coupon.discountValue, discountAmount };
 }
 
-module.exports = { resolveLineItem, validateCoupon };
+/**
+ * The single, centralized checkout-math function — used by both the /orders
+ * quote preview and the real checkout, so there is exactly one place the
+ * subtotal -> discount -> GST -> shipping -> COD formula lives. Pure/read-only:
+ * validates the coupon (including per-customer eligibility) but never
+ * increments usage or records a redemption — callers that actually place an
+ * order do that separately, after this succeeds.
+ *
+ * Order of operations (matches the spec's flow exactly):
+ *   subtotal -> coupon discount -> taxable amount -> GST -> shipping -> COD -> total
+ */
+async function calculateTotals({ items, couponCode, paymentMethod, userId }) {
+  const subtotal = Number(items.reduce((sum, item) => sum + item.subtotal, 0).toFixed(2));
+
+  let couponResult = null;
+  if (couponCode) {
+    couponResult = await validateCoupon(couponCode, subtotal, userId);
+  }
+  const discountAmount = couponResult?.discountAmount || 0;
+  const taxableAmount = Number((subtotal - discountAmount).toFixed(2));
+
+  const settings = await settingsService.getSettings();
+
+  const gstEnabled = Boolean(settings.tax?.enabled);
+  const gstPercent = gstEnabled ? Number(settings.tax?.percent ?? 0) : 0;
+  const gstAmount = gstEnabled ? Number(((taxableAmount * gstPercent) / 100).toFixed(2)) : 0;
+
+  const shippingEnabled = Boolean(settings.shipping?.enabled);
+  const freeThreshold = settings.shipping?.freeThreshold;
+  let shipping = 0;
+  if (shippingEnabled) {
+    const qualifiesForFree = freeThreshold != null && freeThreshold > 0 && subtotal >= freeThreshold;
+    shipping = qualifiesForFree ? 0 : Number(settings.shipping?.charge ?? 0);
+  }
+
+  const codEnabled = Boolean(settings.cod?.enabled);
+  const codCharge = paymentMethod === 'COD' && codEnabled ? Number(settings.cod?.charge ?? 0) : 0;
+
+  const total = Number((taxableAmount + gstAmount + shipping + codCharge).toFixed(2));
+
+  return {
+    subtotal,
+    couponCode: couponResult?.code || null,
+    discountAmount,
+    taxableAmount,
+    gstPercent,
+    gstAmount,
+    shippingEnabled,
+    shipping,
+    codCharge,
+    paymentMethod,
+    total,
+  };
+}
+
+module.exports = { resolveLineItem, validateCoupon, calculateTotals };

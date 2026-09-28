@@ -60,15 +60,28 @@
 .checkout-delivery-meta { font-size: 0.82rem; color: var(--color-text-muted); margin: 2px 0 0; }
 .checkout-delivery-price { margin-left: auto; font-weight: 700; color: var(--color-success); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
 
-.payment-placeholder {
-  background: var(--color-surface-muted);
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-3) var(--space-4);
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
+.payment-method-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
   margin-bottom: var(--space-4);
 }
+.payment-method-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-md);
+  padding: var(--sp-md);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+.payment-method-option:hover { border-color: var(--color-outline-variant); }
+.payment-method-option.selected { border-color: var(--color-primary); background: var(--color-surface-container); }
+.payment-method-option input { margin-top: 3px; width: auto; }
+.payment-method-option svg { color: var(--color-accent); flex-shrink: 0; margin-top: 2px; }
+.payment-method-name { font-weight: 600; margin: 0; }
+.payment-method-meta { font-size: 0.82rem; color: var(--color-text-muted); margin: 2px 0 0; }
 
 .checkout-summary-col {
   position: sticky;

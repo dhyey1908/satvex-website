@@ -1,7 +1,19 @@
 import { Truck } from 'lucide-react';
 import './OrderSummary.css';
 
-export function OrderSummary({ subtotal, discountAmount = 0, couponCode, shipping = 0, total, itemsSlot, children }) {
+export function OrderSummary({
+  subtotal,
+  discountAmount = 0,
+  couponCode,
+  gstPercent = 0,
+  gstAmount = 0,
+  shippingEnabled = true,
+  shipping = 0,
+  codCharge = 0,
+  total,
+  itemsSlot,
+  children,
+}) {
   return (
     <div className="order-summary">
       <h3>Order Summary</h3>
@@ -16,12 +28,26 @@ export function OrderSummary({ subtotal, discountAmount = 0, couponCode, shippin
           <span>−₹{discountAmount.toFixed(2)}</span>
         </div>
       )}
-      <div className="order-summary-row">
-        <span>Shipping</span>
-        <span className="order-summary-shipping">
-          {shipping > 0 ? `₹${shipping.toFixed(2)}` : (<><Truck size={14} /> Free</>)}
-        </span>
-      </div>
+      {gstAmount > 0 && (
+        <div className="order-summary-row">
+          <span>GST ({gstPercent}%)</span>
+          <span>₹{gstAmount.toFixed(2)}</span>
+        </div>
+      )}
+      {shippingEnabled && (
+        <div className="order-summary-row">
+          <span>Shipping</span>
+          <span className="order-summary-shipping">
+            {shipping > 0 ? `₹${shipping.toFixed(2)}` : (<><Truck size={14} /> Free</>)}
+          </span>
+        </div>
+      )}
+      {codCharge > 0 && (
+        <div className="order-summary-row">
+          <span>COD Charge</span>
+          <span>₹{codCharge.toFixed(2)}</span>
+        </div>
+      )}
       <div className="order-summary-row order-summary-total">
         <span>Total</span>
         <span>₹{total.toFixed(2)}</span>

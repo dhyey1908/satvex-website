@@ -202,6 +202,31 @@ Resources:
           Projection:
             ProjectionType: ALL
 
+  CouponRedemptionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub satvex_coupon_redemptions_${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: redemptionId
+          AttributeType: S
+        - AttributeName: code
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: redemptionId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: code-createdAt-index
+          KeySchema:
+            - AttributeName: code
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
   ## ---------- API + Lambda ----------
 
   HttpApi:
@@ -241,6 +266,7 @@ Resources:
           TABLE_ADDRESSES: !Ref AddressesTable
           TABLE_COUPONS: !Ref CouponsTable
           TABLE_REVIEWS: !Ref ReviewsTable
+          TABLE_COUPON_REDEMPTIONS: !Ref CouponRedemptionsTable
           S3_MEDIA_BUCKET: !Ref MediaBucket
           CLOUDFRONT_MEDIA_URL: !Sub https://${MediaDistribution.DomainName}
           JWT_SECRET: !Ref JwtSecret
@@ -268,6 +294,8 @@ Resources:
             TableName: !Ref CouponsTable
         - DynamoDBCrudPolicy:
             TableName: !Ref ReviewsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref CouponRedemptionsTable
         - S3CrudPolicy:
             BucketName: !Ref MediaBucket
         - SESCrudPolicy:
@@ -440,3 +468,5 @@ Outputs:
     Value: !Ref CouponsTable
   ReviewsTableName:
     Value: !Ref ReviewsTable
+  CouponRedemptionsTableName:
+    Value: !Ref CouponRedemptionsTable

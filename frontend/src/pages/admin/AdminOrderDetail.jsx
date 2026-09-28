@@ -4,6 +4,7 @@ import { adminService } from '../../services/adminService';
 import { useToast } from '../../context/ToastContext';
 import { Loader } from '../../components/Loader';
 import { ErrorState } from '../../components/ErrorState';
+import { OrderSummary } from '../../components/OrderSummary';
 import './Admin.css';
 
 const STATUSES = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
@@ -64,13 +65,28 @@ export function AdminOrderDetail() {
             <span>₹{item.subtotal.toFixed(2)}</span>
           </div>
         ))}
-        <p style={{ fontWeight: 700, marginTop: 12 }}>Total: ₹{order.total.toFixed(2)}</p>
+      </div>
+
+      <div className="admin-form-section" style={{ maxWidth: 420 }}>
+        <OrderSummary
+          subtotal={order.subtotal}
+          discountAmount={order.discountAmount}
+          couponCode={order.couponCode}
+          gstPercent={order.gstPercent}
+          gstAmount={order.gstAmount}
+          shipping={order.shipping}
+          codCharge={order.codCharge}
+          total={order.total}
+        />
       </div>
 
       <div className="admin-form-section">
         <h3>Customer</h3>
         <p>{order.customer.name}</p>
         <p>{order.customer.email} · {order.customer.phone}</p>
+        <p>
+          Payment Method: <strong>{order.paymentMethod === 'COD' ? 'Cash on Delivery' : 'Online Payment'}</strong>
+        </p>
       </div>
 
       <div className="admin-form-section">

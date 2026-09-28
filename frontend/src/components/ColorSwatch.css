@@ -1,3 +1,12 @@
+/* Wrapper lets an out-of-stock caption sit under just that one swatch
+   without disturbing sibling swatches' alignment in the wrapping row. */
+.color-swatch-item {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
 /* Square swatch chip, not a circle — pairs with the structural/sharp system
    and reads as a selectable block rather than a color dot. */
 .color-swatch {
@@ -17,6 +26,35 @@
   box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-primary);
 }
 .color-swatch:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* Out-of-stock colors stay visible (per spec — customers should still see the
+   shade exists) but read as clearly unavailable via a diagonal strike,
+   distinct from the plainer "disabled because selection is full" dimming. */
+.color-swatch.out-of-stock {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.color-swatch.out-of-stock::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    to top right,
+    transparent calc(50% - 1px),
+    var(--color-error) calc(50% - 1px),
+    var(--color-error) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+}
+
+.color-swatch-oos-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--color-error);
+  white-space: nowrap;
+}
 
 .swatch-count {
   position: absolute;

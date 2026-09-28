@@ -13,6 +13,7 @@ export function ComboColorSelector({ variants, requiredCount, allowDuplicateColo
   const isFull = selectedIds.length >= requiredCount;
 
   function handleSwatchClick(variantId) {
+    const variant = activeVariants.find((v) => v.id === variantId);
     const alreadySelected = countOf(variantId) > 0;
 
     if (alreadySelected && !allowDuplicateColors) {
@@ -20,6 +21,7 @@ export function ComboColorSelector({ variants, requiredCount, allowDuplicateColo
       return;
     }
 
+    if (variant?.inStock === false) return;
     if (isFull) return;
     onChange([...selectedIds, variantId]);
   }
@@ -36,6 +38,7 @@ export function ComboColorSelector({ variants, requiredCount, allowDuplicateColo
           // Toggling off an already-selected color (no-duplicates case) must stay
           // enabled even when the selection is full, so the user can free a slot.
           const canToggleOff = !allowDuplicateColors && count > 0;
+          const outOfStock = variant.inStock === false;
           const disabled = !canToggleOff && isFull;
           return (
             <ColorSwatch
@@ -45,6 +48,7 @@ export function ComboColorSelector({ variants, requiredCount, allowDuplicateColo
               selected={count > 0}
               count={count}
               disabled={disabled}
+              outOfStock={outOfStock}
               onClick={() => handleSwatchClick(variant.id)}
             />
           );

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { useToast } from '../../context/ToastContext';
 import { useConfirm } from '../../context/ConfirmContext';
@@ -12,7 +12,14 @@ import { Pagination } from '../../components/Pagination';
 import { usePagination } from '../../hooks/usePagination';
 import './Admin.css';
 
-const EMPTY_FORM = { code: '', discountType: 'percentage', discountValue: '', isActive: true, usageLimit: '' };
+const EMPTY_FORM = {
+  code: '',
+  discountType: 'percentage',
+  discountValue: '',
+  isActive: true,
+  usageLimit: '',
+  oneUsePerCustomer: false,
+};
 const PAGE_SIZE = 20;
 
 function validate(values, { isEditing }) {
@@ -37,6 +44,8 @@ export function AdminCoupons() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [saving, setSaving] = useState(false);
+  const [historyCode, setHistoryCode] = useState(null);
+  const [redemptions, setRedemptions] = useState(null);
 
   function load() {
     adminService.getCoupons().then((data) => setCoupons(data.coupons));
@@ -63,6 +72,7 @@ export function AdminCoupons() {
       discountValue: coupon.discountValue,
       isActive: coupon.isActive,
       usageLimit: coupon.usageLimit || '',
+      oneUsePerCustomer: coupon.oneUsePerCustomer || false,
     });
     setFieldErrors({});
     setTouched({});
@@ -90,6 +100,7 @@ export function AdminCoupons() {
       discountType: form.discountType,
       discountValue: Number(form.discountValue),
       isActive: form.isActive,
+      oneUsePerCustomer: form.oneUsePerCustomer,
       ...(form.usageLimit ? { usageLimit: Number(form.usageLimit) } : {}),
     };
     try {
@@ -127,6 +138,15 @@ export function AdminCoupons() {
     }
   }
 
+  function openHistory(code) {
+    setHistoryCode(code);
+    setRedemptions(null);
+    adminService
+      .getCouponRedemptions(code)
+      .then((data) => setRedemptions(data.redemptions))
+      .catch(() => setRedemptions([]));
+  }
+
   if (!coupons) return <Loader label="Loading coupons…" />;
 
   return (
@@ -148,6 +168,7 @@ export function AdminCoupons() {
                 <th>Code</th>
                 <th>Discount</th>
                 <th>Usage</th>
+                <th>Per Customer</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -157,13 +178,21 @@ export function AdminCoupons() {
                 <tr key={c.code}>
                   <td>{c.code}</td>
                   <td>{c.discountType === 'percentage' ? `${c.discountValue}%` : `₹${c.discountValue}`}</td>
-                  <td>{c.usageCount}{c.usageLimit ? ` / ${c.usageLimit}` : ''}</td>
+                  <td>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => openHistory(c.code)}>
+                      {c.usageCount}{c.usageLimit ? ` / ${c.usageLimit}` : ''}
+                    </button>
+                  </td>
+                  <td>{c.oneUsePerCustomer ? 'One use' : 'Unlimited'}</td>
                   <td>
                     <span className={`pill ${c.isActive ? 'pill-active' : 'pill-inactive'}`}>
                       {c.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </td>
                   <td style={{ display: 'flex', gap: 8 }}>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => openHistory(c.code)}>
+                      <Users size={14} /> Usage
+                    </button>
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => openEdit(c)}>
                       <Pencil size={14} /> Edit
                     </button>
@@ -243,10 +272,48 @@ export function AdminCoupons() {
             <input type="checkbox" checked={form.isActive} onChange={(e) => setField('isActive', e.target.checked)} />
             Active
           </label>
+          <label className="checkbox-field">
+            <input
+              type="checkbox"
+              checked={form.oneUsePerCustomer}
+              onChange={(e) => setField('oneUsePerCustomer', e.target.checked)}
+            />
+            One use per customer
+          </label>
           <button type="submit" className="btn btn-primary btn-block" disabled={saving}>
             {saving ? 'Saving…' : 'Save Coupon'}
           </button>
         </form>
+      </Modal>
+
+      <Modal open={Boolean(historyCode)} onClose={() => setHistoryCode(null)} title={`Usage History — ${historyCode}`}>
+        {!redemptions && <Loader label="Loading usage history…" />}
+        {redemptions && redemptions.length === 0 && <EmptyState title="Not used yet" />}
+        {redemptions && redemptions.length > 0 && (
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Customer</th>
+                  <th>Discount</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {redemptions.map((r) => (
+                  <tr key={r.redemptionId}>
+                    <td>
+                      {r.customerName}
+                      <p className="field-hint" style={{ margin: '2px 0 0' }}>{r.customerEmail}</p>
+                    </td>
+                    <td>−₹{r.discountAmount.toFixed(2)}</td>
+                    <td>{new Date(r.createdAt).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Modal>
     </div>
   );

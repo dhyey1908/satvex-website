@@ -181,18 +181,7 @@
 
 .showcase-swatch-block { display: flex; flex-direction: column; gap: var(--sp-sm); }
 .showcase-swatch-label { color: var(--color-outline); }
-.showcase-swatch-tray { display: flex; flex-wrap: wrap; gap: 10px; }
-.showcase-swatch {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-sm);
-  border: 1.5px solid var(--color-border);
-  box-shadow: none;
-  cursor: pointer;
-  transition: box-shadow var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
-}
-.showcase-swatch:hover { border-color: var(--color-accent); }
-.showcase-swatch.selected { border-color: var(--color-primary); box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-primary); }
+.showcase-swatch-tray { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; }
 
 .showcase-pricing {
   background: var(--color-surface-container);

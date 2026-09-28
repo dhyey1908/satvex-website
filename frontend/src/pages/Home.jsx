@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Truck, Gift, Leaf, Infinity as InfinityIcon, Package, Star, CheckCircle2, ShoppingBag, Quote } from 'lucide-react';
+import { Truck, Gift, Leaf, Infinity as InfinityIcon, Package, Star, CheckCircle2, XCircle, ShoppingBag, Quote } from 'lucide-react';
 import { productService } from '../services/productService';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
 import { useSettings } from '../context/SettingsContext';
 import { ProductGrid } from '../components/ProductGrid';
+import { ColorSwatch } from '../components/ColorSwatch';
 import { ImagePlaceholder } from '../components/ImagePlaceholder';
 import { PriceDisplay } from '../components/PriceDisplay';
 import { HeroBanner } from '../components/HeroBanner';
@@ -49,8 +50,12 @@ export function Home() {
       .then((data) => {
         setProducts(data.products);
         const first = data.products?.[0];
-        const firstActiveVariant = first?.variants?.find((v) => v.isActive);
-        if (firstActiveVariant) setSelectedVariantId(firstActiveVariant.id);
+        const activeVariants = (first?.variants || []).filter((v) => v.isActive);
+        // Prefer an in-stock color as the default preview so the page never
+        // lands on an unselectable swatch; fall back to the first active one
+        // if every color happens to be out of stock.
+        const defaultVariant = activeVariants.find((v) => v.inStock !== false) || activeVariants[0];
+        if (defaultVariant) setSelectedVariantId(defaultVariant.id);
       })
       .catch((err) => setError(err.message));
   }, []);
@@ -79,6 +84,10 @@ export function Home() {
       return;
     }
     if (!showcase || !singleOption || !selectedVariant) return;
+    if (selectedVariant.inStock === false) {
+      showToast('This color is out of stock.', 'error');
+      return;
+    }
 
     setAdding(true);
     try {
@@ -121,8 +130,6 @@ export function Home() {
               <Link to="/about" className="hero-text-link">Discover Our Story →</Link>
             </motion.div>
             <motion.div className="hero-trust-row" variants={fadeUp}>
-              <span className="hero-trust-item"><Truck size={16} />Free Pan-India Shipping</span>
-              <span className="hero-trust-sep">•</span>
               <span className="hero-trust-item"><Gift size={16} />Ready to Gift</span>
               <span className="hero-trust-sep">•</span>
               <span className="hero-trust-item"><Leaf size={16} />Skin-Friendly Materials</span>
@@ -207,8 +214,8 @@ export function Home() {
                   </div>
                   <h3 className="text-headline-sm showcase-variant-name">{selectedVariant?.colorName}</h3>
                   <p className="showcase-stock-line">
-                    <CheckCircle2 size={16} />
-                    {selectedVariant?.isActive ? 'In stock, ready to ship' : 'Currently out of stock'}
+                    {selectedVariant?.inStock === false ? <XCircle size={16} /> : <CheckCircle2 size={16} />}
+                    {selectedVariant?.inStock === false ? 'Currently out of stock' : 'In stock, ready to ship'}
                   </p>
                 </div>
 
@@ -216,17 +223,13 @@ export function Home() {
                   <span className="text-label-sm showcase-swatch-label">Available Colors</span>
                   <div className="showcase-swatch-tray">
                     {activeVariants.map((v) => (
-                      <motion.button
+                      <ColorSwatch
                         key={v.id}
-                        type="button"
-                        className={`showcase-swatch ${v.id === selectedVariant?.id ? 'selected' : ''}`}
-                        style={{ background: v.colorCode }}
-                        aria-label={v.colorName}
-                        title={v.colorName}
+                        colorCode={v.colorCode}
+                        colorName={v.colorName}
+                        selected={v.id === selectedVariant?.id}
+                        outOfStock={v.inStock === false}
                         onClick={() => setSelectedVariantId(v.id)}
-                        whileHover={{ scale: 1.08 }}
-                        whileTap={{ scale: 0.92 }}
-                        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                       />
                     ))}
                   </div>
@@ -254,7 +257,12 @@ export function Home() {
 
                 <div className="showcase-cta-row">
                   {singleOption && (
-                    <button type="button" className="btn btn-primary" onClick={handleQuickAdd} disabled={adding}>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={handleQuickAdd}
+                      disabled={adding || selectedVariant?.inStock === false}
+                    >
                       <ShoppingBag size={18} />
                       {adding ? 'Adding…' : `Quick Add · ₹${singleOption.price}`}
                     </button>

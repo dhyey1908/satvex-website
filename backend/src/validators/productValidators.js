@@ -12,6 +12,12 @@ const variantSchema = z.object({
   // shows a neutral placeholder in the meantime rather than a fake photo.
   image: z.string().trim().default(''),
   isActive: z.boolean().default(true),
+  // Distinct from isActive: isActive controls whether this color is part of
+  // the product's lineup at all (hidden entirely when false); inStock
+  // controls whether an active color is currently purchasable — an
+  // out-of-stock color still shows on the product page (so customers know
+  // the shade exists) but can't be selected/added to cart.
+  inStock: z.boolean().default(true),
 });
 
 const sellingOptionSchema = z.object({

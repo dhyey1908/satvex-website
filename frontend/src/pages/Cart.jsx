@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
+import { orderService } from '../services/orderService';
 import { CartItem } from '../components/CartItem';
 import { OrderSummary } from '../components/OrderSummary';
 import { CouponInput } from '../components/CouponInput';
@@ -20,6 +22,27 @@ export function Cart() {
     useCart();
   const { showToast } = useToast();
   const confirm = useConfirm();
+
+  // Live, backend-computed preview of GST/shipping/total — the Cart page
+  // never computes these itself. Payment method isn't chosen yet at this
+  // stage, so the preview intentionally omits any COD charge (quoted as
+  // "Online") — Checkout shows the real total once a payment method is picked.
+  const [quote, setQuote] = useState(null);
+
+  useEffect(() => {
+    if (items.length === 0) {
+      setQuote(null);
+      return;
+    }
+    let cancelled = false;
+    orderService
+      .quote({ couponCode: appliedCoupon?.code, paymentMethod: 'Online' })
+      .then((data) => !cancelled && setQuote(data))
+      .catch(() => !cancelled && setQuote(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [items, appliedCoupon]);
 
   async function handleQuantityChange(cartItemId, quantity) {
     try {
@@ -87,8 +110,14 @@ export function Cart() {
     );
   }
 
-  const discountAmount = appliedCoupon?.discountAmount || 0;
-  const grandTotal = Number((total - discountAmount).toFixed(2));
+  const discountAmount = quote?.discountAmount ?? appliedCoupon?.discountAmount ?? 0;
+  const grandTotal = quote?.total ?? Number((total - discountAmount).toFixed(2));
+  const shippingBannerText =
+    quote && quote.shippingEnabled && quote.shipping === 0
+      ? 'Your order ships free.'
+      : quote && quote.shippingEnabled
+      ? `Add more to your bag for free shipping.`
+      : 'Every order ships free — no minimum required.';
 
   return (
     <div className="container section cart-page">
@@ -102,7 +131,7 @@ export function Cart() {
 
       <div className="cart-free-shipping-banner">
         <CheckCircle2 size={16} />
-        <span>Every order ships free — no minimum required.</span>
+        <span>{shippingBannerText}</span>
       </div>
 
       <div className="cart-layout">
@@ -149,9 +178,13 @@ export function Cart() {
         {items.length > 0 && (
           <div className="cart-summary-col">
             <OrderSummary
-              subtotal={total}
+              subtotal={quote?.subtotal ?? total}
               discountAmount={discountAmount}
               couponCode={appliedCoupon?.code}
+              gstPercent={quote?.gstPercent}
+              gstAmount={quote?.gstAmount}
+              shippingEnabled={quote?.shippingEnabled}
+              shipping={quote?.shipping}
               total={grandTotal}
             >
               <CouponInput appliedCoupon={appliedCoupon} onApply={applyCoupon} onClear={clearCoupon} />

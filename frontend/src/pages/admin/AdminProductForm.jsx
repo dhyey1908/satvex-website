@@ -115,7 +115,7 @@ export function AdminProductForm() {
       ...prev,
       variants: [
         ...prev.variants,
-        { id: localId('var'), name: '', colorName: '', colorCode: '#000000', image: '', isActive: true },
+        { id: localId('var'), name: '', colorName: '', colorCode: '#000000', image: '', isActive: true, inStock: true },
       ],
     }));
     if (fieldErrors.variants) setFieldErrors((prev) => ({ ...prev, variants: '' }));
@@ -362,6 +362,14 @@ export function AdminProductForm() {
               <label className="checkbox-field">
                 <input type="checkbox" checked={v.isActive} onChange={(e) => updateVariant(i, { isActive: e.target.checked })} />
                 Active
+              </label>
+              <label className="checkbox-field">
+                <input
+                  type="checkbox"
+                  checked={v.inStock !== false}
+                  onChange={(e) => updateVariant(i, { inStock: e.target.checked })}
+                />
+                In Stock
               </label>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeVariant(i)}>
                 <Trash2 size={14} /> Remove

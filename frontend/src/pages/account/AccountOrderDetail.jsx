@@ -82,11 +82,19 @@ export function AccountOrderDetail() {
         <OrderTimeline status={order.status} />
       </div>
 
+      <p className="field-hint" style={{ marginBottom: 20 }}>
+        Payment Method: <strong>{order.paymentMethod === 'COD' ? 'Cash on Delivery' : 'Online Payment'}</strong>
+      </p>
+
       <div style={{ maxWidth: 480, marginBottom: 20 }}>
         <OrderSummary
           subtotal={order.subtotal}
           discountAmount={order.discountAmount}
           couponCode={order.couponCode}
+          gstPercent={order.gstPercent}
+          gstAmount={order.gstAmount}
+          shipping={order.shipping}
+          codCharge={order.codCharge}
           total={order.total}
           itemsSlot={
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8 }}>

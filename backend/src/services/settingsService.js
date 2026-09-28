@@ -15,6 +15,9 @@ const DEFAULT_SETTINGS = {
   heroBanners: [],
   authImage: '',
   aboutImage: '',
+  tax: { enabled: true, percent: 18 },
+  shipping: { enabled: true, charge: 50, freeThreshold: 999 },
+  cod: { enabled: true, charge: 40 },
   whyPillars: [
     { title: 'Flexible', description: 'Moves comfortably with your everyday needs.' },
     { title: 'Comfortable', description: 'Lightweight designs created for effortless everyday use.' },

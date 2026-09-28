@@ -13,6 +13,23 @@ const pillarSchema = z.object({
   description: z.string().trim().min(1).max(200),
 });
 
+const taxSettingsSchema = z.object({
+  enabled: z.boolean().default(true),
+  percent: z.number().min(0).max(100).default(18),
+});
+
+const shippingSettingsSchema = z.object({
+  enabled: z.boolean().default(true),
+  charge: z.number().min(0).default(50),
+  // 0/undefined means "no free-shipping threshold" — shipping always charges.
+  freeThreshold: z.number().min(0).optional(),
+});
+
+const codSettingsSchema = z.object({
+  enabled: z.boolean().default(true),
+  charge: z.number().min(0).default(40),
+});
+
 const updateSettingsSchema = z.object({
   contactPhone: z.string().trim().max(20).optional(),
   contactEmail: z.string().trim().email().optional().or(z.literal('')),
@@ -23,6 +40,9 @@ const updateSettingsSchema = z.object({
   authImage: z.string().trim().url().optional().or(z.literal('')),
   aboutImage: z.string().trim().url().optional().or(z.literal('')),
   whyPillars: z.array(pillarSchema).length(4).optional(),
+  tax: taxSettingsSchema.optional(),
+  shipping: shippingSettingsSchema.optional(),
+  cod: codSettingsSchema.optional(),
 });
 
 module.exports = { updateSettingsSchema };

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { orderService } from '../services/orderService';
+import { Banknote, Wallet } from 'lucide-react';
 import { addressService } from '../services/addressService';
 import { authService } from '../services/authService';
 import { useToast } from '../context/ToastContext';
@@ -56,6 +57,8 @@ export function Checkout() {
   const [saveAddress, setSaveAddress] = useState(false);
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   const [pincodeLookupState, setPincodeLookupState] = useState('idle');
+  const [paymentMethod, setPaymentMethod] = useState('COD');
+  const [quote, setQuote] = useState(null);
 
   useEffect(() => {
     addressService
@@ -72,6 +75,19 @@ export function Checkout() {
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Authoritative, backend-computed breakdown (GST/shipping/COD/total) for
+  // the currently-selected payment method — never computed on the frontend.
+  useEffect(() => {
+    let cancelled = false;
+    orderService
+      .quote({ couponCode: appliedCoupon?.code, paymentMethod })
+      .then((data) => !cancelled && setQuote(data))
+      .catch(() => !cancelled && setQuote(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [appliedCoupon, paymentMethod]);
 
   function setField(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -173,6 +189,7 @@ export function Checkout() {
           country: form.country,
         },
         couponCode: appliedCoupon?.code,
+        paymentMethod,
       });
 
       if (saveAddress && !selectedAddressId) {
@@ -232,8 +249,8 @@ export function Checkout() {
     );
   }
 
-  const discountAmount = appliedCoupon?.discountAmount || 0;
-  const grandTotal = Number((total - discountAmount).toFixed(2));
+  const discountAmount = quote?.discountAmount ?? appliedCoupon?.discountAmount ?? 0;
+  const grandTotal = quote?.total ?? Number((total - discountAmount).toFixed(2));
 
   return (
     <div className="container section checkout-page">
@@ -398,13 +415,47 @@ export function Checkout() {
                 <p className="checkout-delivery-name">Standard Delivery</p>
                 <p className="checkout-delivery-meta">Dispatched within 1-2 business days</p>
               </div>
-              <span className="checkout-delivery-price">Free</span>
+              <span className="checkout-delivery-price">
+                {quote && quote.shippingEnabled && quote.shipping > 0 ? `₹${quote.shipping.toFixed(2)}` : 'Free'}
+              </span>
             </div>
           </div>
 
           <div className="checkout-section card">
             <h3 className="checkout-section-title">Payment</h3>
-            <div className="payment-placeholder">Cash on Delivery — pay when your order arrives. Online payment is coming soon.</div>
+            <div className="payment-method-options">
+              <label className={`payment-method-option ${paymentMethod === 'COD' ? 'selected' : ''}`}>
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="COD"
+                  checked={paymentMethod === 'COD'}
+                  onChange={() => setPaymentMethod('COD')}
+                />
+                <Banknote size={18} />
+                <div>
+                  <p className="payment-method-name">Cash on Delivery</p>
+                  <p className="payment-method-meta">
+                    Pay when your order arrives.
+                    {quote?.codCharge > 0 && ` An extra ₹${quote.codCharge.toFixed(2)} COD charge applies.`}
+                  </p>
+                </div>
+              </label>
+              <label className={`payment-method-option ${paymentMethod === 'Online' ? 'selected' : ''}`}>
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="Online"
+                  checked={paymentMethod === 'Online'}
+                  onChange={() => setPaymentMethod('Online')}
+                />
+                <Wallet size={18} />
+                <div>
+                  <p className="payment-method-name">Online Payment</p>
+                  <p className="payment-method-meta">UPI / Card — no extra charge.</p>
+                </div>
+              </label>
+            </div>
 
             {error && <p className="field-error">{error}</p>}
 
@@ -416,9 +467,14 @@ export function Checkout() {
 
         <div className="checkout-summary-col">
           <OrderSummary
-            subtotal={total}
+            subtotal={quote?.subtotal ?? total}
             discountAmount={discountAmount}
             couponCode={appliedCoupon?.code}
+            gstPercent={quote?.gstPercent}
+            gstAmount={quote?.gstAmount}
+            shippingEnabled={quote?.shippingEnabled}
+            shipping={quote?.shipping}
+            codCharge={quote?.codCharge}
             total={grandTotal}
             itemsSlot={
               <div className="checkout-summary-items">

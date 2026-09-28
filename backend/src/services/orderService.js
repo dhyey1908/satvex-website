@@ -8,10 +8,25 @@ const USER_INDEX = 'userId-createdAt-index';
 
 const ORDER_STATUSES = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 
-async function createOrder({ userId, items, customer, address, subtotal, couponCode, discountAmount, shipping, total }) {
+async function createOrder({
+  orderId,
+  userId,
+  items,
+  customer,
+  address,
+  subtotal,
+  couponCode,
+  discountAmount,
+  gstPercent,
+  gstAmount,
+  shipping,
+  paymentMethod,
+  codCharge,
+  total,
+}) {
   const now = new Date().toISOString();
   const order = {
-    orderId: uuid(),
+    orderId: orderId || uuid(),
     userId,
     items,
     customer,
@@ -19,7 +34,14 @@ async function createOrder({ userId, items, customer, address, subtotal, couponC
     subtotal,
     couponCode: couponCode || null,
     discountAmount: discountAmount || 0,
-    shipping,
+    // Rate/amount are both stored on the order (not just recomputed from
+    // current settings) so a later GST-percent change in Admin never alters
+    // the tax shown on a historical order.
+    gstPercent: gstPercent || 0,
+    gstAmount: gstAmount || 0,
+    shipping: shipping || 0,
+    paymentMethod: paymentMethod || 'COD',
+    codCharge: codCharge || 0,
     total,
     status: 'Pending',
     createdAt: now,

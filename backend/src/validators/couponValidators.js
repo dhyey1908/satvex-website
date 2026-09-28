@@ -11,6 +11,7 @@ const couponBaseSchema = z.object({
   isActive: z.boolean().default(true),
   expiresAt: z.string().datetime().optional().or(z.literal('')),
   usageLimit: z.number().int().positive().optional(),
+  oneUsePerCustomer: z.boolean().default(false),
 });
 
 function withPercentageCap(schema) {

@@ -39,6 +39,11 @@ export function VariantPickerModal({ productId, open, onClose, onAdded }) {
       showToast(`Select ${sellingOption?.quantity ?? 1} color(s) to continue.`, 'error');
       return;
     }
+    const variantsById = new Map(product.variants.map((v) => [v.id, v]));
+    if (selectedColors.some((id) => variantsById.get(id)?.inStock === false)) {
+      showToast('One or more selected colors are out of stock.', 'error');
+      return;
+    }
     setSubmitting(true);
     try {
       await addItem({ productId, sellingOptionId: sellingOption.id, selectedColors, quantity: 1 });

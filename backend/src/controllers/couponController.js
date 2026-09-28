@@ -1,5 +1,6 @@
 const cartService = require('../services/cartService');
 const couponService = require('../services/couponService');
+const couponRedemptionService = require('../services/couponRedemptionService');
 const pricingService = require('../services/pricingService');
 const { couponSchema, couponUpdateSchema, applyCouponSchema } = require('../validators/couponValidators');
 const AppError = require('../utils/AppError');
@@ -14,7 +15,7 @@ async function applyToCart(req, res) {
     throw new AppError('Your cart is empty.', 400, 'CART_EMPTY');
   }
 
-  const discount = await pricingService.validateCoupon(code, subtotal);
+  const discount = await pricingService.validateCoupon(code, subtotal, req.user.id);
   ok(res, { ...discount, subtotal });
 }
 
@@ -40,4 +41,9 @@ async function adminRemove(req, res) {
   ok(res, { deleted: true });
 }
 
-module.exports = { applyToCart, adminList, adminCreate, adminUpdate, adminRemove };
+async function adminRedemptions(req, res) {
+  const redemptions = await couponRedemptionService.listForCoupon(req.params.code);
+  ok(res, { redemptions });
+}
+
+module.exports = { applyToCart, adminList, adminCreate, adminUpdate, adminRemove, adminRedemptions };

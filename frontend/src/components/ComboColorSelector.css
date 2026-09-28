@@ -3,7 +3,8 @@
 .combo-swatches {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3);
+  align-items: flex-start;
+  gap: var(--space-3) var(--space-3);
 }
 
 .combo-selection-summary {

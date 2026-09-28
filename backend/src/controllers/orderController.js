@@ -1,25 +1,24 @@
+const { v4: uuid } = require('uuid');
 const cartService = require('../services/cartService');
 const orderService = require('../services/orderService');
 const couponService = require('../services/couponService');
+const couponRedemptionService = require('../services/couponRedemptionService');
 const pricingService = require('../services/pricingService');
-const { checkoutSchema, updateOrderStatusSchema } = require('../validators/orderValidators');
+const { checkoutSchema, quoteSchema, updateOrderStatusSchema } = require('../validators/orderValidators');
 const AppError = require('../utils/AppError');
 const { ok, created } = require('../utils/response');
 
-const SHIPPING = 0; // Free shipping for v1.
 const CANCELLABLE_STATUSES = new Set(['Pending', 'Confirmed']);
 
-async function checkout(req, res) {
-  const { customer, address, couponCode } = checkoutSchema.parse(req.body);
-
-  const cartItems = (await cartService.getCartForUser(req.user.id)).filter((item) => !item.savedForLater);
+// Shared by checkout and the quote preview — re-derives every line item from
+// current product/variant data (price, availability, stock) rather than
+// trusting anything cached in the cart snapshot.
+async function resolveOrderItems(userId) {
+  const cartItems = (await cartService.getCartForUser(userId)).filter((item) => !item.savedForLater);
   if (cartItems.length === 0) {
     throw new AppError('Your cart is empty.', 400, 'CART_EMPTY');
   }
-
-  // Re-derive every line item from current product data. Cart snapshots can go
-  // stale between add-to-cart and checkout (e.g. admin changed a price).
-  const orderItems = await Promise.all(
+  return Promise.all(
     cartItems.map(async (cartItem) => {
       const lineItem = await pricingService.resolveLineItem({
         productId: cartItem.productId,
@@ -30,35 +29,87 @@ async function checkout(req, res) {
       return { ...lineItem, quantity: cartItem.quantity, subtotal };
     })
   );
+}
 
-  const subtotal = Number(orderItems.reduce((sum, item) => sum + item.subtotal, 0).toFixed(2));
+// Read-only preview of the full breakdown (subtotal/discount/GST/shipping/COD/
+// total) so the frontend never has to guess/recompute any of it — Cart and
+// Checkout just display what this returns. Never mutates coupon usage.
+async function quote(req, res) {
+  const { couponCode, paymentMethod } = quoteSchema.parse(req.body);
+  const orderItems = await resolveOrderItems(req.user.id);
+  const totals = await pricingService.calculateTotals({
+    items: orderItems,
+    couponCode,
+    paymentMethod,
+    userId: req.user.id,
+  });
+  ok(res, { ...totals, items: orderItems });
+}
 
-  // Coupon is re-validated fresh here (never trust a discount the client computed
-  // earlier at cart preview time) and usage is only incremented on a real order.
-  let discount = null;
-  if (couponCode) {
-    discount = await pricingService.validateCoupon(couponCode, subtotal);
+async function checkout(req, res) {
+  const { customer, address, couponCode, paymentMethod } = checkoutSchema.parse(req.body);
+
+  const orderItems = await resolveOrderItems(req.user.id);
+
+  // Coupon (incl. per-customer eligibility) and GST/shipping/COD are all
+  // re-validated and computed fresh here — never trust a total the client
+  // computed earlier at cart/quote preview time.
+  const totals = await pricingService.calculateTotals({
+    items: orderItems,
+    couponCode,
+    paymentMethod,
+    userId: req.user.id,
+  });
+
+  // The order's id is minted up front so the one-use-per-customer redemption
+  // record (written before the order itself) can reference it immediately —
+  // no separate backfill write needed.
+  const orderId = uuid();
+
+  // Coupon usage (both the global limit and the per-customer redemption
+  // record) is committed BEFORE the order is created, not after: if either
+  // atomic check loses a race, we throw here and no order is created at all
+  // — avoiding an orphaned order that already reflected a discount its
+  // coupon didn't actually have room to grant.
+  let coupon = null;
+  if (totals.couponCode) {
+    coupon = await couponService.findByCode(totals.couponCode);
+    if (coupon.oneUsePerCustomer) {
+      await couponRedemptionService.record({
+        code: coupon.code,
+        userId: req.user.id,
+        orderId,
+        customerName: customer.name,
+        customerEmail: customer.email,
+        discountAmount: totals.discountAmount,
+      });
+    }
+    try {
+      await couponService.incrementUsage(coupon.code, coupon.usageLimit);
+    } catch (err) {
+      if (coupon.oneUsePerCustomer) {
+        await couponRedemptionService.remove(coupon.code, req.user.id).catch(() => {});
+      }
+      throw err;
+    }
   }
 
-  const discountAmount = discount?.discountAmount || 0;
-  const total = Number((subtotal - discountAmount + SHIPPING).toFixed(2));
-
   const order = await orderService.createOrder({
+    orderId,
     userId: req.user.id,
     items: orderItems,
     customer,
     address,
-    subtotal,
-    couponCode: discount?.code || null,
-    discountAmount,
-    shipping: SHIPPING,
-    total,
+    subtotal: totals.subtotal,
+    couponCode: totals.couponCode,
+    discountAmount: totals.discountAmount,
+    gstPercent: totals.gstPercent,
+    gstAmount: totals.gstAmount,
+    shipping: totals.shipping,
+    paymentMethod: totals.paymentMethod,
+    codCharge: totals.codCharge,
+    total: totals.total,
   });
-
-  if (discount) {
-    const coupon = await couponService.findByCode(discount.code);
-    await couponService.incrementUsage(discount.code, coupon.usageLimit);
-  }
 
   await cartService.clearCart(req.user.id);
 
@@ -137,6 +188,7 @@ async function adminUpdateStatus(req, res) {
 }
 
 module.exports = {
+  quote,
   checkout,
   listMyOrders,
   getMyOrder,

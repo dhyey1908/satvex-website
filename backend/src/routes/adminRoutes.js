@@ -33,6 +33,7 @@ router.get('/coupons', asyncHandler(couponController.adminList));
 router.post('/coupons', asyncHandler(couponController.adminCreate));
 router.put('/coupons/:code', asyncHandler(couponController.adminUpdate));
 router.delete('/coupons/:code', asyncHandler(couponController.adminRemove));
+router.get('/coupons/:code/redemptions', asyncHandler(couponController.adminRedemptions));
 
 router.get('/reviews', asyncHandler(reviewController.adminList));
 router.delete('/reviews/:id', asyncHandler(reviewController.adminRemove));

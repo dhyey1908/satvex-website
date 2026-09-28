@@ -45,6 +45,10 @@ export function AdminSettings() {
     }));
   }
 
+  function setNestedField(group, key, value) {
+    setForm((prev) => ({ ...prev, [group]: { ...prev[group], [key]: value } }));
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     const errors = validate(form);
@@ -191,6 +195,98 @@ export function AdminSettings() {
               {touched.instagramUrl && fieldErrors.instagramUrl && <p className="field-error">{fieldErrors.instagramUrl}</p>}
             </div>
           </div>
+        </div>
+
+        <div className="admin-form-section">
+          <h3>Tax (GST)</h3>
+          <label className="checkbox-field">
+            <input
+              type="checkbox"
+              checked={form.tax?.enabled ?? true}
+              onChange={(e) => setNestedField('tax', 'enabled', e.target.checked)}
+            />
+            Enable GST
+          </label>
+          {form.tax?.enabled && (
+            <div className="field" style={{ maxWidth: 220 }}>
+              <label htmlFor="gstPercent">GST Percentage (%)</label>
+              <input
+                id="gstPercent"
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value={form.tax?.percent ?? 18}
+                onChange={(e) => setNestedField('tax', 'percent', Number(e.target.value))}
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="admin-form-section">
+          <h3>Shipping</h3>
+          <label className="checkbox-field">
+            <input
+              type="checkbox"
+              checked={form.shipping?.enabled ?? true}
+              onChange={(e) => setNestedField('shipping', 'enabled', e.target.checked)}
+            />
+            Enable Shipping Charges
+          </label>
+          {form.shipping?.enabled && (
+            <div className="admin-form-grid">
+              <div className="field">
+                <label htmlFor="shippingCharge">Shipping Charge (₹)</label>
+                <input
+                  id="shippingCharge"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.shipping?.charge ?? 0}
+                  onChange={(e) => setNestedField('shipping', 'charge', Number(e.target.value))}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="freeShippingThreshold">Free Shipping Above (₹, optional)</label>
+                <input
+                  id="freeShippingThreshold"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.shipping?.freeThreshold ?? ''}
+                  onChange={(e) =>
+                    setNestedField('shipping', 'freeThreshold', e.target.value === '' ? undefined : Number(e.target.value))
+                  }
+                  placeholder="Leave blank for no free-shipping threshold"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="admin-form-section">
+          <h3>Cash on Delivery</h3>
+          <label className="checkbox-field">
+            <input
+              type="checkbox"
+              checked={form.cod?.enabled ?? true}
+              onChange={(e) => setNestedField('cod', 'enabled', e.target.checked)}
+            />
+            Enable COD Extra Charge
+          </label>
+          {form.cod?.enabled && (
+            <div className="field" style={{ maxWidth: 220 }}>
+              <label htmlFor="codCharge">COD Charge (₹)</label>
+              <input
+                id="codCharge"
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.cod?.charge ?? 0}
+                onChange={(e) => setNestedField('cod', 'charge', Number(e.target.value))}
+              />
+            </div>
+          )}
         </div>
 
         <button type="submit" className="btn btn-primary" disabled={saving}>
