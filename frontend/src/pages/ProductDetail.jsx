@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Truck, Leaf, Package, ChevronDown, Loader2, CheckCircle2, XCircle, ShoppingBag, Zap } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Heart, Loader2, CheckCircle2, XCircle, ShoppingBag, Zap } from 'lucide-react';
 import { productService } from '../services/productService';
 import { ProductGallery } from '../components/ProductGallery';
 import { SellingOptionSelector } from '../components/SellingOptionSelector';
@@ -25,7 +25,7 @@ import './ProductDetail.css';
 export function ProductDetail() {
   const { slug } = useParams();
   const { isAuthenticated } = useAuth();
-  const { addItem } = useCart();
+  const { addItem, isInCart, items: cartItems } = useCart();
   const { isInWishlist, addItem: addWishlistItem, removeItem: removeWishlistItem } = useWishlist();
   const { showToast } = useToast();
   const navigate = useNavigate();
@@ -39,7 +39,6 @@ export function ProductDetail() {
   const [quantity, setQuantity] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [buyingNow, setBuyingNow] = useState(false);
-  const [openInfo, setOpenInfo] = useState('materials');
   const [wishlistBurst, setWishlistBurst] = useState(false);
 
   useDocumentMeta({
@@ -53,6 +52,15 @@ export function ProductDetail() {
     return () => setProductStructuredData(null);
   }, [product]);
 
+  // Kept in a ref (not a dependency) so the product-load effect below can
+  // read the latest cart contents without re-running every time the cart
+  // changes — it should only decide the initial selection once per product
+  // navigation, not fight the customer's own in-progress picks afterward.
+  const cartItemsRef = useRef(cartItems);
+  useEffect(() => {
+    cartItemsRef.current = cartItems;
+  }, [cartItems]);
+
   useEffect(() => {
     setProduct(null);
     setError(null);
@@ -60,10 +68,21 @@ export function ProductDetail() {
       .getBySlug(slug)
       .then(({ product: p }) => {
         setProduct(p);
-        const firstActive = p.sellingOptions.find((o) => o.isActive);
-        setSellingOptionId(firstActive?.id ?? null);
-        setSelectedColors([]);
         setQuantity(1);
+        // If this exact product is already in the cart, restore that
+        // selection instead of defaulting to the first option — otherwise
+        // navigating back to the PDP always shows "Add to Cart" again even
+        // though the item is already there, until the customer re-picks
+        // the same colors by hand.
+        const existing = cartItemsRef.current.find((i) => i.productId === p.productId);
+        if (existing) {
+          setSellingOptionId(existing.sellingOptionId);
+          setSelectedColors(existing.selectedColors || []);
+        } else {
+          const firstActive = p.sellingOptions.find((o) => o.isActive);
+          setSellingOptionId(firstActive?.id ?? null);
+          setSelectedColors([]);
+        }
       })
       .catch((err) => setError(err.message));
 
@@ -162,6 +181,18 @@ export function ProductDetail() {
   }
 
   const inWishlist = isInWishlist(product.productId);
+  // "Go to Cart" only replaces "Add to Cart" for the exact combination
+  // currently selected — switching to a different color/combo of the same
+  // product still shows "Add to Cart" for that new combination.
+  const alreadyInCart = validSelection() && isInCart(product.productId, sellingOption?.id, selectedColors);
+
+  function handleAddOrGoToCart() {
+    if (alreadyInCart) {
+      navigate('/cart');
+      return;
+    }
+    handleAddToCart({ redirectToCheckout: false });
+  }
 
   return (
     <div className="container section product-detail">
@@ -249,9 +280,13 @@ export function ProductDetail() {
                 type="button"
                 className="btn btn-primary pdp-add-to-cart"
                 disabled={submitting || buyingNow || outOfStock}
-                onClick={() => handleAddToCart({ redirectToCheckout: false })}
+                onClick={handleAddOrGoToCart}
               >
-                {submitting ? <Loader2 size={16} className="btn-spinner" /> : (<><ShoppingBag size={16} /> Add to Cart</>)}
+                {submitting ? (
+                  <Loader2 size={16} className="btn-spinner" />
+                ) : (
+                  <><ShoppingBag size={16} /> {alreadyInCart ? 'Go to Cart' : 'Add to Cart'}</>
+                )}
               </button>
               <motion.button
                 type="button"
@@ -290,9 +325,13 @@ export function ProductDetail() {
           type="button"
           className="btn btn-primary pdp-mobile-bar-cart"
           disabled={submitting || buyingNow || outOfStock}
-          onClick={() => handleAddToCart({ redirectToCheckout: false })}
+          onClick={handleAddOrGoToCart}
         >
-          {submitting ? <Loader2 size={16} className="btn-spinner" /> : (<><ShoppingBag size={16} /> Add to Cart</>)}
+          {submitting ? (
+            <Loader2 size={16} className="btn-spinner" />
+          ) : (
+            <><ShoppingBag size={16} /> {alreadyInCart ? 'Go to Cart' : 'Add to Cart'}</>
+          )}
         </button>
         <button
           type="button"
@@ -305,52 +344,6 @@ export function ProductDetail() {
       </div>
 
       <div className="product-detail-below">
-        <h3 className="text-headline-sm pdp-below-heading">The Details</h3>
-
-        <div className="pdp-accordion">
-          {[
-            { key: 'description', label: 'Description', body: product.description },
-            product.howToWear ? { key: 'howToWear', label: 'How to Wear', body: product.howToWear } : null,
-            { key: 'materials', label: 'Materials & Care', body: 'Crafted from premium, skin-friendly materials. Wipe clean with a soft, dry cloth. Avoid contact with water and perfume.' },
-            { key: 'shipping', label: 'Shipping', body: 'Free shipping on all orders. Orders are typically processed within 1-2 business days.' },
-            { key: 'returns', label: 'Returns', body: "Contact us within 7 days of delivery if there's an issue with your order — we're happy to help." },
-          ].filter(Boolean).map((item) => {
-            const isOpen = openInfo === item.key;
-            return (
-              <div key={item.key} className="pdp-accordion-item">
-                <button
-                  type="button"
-                  className="pdp-accordion-trigger"
-                  aria-expanded={isOpen}
-                  onClick={() => setOpenInfo(isOpen ? null : item.key)}
-                >
-                  <span>{item.label}</span>
-                  <motion.span
-                    className="pdp-accordion-chevron"
-                    animate={{ rotate: isOpen ? 180 : 0 }}
-                    transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                  >
-                    <ChevronDown size={18} />
-                  </motion.span>
-                </button>
-                <AnimatePresence initial={false}>
-                  {isOpen && (
-                    <motion.div
-                      className="pdp-accordion-body-wrap"
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                    >
-                      <div className="pdp-accordion-body"><p>{item.body}</p></div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            );
-          })}
-        </div>
-
         <div className="product-detail-reviews" id="reviews">
           <h3 className="text-headline-sm">Reviews</h3>
           <RatingDisplay rating={product.rating} reviewCount={product.reviewCount} size="lg" />

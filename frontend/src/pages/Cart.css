@@ -64,6 +64,75 @@
 }
 .cart-saved-section h3 svg { color: var(--color-accent); }
 
+.cart-trust-section {
+  margin-top: var(--space-4);
+  padding: var(--sp-md);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-container);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.cart-trust-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+.cart-trust-item svg { color: var(--color-accent); flex-shrink: 0; }
+
+/* Mobile sticky checkout bar — hidden above the tablet breakpoint, where the
+   order summary's own Checkout button is already visible in the layout. */
+.cart-mobile-bar { display: none; }
+
 @media (max-width: 860px) {
   .cart-layout { grid-template-columns: 1fr; }
+
+  /* Page needs bottom clearance so the sticky bar never covers the last
+     saved-for-later item or the trust section. */
+  .cart-page { padding-bottom: 84px; }
+
+  /* The sticky bottom bar below replaces this inline Checkout button on
+     mobile — keeping both would be redundant. */
+  .cart-summary-col > .order-summary > .btn-primary.btn-block { display: none; }
+
+  .cart-mobile-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 400;
+    padding: var(--space-3) var(--space-4);
+    padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    box-shadow: var(--shadow-lg);
+  }
+  .cart-mobile-bar-total {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+    flex-shrink: 0;
+  }
+  .cart-mobile-bar-amount {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.2rem;
+    color: var(--color-text);
+  }
+  .cart-mobile-bar-savings {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--color-success);
+  }
+  .cart-mobile-bar-cta {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+  }
 }

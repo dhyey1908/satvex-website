@@ -3,16 +3,16 @@
    must read as the strongest, most immediate value, with MRP trailing as a
    smaller reference, not the other way around. */
 .price-display { display: inline-flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.price-current { font-weight: 700; color: var(--color-text); }
-.price-compare { color: var(--color-text-muted); text-decoration: line-through; font-weight: 500; }
+.price-current { font-weight: 600; font-family: var(--font-body); color: var(--color-accent); }
+.price-compare { color: var(--color-text-muted); text-decoration: line-through; font-weight: 400; }
 .price-discount-badge {
   align-self: center;
-  font-weight: 700;
-  color: var(--color-success);
-  background: var(--color-success-bg);
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  background: var(--color-accent-light);
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
   letter-spacing: 0.02em;
 }
 .price-md .price-current { font-size: 1.05rem; }

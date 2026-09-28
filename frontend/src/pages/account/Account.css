@@ -1,5 +1,26 @@
 .account-subtitle { margin-bottom: var(--space-6); }
 
+.address-type-pills { display: flex; gap: var(--space-2); }
+.address-type-pill {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: var(--radius-button);
+  border: 1.5px solid var(--color-outline-variant);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
+}
+.address-type-pill.selected {
+  border-color: var(--color-accent);
+  background: var(--color-accent-light);
+  color: var(--color-accent);
+}
+
+.address-map-btn { margin: 2px 0 var(--space-4); width: 100%; justify-content: center; }
+
 .account-page-header-row {
   display: flex;
   align-items: center;
@@ -19,7 +40,8 @@
   margin-bottom: var(--sp-lg);
 }
 .account-profile-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--color-text-muted); margin: 0 0 4px; }
-.account-profile-value { font-weight: 600; margin: 0; }
+.account-profile-value { font-weight: 600; margin: 0; overflow-wrap: break-word; }
+.account-profile-card > * { min-width: 0; }
 
 .account-stat-grid {
   display: grid;

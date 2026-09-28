@@ -4,27 +4,14 @@ import { addressService } from '../../services/addressService';
 import { useToast } from '../../context/ToastContext';
 import { useConfirm } from '../../context/ConfirmContext';
 import { AddressCard } from '../../components/AddressCard';
+import { AddressFormFields, ADDRESS_FORM_EMPTY, addressFormToPayload, addressToForm, validateAddressForm } from '../../components/AddressFormFields';
 import { Modal } from '../../components/Modal';
 import { EmptyState } from '../../components/EmptyState';
 import { Loader } from '../../components/Loader';
 import { useDocumentMeta } from '../../hooks/useDocumentMeta';
-import { minLength, phone as validatePhone, sanitizePhoneInput, postalCode, required, runValidators, hasErrors } from '../../utils/validators';
+import { required, minLength, phone as validatePhone, pincode as validatePincode, runValidators, hasErrors } from '../../utils/validators';
 import { mapServerFieldErrors } from '../../utils/formErrors';
 import './Account.css';
-
-const EMPTY_FORM = { label: 'Home', fullName: '', phone: '', line1: '', city: '', state: '', pincode: '', country: 'India' };
-
-function validate(values) {
-  return runValidators({
-    fullName: () => minLength(values.fullName, 2, 'Full name'),
-    phone: () => validatePhone(values.phone, { optional: false }),
-    line1: () => minLength(values.line1, 3, 'Address'),
-    city: () => minLength(values.city, 2, 'City'),
-    state: () => minLength(values.state, 2, 'State'),
-    pincode: () => postalCode(values.pincode),
-    country: () => required(values.country, 'Country'),
-  });
-}
 
 export function AccountAddresses() {
   useDocumentMeta({ title: 'Addresses', path: '/account/addresses' });
@@ -34,10 +21,11 @@ export function AccountAddresses() {
   const [addresses, setAddresses] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [form, setForm] = useState(ADDRESS_FORM_EMPTY);
   const [fieldErrors, setFieldErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [saving, setSaving] = useState(false);
+  const [pincodeLookupState, setPincodeLookupState] = useState('idle');
 
   function load() {
     addressService.list().then((data) => setAddresses(data.addresses));
@@ -47,7 +35,7 @@ export function AccountAddresses() {
 
   function openNew() {
     setEditingId(null);
-    setForm(EMPTY_FORM);
+    setForm(ADDRESS_FORM_EMPTY);
     setFieldErrors({});
     setTouched({});
     setModalOpen(true);
@@ -55,7 +43,7 @@ export function AccountAddresses() {
 
   function openEdit(addr) {
     setEditingId(addr.addressId);
-    setForm({ ...addr });
+    setForm(addressToForm(addr));
     setFieldErrors({});
     setTouched({});
     setModalOpen(true);
@@ -70,19 +58,62 @@ export function AccountAddresses() {
     setTouched((prev) => ({ ...prev, [key]: true }));
   }
 
+  // Same pincode -> city/state autofill pattern used at Checkout — both
+  // fields stay editable, this only ever pre-fills, never locks anything.
+  useEffect(() => {
+    const pin = form.pincode.trim();
+    if (!/^\d{6}$/.test(pin)) {
+      setPincodeLookupState('idle');
+      return;
+    }
+    let cancelled = false;
+    setPincodeLookupState('loading');
+    const timer = setTimeout(() => {
+      fetch(`https://api.postalpincode.in/pincode/${pin}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (cancelled) return;
+          const office = data?.[0]?.PostOffice?.[0];
+          if (data?.[0]?.Status === 'Success' && office) {
+            setForm((prev) => ({ ...prev, city: office.District, state: office.State }));
+            setPincodeLookupState('success');
+          } else {
+            setPincodeLookupState('not-found');
+          }
+        })
+        .catch(() => !cancelled && setPincodeLookupState('idle'));
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.pincode]);
+
   async function handleSave(e) {
     e.preventDefault();
-    const errors = validate(form);
+    const errors = validateAddressForm(form, { required, minLength, phone: validatePhone, pincode: validatePincode });
     setFieldErrors(errors);
-    setTouched({ fullName: true, phone: true, line1: true, city: true, state: true, pincode: true, country: true });
+    setTouched({
+      fullName: true,
+      phone: true,
+      houseFlat: true,
+      areaStreet: true,
+      city: true,
+      state: true,
+      pincode: true,
+      country: true,
+    });
     if (hasErrors(errors)) return;
+
+    const payload = addressFormToPayload(form);
 
     setSaving(true);
     try {
       if (editingId) {
-        await addressService.update(editingId, form);
+        await addressService.update(editingId, payload);
       } else {
-        await addressService.create(form);
+        await addressService.create(payload);
       }
       setModalOpen(false);
       load();
@@ -151,83 +182,15 @@ export function AccountAddresses() {
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editingId ? 'Edit Address' : 'Add Address'}>
         <form onSubmit={handleSave} noValidate>
-          <div className="field">
-            <label>Label</label>
-            <input value={form.label} onChange={(e) => setField('label', e.target.value)} />
-          </div>
-          <div className={`field ${touched.fullName && fieldErrors.fullName ? 'invalid' : ''}`}>
-            <label>Full Name</label>
-            <input
-              required
-              value={form.fullName}
-              onChange={(e) => setField('fullName', e.target.value)}
-              onBlur={() => markTouched('fullName')}
-            />
-            {touched.fullName && fieldErrors.fullName && <p className="field-error">{fieldErrors.fullName}</p>}
-          </div>
-          <div className={`field ${touched.phone && fieldErrors.phone ? 'invalid' : ''}`}>
-            <label>Phone</label>
-            <input
-              required
-              inputMode="numeric"
-              maxLength={10}
-              value={form.phone}
-              onChange={(e) => setField('phone', sanitizePhoneInput(e.target.value))}
-              onBlur={() => markTouched('phone')}
-            />
-            {touched.phone && fieldErrors.phone && <p className="field-error">{fieldErrors.phone}</p>}
-          </div>
-          <div className={`field ${touched.line1 && fieldErrors.line1 ? 'invalid' : ''}`}>
-            <label>Address</label>
-            <input
-              required
-              value={form.line1}
-              onChange={(e) => setField('line1', e.target.value)}
-              onBlur={() => markTouched('line1')}
-            />
-            {touched.line1 && fieldErrors.line1 && <p className="field-error">{fieldErrors.line1}</p>}
-          </div>
-          <div className={`field ${touched.city && fieldErrors.city ? 'invalid' : ''}`}>
-            <label>City</label>
-            <input
-              required
-              value={form.city}
-              onChange={(e) => setField('city', e.target.value)}
-              onBlur={() => markTouched('city')}
-            />
-            {touched.city && fieldErrors.city && <p className="field-error">{fieldErrors.city}</p>}
-          </div>
-          <div className={`field ${touched.state && fieldErrors.state ? 'invalid' : ''}`}>
-            <label>State</label>
-            <input
-              required
-              value={form.state}
-              onChange={(e) => setField('state', e.target.value)}
-              onBlur={() => markTouched('state')}
-            />
-            {touched.state && fieldErrors.state && <p className="field-error">{fieldErrors.state}</p>}
-          </div>
-          <div className={`field ${touched.pincode && fieldErrors.pincode ? 'invalid' : ''}`}>
-            <label>Pincode</label>
-            <input
-              required
-              value={form.pincode}
-              onChange={(e) => setField('pincode', e.target.value)}
-              onBlur={() => markTouched('pincode')}
-            />
-            {touched.pincode && fieldErrors.pincode && <p className="field-error">{fieldErrors.pincode}</p>}
-          </div>
-          <div className={`field ${touched.country && fieldErrors.country ? 'invalid' : ''}`}>
-            <label>Country</label>
-            <input
-              required
-              value={form.country}
-              onChange={(e) => setField('country', e.target.value)}
-              onBlur={() => markTouched('country')}
-            />
-            {touched.country && fieldErrors.country && <p className="field-error">{fieldErrors.country}</p>}
-          </div>
-          <button type="submit" className="btn btn-primary btn-block" disabled={saving}>
+          <AddressFormFields
+            form={form}
+            setField={setField}
+            touched={touched}
+            markTouched={markTouched}
+            fieldErrors={fieldErrors}
+            pincodeLookupState={pincodeLookupState}
+          />
+          <button type="submit" className="btn btn-primary btn-block" disabled={saving} style={{ marginTop: 16 }}>
             {saving ? 'Saving…' : 'Save Address'}
           </button>
         </form>

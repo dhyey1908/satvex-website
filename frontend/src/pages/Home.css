@@ -63,7 +63,7 @@
 .hero-image-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(20, 19, 15, 0.45), transparent 55%);
+  background: linear-gradient(to top, rgba(58, 46, 42, 0.4), transparent 55%);
   pointer-events: none;
 }
 .hero-image-badge {
@@ -76,7 +76,7 @@
   gap: var(--sp-sm);
   padding: var(--sp-sm) var(--sp-md);
   border-radius: var(--radius-md);
-  background: rgba(243, 241, 234, 0.94);
+  background: rgba(251, 246, 240, 0.94);
   backdrop-filter: blur(8px);
   box-shadow: var(--shadow-lg);
 }
@@ -141,7 +141,7 @@
   gap: 6px;
   padding: 6px 12px;
   border-radius: var(--radius-pill);
-  background: rgba(243, 241, 234, 0.96);
+  background: rgba(251, 246, 240, 0.96);
   backdrop-filter: blur(6px);
   box-shadow: var(--shadow-sm);
   font-size: 0.68rem;
@@ -156,7 +156,7 @@
   right: var(--sp-sm);
   padding: 4px 10px;
   border-radius: var(--radius-button);
-  background: rgba(20, 19, 15, 0.85);
+  background: rgba(58, 46, 42, 0.85);
   color: #fff;
   font-size: 0.68rem;
   font-weight: 700;
@@ -217,43 +217,51 @@
 .home-product-grid { margin-top: var(--sp-lg); }
 
 /* TRUST PILLARS */
-.why-satvex { background: var(--color-surface-container); }
+.why-satvex { background: var(--color-surface-muted); }
 .why-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--gutter); }
 .why-card {
   background: var(--color-surface);
   border-radius: var(--radius-lg);
-  border: 1.5px solid var(--color-border);
-  padding: var(--sp-md);
+  border: 1px solid var(--color-border);
+  padding: var(--sp-lg) var(--sp-md);
+  transition: box-shadow var(--transition-base), transform var(--transition-base);
 }
+.why-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
 .why-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-sm);
-  background: var(--color-primary);
-  color: var(--color-bg);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--color-surface-container);
+  color: var(--color-accent);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: var(--sp-sm);
+  margin-bottom: var(--sp-md);
 }
-.why-card h3 { margin-bottom: 6px; }
+.why-card h3 { margin-bottom: 6px; font-family: var(--font-display); font-weight: 500; }
 .why-card p { color: var(--color-text-muted); margin: 0; }
 
-/* QUOTE BANNER */
+/* PRODUCT STORY / QUOTE BANNER — a quiet brand moment, not a heavy dark
+   block: burgundy text/accents on ivory, restrained. */
 .quote-banner {
   position: relative;
   overflow: hidden;
-  background: var(--color-primary);
-  color: #fff;
+  background: var(--color-surface-muted);
+  color: var(--color-text);
   border-radius: var(--radius-lg);
   padding: var(--sp-xl) var(--sp-lg);
   text-align: center;
-  box-shadow: var(--shadow-lg);
 }
 .quote-banner-content { position: relative; z-index: 1; max-width: 40rem; margin: 0 auto; }
-.quote-banner-content svg { color: var(--color-accent-light); opacity: 0.85; margin-bottom: var(--sp-sm); }
-.quote-banner-content blockquote { margin: 0; font-style: italic; }
-.quote-attribution { margin-top: var(--sp-sm); color: rgba(255,255,255,0.75); }
+.quote-banner-content svg { color: var(--color-accent); opacity: 0.7; margin-bottom: var(--sp-sm); }
+.quote-banner-content blockquote {
+  margin: 0;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 500;
+  color: var(--color-text);
+}
+.quote-attribution { margin-top: var(--sp-sm); color: var(--color-text-muted); }
 .quote-banner-glow {
   position: absolute;
   width: 260px;
@@ -262,8 +270,36 @@
   filter: blur(70px);
   pointer-events: none;
 }
-.quote-banner-glow-1 { top: -60px; right: -60px; background: rgba(184, 52, 31, 0.3); }
-.quote-banner-glow-2 { bottom: -60px; left: -60px; background: rgba(242, 211, 198, 0.15); }
+.quote-banner-glow-1 { top: -60px; right: -60px; background: rgba(107, 39, 55, 0.12); }
+.quote-banner-glow-2 { bottom: -60px; left: -60px; background: rgba(176, 141, 87, 0.1); }
+
+/* BRAND STATEMENT — a single editorial line, no card/box, generous
+   whitespace either side. */
+.brand-statement {
+  text-align: center;
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: var(--sp-lg) 0;
+}
+.brand-statement p {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(1.3rem, 2.6vw, 1.9rem);
+  line-height: 1.5;
+  color: var(--color-text);
+  margin: 0;
+}
+
+/* FINAL CTA */
+.final-cta {
+  text-align: center;
+  background: var(--color-surface-muted);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-xl) var(--sp-lg);
+}
+.final-cta h2 { margin-bottom: var(--sp-sm); }
+.final-cta p { color: var(--color-text-muted); max-width: 34rem; margin: 0 auto var(--sp-md); }
 
 @media (max-width: 860px) {
   .hero-inner { grid-template-columns: 1fr; min-height: auto; }
@@ -275,4 +311,6 @@
 @media (max-width: 560px) {
   .why-grid { grid-template-columns: 1fr; }
   .showcase-cta-row { flex-direction: column; }
+  .quote-banner, .final-cta { padding: var(--sp-lg) var(--sp-md); }
+  .brand-statement { padding: var(--sp-md) 0; }
 }

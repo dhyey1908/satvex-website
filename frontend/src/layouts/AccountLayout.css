@@ -7,4 +7,5 @@
 
 @media (max-width: 900px) {
   .account-grid { grid-template-columns: 1fr; }
+  .account-grid > * { min-width: 0; }
 }

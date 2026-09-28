@@ -136,43 +136,12 @@
    separate, disconnected section. */
 .product-detail-below {
   max-width: 1100px;
-  margin: var(--space-6) 0 0;
-  padding-top: var(--space-6);
+  /* margin: var(--space-6) 0 0; */
+  /* padding-top: var(--space-6); */
   border-top: 1px solid var(--color-border);
 }
 
-.pdp-below-heading { margin-bottom: var(--sp-md); }
-
-.pdp-accordion {
-  border-top: 1px solid var(--color-border);
-  margin-bottom: var(--space-6);
-}
-.pdp-accordion-item { border-bottom: 1px solid var(--color-border); }
-.pdp-accordion-trigger {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--sp-md) 4px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-family: var(--font-body);
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--color-text);
-  text-align: left;
-}
-.pdp-accordion-chevron {
-  display: inline-flex;
-  color: var(--color-text-muted);
-  flex-shrink: 0;
-}
-.pdp-accordion-body-wrap { overflow: hidden; }
-.pdp-accordion-body { padding: 0 4px var(--sp-md); color: var(--color-text-muted); }
-.pdp-accordion-body p { margin: 0; font-size: 0.9rem; }
-
-.pdp-wishlist-icon { display: inline-flex; margin-right: 6px; }
+.pdp-wishlist-icon { display: inline-flex; }
 
 .product-detail-reviews {
   padding-top: var(--space-6);

@@ -57,11 +57,22 @@
     flex-direction: row;
     overflow-x: auto;
     gap: var(--space-2);
+    /* Without this, a grid/flex item defaults to min-width:auto and won't
+       shrink below the row's unwrapped content width even with
+       overflow-x:auto set — that was growing the whole page instead of
+       scrolling just this strip internally. */
+    min-width: 0;
   }
   .account-sidebar a, .account-sidebar-logout {
     white-space: nowrap;
     border-top: none;
     margin-top: 0;
     padding-top: 11px;
+    /* Items must not shrink below their own label width — the container's
+       min-width:0 (above) is what lets the row scroll instead of growing
+       the page; without flex-shrink:0 here, the flex algorithm compresses
+       and clips each label's text instead of leaving them full-width and
+       scrollable. */
+    flex-shrink: 0;
   }
 }

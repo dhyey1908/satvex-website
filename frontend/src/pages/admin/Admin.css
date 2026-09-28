@@ -99,6 +99,35 @@
 .admin-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-4) var(--space-5); }
 .admin-form-grid .field { margin-bottom: 0; }
 
+/* Consistent Save/Cancel placement across every admin form — pinned to the
+   bottom of the viewport so it never moves as the admin scrolls a long
+   form, and never has to be scrolled to. Same treatment everywhere
+   (Products, Settings, ...) rather than each form deciding its own spot. */
+.admin-form-sticky-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  padding: var(--space-4) var(--space-5);
+  margin-top: var(--sp-lg);
+  background: rgba(251, 246, 240, 0.94);
+  backdrop-filter: blur(6px);
+  border-top: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+@media (max-width: 640px) {
+  .admin-form-sticky-actions {
+    /* Full-width, stacked buttons on mobile so the action area stays
+       usable and doesn't crowd the form fields above it. */
+    flex-direction: column-reverse;
+    padding: var(--space-3);
+  }
+  .admin-form-sticky-actions .btn { width: 100%; }
+}
+
 .admin-discount-preview {
   width: 100%;
   color: var(--color-success);

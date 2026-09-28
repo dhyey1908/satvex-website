@@ -15,6 +15,19 @@
   margin-bottom: var(--sp-xs);
 }
 
+.order-summary-savings {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.order-summary-savings svg { flex-shrink: 0; }
+
 .order-summary-row {
   display: flex;
   justify-content: space-between;

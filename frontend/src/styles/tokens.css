@@ -1,40 +1,47 @@
 :root {
-  /* Color palette — "Ink & Rust": near-black ink, warm bone paper, a single
-     saturated rust-crimson accent. Structured/editorial, not soft-luxury. */
-  --color-bg: #f3f1ea;
+  /* Color palette — v4 "Premium Feminine": warm ivory/cream base, soft
+     blush/champagne supporting tones, deep burgundy as the single strong
+     accent. Color is used for emotion/emphasis (CTAs, price, active
+     states) — most of the page stays ivory/white/soft-brown, never a
+     full-bleed pink wash. See 19-premium-redesign.md. */
+  --color-bg: #fbf6f0;
   --color-surface: #ffffff;
-  --color-surface-muted: #ece8de;
-  --color-surface-container: #e7e2d5;
-  --color-surface-container-high: #ddd7c6;
-  --color-surface-container-highest: #d2cbb6;
-  --color-text: #14130f;
-  --color-text-muted: #57534a;
-  --color-border: #ddd7c6;
-  --color-outline: #8a8474;
+  --color-surface-muted: #f6eae6;
+  --color-surface-container: #efdcd6;
+  --color-surface-container-high: #e7cec6;
+  --color-surface-container-highest: #ddbcb2;
+  --color-champagne: #e7d9be;
+  --color-text: #3a2e2a;
+  --color-text-muted: #7a6b64;
+  --color-border: #e8dcd6;
+  --color-outline: #a8968e;
 
-  --color-primary: #14130f;
-  --color-primary-dark: #000000;
-  --color-primary-light: #e7e2d5;
+  --color-primary: #3a2e2a;
+  --color-primary-dark: #241c19;
+  --color-primary-light: #efdcd6;
 
-  --color-accent: #b8341f;
-  --color-accent-dark: #7c2113;
-  --color-accent-light: #f2d3c6;
+  --color-accent: #6b2737;
+  --color-accent-dark: #4e1c28;
+  --color-accent-light: #e7cec6;
 
-  --color-accent-gold: #b8341f;
+  --color-accent-gold: #b08d57;
 
-  --color-outline-variant: #c9c2ac;
+  --color-outline-variant: #ddc9c2;
 
-  --color-success: #2f6b45;
-  --color-success-bg: #e3ede4;
-  --color-error: #a12a1f;
-  --color-error-bg: #f6dfd8;
+  --color-success: #3f7d4e;
+  --color-success-bg: #e7f1e5;
+  --color-error: #a13a2f;
+  --color-error-dark: #7c2113;
+  --color-error-bg: #f6e2dc;
+  --color-warning: #8a5a10;
+  --color-warning-bg: #fdf3d9;
 
-  --color-overlay: rgba(20, 19, 15, 0.65);
+  --color-overlay: rgba(58, 46, 42, 0.65);
 
-  /* Typography — Fraunces (high-contrast editorial serif) for display,
-     Archivo (grotesque) for UI/body. */
-  --font-display: 'Fraunces', 'Georgia', serif;
-  --font-body: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* Typography — Playfair Display (elegant high-contrast serif) for
+     headings, Poppins (soft geometric sans) for nav/UI/product/forms. */
+  --font-display: 'Playfair Display', 'Georgia', serif;
+  --font-body: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
   /* Spacing scale — wider jumps than the previous system, editorial rhythm. */
   --space-1: 4px;
@@ -62,8 +69,10 @@
   --shadow-md: 0 6px 16px rgba(20, 19, 15, 0.08), 0 2px 6px rgba(20, 19, 15, 0.05);
   --shadow-lg: 0 16px 40px rgba(20, 19, 15, 0.12), 0 4px 12px rgba(20, 19, 15, 0.06);
 
-  /* Focus ring — used for :focus-visible instead of the browser default. */
-  --focus-ring: 0 0 0 3px rgba(184, 52, 31, 0.22);
+  /* Focus ring — used for :focus-visible instead of the browser default.
+     Kept deliberately light (2px, low opacity) so it reads as a subtle
+     acknowledgement, not a heavy colored box. */
+  --focus-ring: 0 0 0 2px rgba(107, 39, 55, 0.18);
 
   --transition-fast: 120ms ease;
   --transition-base: 220ms cubic-bezier(0.65, 0, 0.35, 1);
@@ -76,7 +85,7 @@
   --motion-ease: cubic-bezier(0.65, 0, 0.35, 1);
 
   --container-max: 1400px;
-  --header-height: 76px;
+  --header-height: 68px;
 
   /* Responsive grid columns (ProductGrid) */
   --grid-min-card: 280px;

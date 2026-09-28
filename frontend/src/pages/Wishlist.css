@@ -1,15 +1,17 @@
-.wishlist-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(var(--grid-min-card), 300px));
-  justify-content: start;
-  gap: var(--space-6) var(--space-5);
+.wishlist-unavailable-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
 }
-
-@media (max-width: 900px) {
-  .wishlist-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); justify-content: stretch; }
-}
-@media (max-width: 560px) {
-  /* auto-fit (not a hard 2-column split) so a single saved item uses the
-     full row instead of sitting stranded on the left with empty space. */
-  .wishlist-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-4) var(--space-3); }
+.wishlist-unavailable-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--sp-md);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
 }

@@ -7,23 +7,25 @@
   gap: 3px;
 }
 
-/* Square swatch chip, not a circle — pairs with the structural/sharp system
-   and reads as a selectable block rather than a color dot. */
+/* Circular shade swatch — the standard, familiar pattern for beauty/color
+   selection, softer than a square chip. Touch target stays >=36px even
+   though the visible circle can read smaller. */
 .color-swatch {
   position: relative;
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-sm);
+  width: 40px;
+  height: 40px;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: 50%;
   background: var(--swatch-color);
-  border: 1.5px solid var(--color-border);
-  box-shadow: none;
+  border: 2px solid var(--color-surface);
+  box-shadow: 0 0 0 1.5px var(--color-border);
   cursor: pointer;
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
-.color-swatch:hover:not(:disabled) { border-color: var(--color-accent); }
+.color-swatch:hover:not(:disabled) { box-shadow: 0 0 0 1.5px var(--color-accent); }
 .color-swatch.selected {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-accent);
 }
 .color-swatch:disabled { opacity: 0.35; cursor: not-allowed; }
 

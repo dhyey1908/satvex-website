@@ -6,6 +6,79 @@
 }
 .checkout-return-link:hover { color: var(--color-text); }
 
+.checkout-steps {
+  display: flex;
+  align-items: center;
+  list-style: none;
+  margin: var(--sp-md) 0 0;
+  padding: 0;
+}
+.checkout-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-muted);
+}
+.checkout-step-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-border);
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+}
+.checkout-step.active .checkout-step-dot {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-surface);
+}
+.checkout-step.done .checkout-step-dot {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-surface);
+}
+.checkout-step-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.checkout-step.active .checkout-step-label { color: var(--color-text); }
+.checkout-step-line {
+  width: 32px;
+  height: 1.5px;
+  margin: 0 10px;
+  background: var(--color-border);
+  flex-shrink: 0;
+}
+.checkout-step.done .checkout-step-line {
+  background: var(--color-accent);
+}
+
+.checkout-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-bottom: var(--space-2);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+.checkout-back-link:hover { color: var(--color-accent); }
+
+.checkout-step-continue { margin-top: var(--space-2); }
+
 .checkout-layout {
   display: grid;
   grid-template-columns: 2fr 1fr;
@@ -39,6 +112,12 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: var(--space-3);
+}
+
+.checkout-address-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
 }
 
 .field-row {
@@ -110,9 +189,64 @@
   background: var(--color-surface-muted);
   flex-shrink: 0;
 }
-.checkout-summary-item-info { flex: 1; min-width: 0; }
+.checkout-summary-item-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.checkout-summary-item-colors { font-size: 0.75rem; color: var(--color-text-muted); }
 .checkout-summary-item-price { flex-shrink: 0; }
+
+.checkout-mobile-bar { display: none; }
 
 @media (max-width: 860px) {
   .checkout-layout, .field-row { grid-template-columns: 1fr; }
+
+  .checkout-steps { overflow-x: auto; }
+
+  /* Page needs bottom clearance so the sticky bar never covers the last
+     card's content. */
+  .checkout-page { padding-bottom: 84px; }
+
+  /* The sticky bottom bar replaces both the step "Continue" buttons and the
+     final inline "Place Order" button on mobile — keeping both is
+     redundant. */
+  .checkout-step-continue,
+  .checkout-place-order {
+    display: none;
+  }
+
+  .checkout-mobile-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 400;
+    padding: var(--space-3) var(--space-4);
+    padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    box-shadow: var(--shadow-lg);
+  }
+  .checkout-mobile-bar-total {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+    flex-shrink: 0;
+  }
+  .checkout-mobile-bar-amount {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.2rem;
+    color: var(--color-text);
+  }
+  .checkout-mobile-bar-savings {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--color-success);
+  }
+  .checkout-mobile-bar-cta {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+  }
 }

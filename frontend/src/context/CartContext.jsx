@@ -79,6 +79,23 @@ export function CartProvider({ children }) {
 
   const clearCoupon = useCallback(() => setAppliedCoupon(null), []);
 
+  // Exact-variant match (same product, same selling option, same color set
+  // regardless of pick order) — used to switch "Add to Cart" to "Go to
+  // Cart" only when this specific combination is already in the bag, so a
+  // customer can still add a different color/combo of the same product.
+  const isInCart = useCallback(
+    (productId, sellingOptionId, selectedColors = []) => {
+      const target = [...selectedColors].sort().join(',');
+      return items.some(
+        (item) =>
+          item.productId === productId &&
+          item.sellingOptionId === sellingOptionId &&
+          [...(item.selectedColors || [])].sort().join(',') === target
+      );
+    },
+    [items]
+  );
+
   const value = {
     items,
     savedItems,
@@ -93,6 +110,7 @@ export function CartProvider({ children }) {
     setSavedForLater,
     applyCoupon,
     clearCoupon,
+    isInCart,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

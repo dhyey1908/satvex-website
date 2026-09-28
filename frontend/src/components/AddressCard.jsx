@@ -1,14 +1,18 @@
-import { Check, Pencil, Star, Trash2 } from 'lucide-react';
+import { Check, Home, Briefcase, MapPin, Pencil, Star, Trash2 } from 'lucide-react';
 import './AddressCard.css';
 
+const TYPE_ICONS = { Home, Work: Briefcase, Other: MapPin };
+
 export function AddressCard({ address, selected, onSelect, onEdit, onDelete, onSetDefault }) {
+  const TypeIcon = TYPE_ICONS[address.label] || MapPin;
   return (
     <div className={`address-card ${selected ? 'selected' : ''}`}>
       {address.isDefault && <span className="address-default-badge">Default</span>}
-      <p className="address-label">{address.label}</p>
+      <p className="address-label"><TypeIcon size={13} /> {address.label}</p>
       <p className="address-name">{address.fullName}</p>
       <p className="address-lines">
         {address.line1}
+        {address.landmark && <>, {address.landmark}</>}
         <br />
         {address.city}, {address.state} {address.pincode}
         <br />

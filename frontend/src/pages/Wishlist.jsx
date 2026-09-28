@@ -1,13 +1,11 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X } from 'lucide-react';
 import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../context/ToastContext';
-import { WishlistCard } from '../components/WishlistCard';
-import { VariantPickerModal } from '../components/VariantPickerModal';
+import { ProductGrid } from '../components/ProductGrid';
 import { PageHeader } from '../components/PageHeader';
 import { EmptyState } from '../components/EmptyState';
-import { Skeleton } from '../components/Loader';
 import { Pagination } from '../components/Pagination';
 import { usePagination } from '../hooks/usePagination';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
@@ -38,7 +36,6 @@ export function Wishlist() {
 
   const { items, loading, removeItem } = useWishlist();
   const { showToast } = useToast();
-  const [modalProductId, setModalProductId] = useState(null);
   const { page, setPage, totalPages, pageItems, total, rangeStart, rangeEnd } = usePagination(items, PAGE_SIZE);
 
   async function handleRemove(productId) {
@@ -49,20 +46,7 @@ export function Wishlist() {
     }
   }
 
-  if (loading && items.length === 0) {
-    return (
-      <div className="container section">
-        <PageHeader eyebrow="Wishlist" title="Your Wishlist" />
-        <div className="wishlist-grid">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} height="340px" style={{ borderRadius: 'var(--radius-md)' }} />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (items.length === 0) {
+  if (!loading && items.length === 0) {
     return (
       <div className="container section">
         <EmptyState
@@ -78,6 +62,9 @@ export function Wishlist() {
     );
   }
 
+  const availableItems = pageItems.filter((item) => item.available !== false);
+  const unavailableItems = pageItems.filter((item) => item.available === false);
+
   return (
     <div className="container section">
       <PageHeader eyebrow="Wishlist" title="Your Wishlist" count={items.length} countLabel="items">
@@ -86,18 +73,31 @@ export function Wishlist() {
         </button>
       </PageHeader>
 
-      <div className="wishlist-grid">
-        <AnimatePresence>
-          {pageItems.map((item) => (
-            <WishlistCard
-              key={item.productId}
-              item={item}
-              onAddToCart={() => setModalProductId(item.productId)}
-              onRemove={() => handleRemove(item.productId)}
-            />
-          ))}
-        </AnimatePresence>
-      </div>
+      {/* Same shared grid + ProductCard used on Home/Shop/Search — the
+          wishlist is just another product listing, not a bespoke card. */}
+      <ProductGrid products={availableItems} loading={loading && items.length === 0} skeletonCount={3} />
+
+      {unavailableItems.length > 0 && (
+        <div className="wishlist-unavailable-list">
+          <AnimatePresence>
+            {unavailableItems.map((item) => (
+              <motion.div
+                key={item.productId}
+                className="wishlist-unavailable-card"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.92, transition: { duration: 0.2 } }}
+                transition={{ duration: 0.25 }}
+              >
+                <p>This product is no longer available.</p>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => handleRemove(item.productId)}>
+                  <X size={14} /> Remove
+                </button>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
 
       <Pagination
         page={page}
@@ -107,12 +107,6 @@ export function Wishlist() {
         rangeStart={rangeStart}
         rangeEnd={rangeEnd}
         itemLabel="items"
-      />
-
-      <VariantPickerModal
-        productId={modalProductId}
-        open={Boolean(modalProductId)}
-        onClose={() => setModalProductId(null)}
       />
     </div>
   );

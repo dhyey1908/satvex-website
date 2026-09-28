@@ -19,7 +19,17 @@
   border-radius: var(--radius-pill);
 }
 
-.address-label { font-weight: 700; font-size: 0.85rem; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--color-text-muted); }
+.address-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  margin: 0 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-accent);
+}
 .address-name { font-weight: 600; margin: 0 0 4px; }
 .address-lines { margin: 0 0 4px; font-size: 0.9rem; color: var(--color-text-muted); line-height: 1.5; }
 .address-phone { margin: 0 0 var(--space-3); font-size: 0.85rem; color: var(--color-text-muted); }

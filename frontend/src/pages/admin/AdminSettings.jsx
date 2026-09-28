@@ -326,9 +326,11 @@ export function AdminSettings() {
           </div>
         </div>
 
-        <button type="submit" className="btn btn-primary" disabled={saving}>
-          {saving ? 'Saving…' : 'Save Settings'}
-        </button>
+        <div className="admin-form-sticky-actions">
+          <button type="submit" className="btn btn-primary" disabled={saving}>
+            {saving ? 'Saving…' : 'Save Settings'}
+          </button>
+        </div>
       </form>
     </div>
   );

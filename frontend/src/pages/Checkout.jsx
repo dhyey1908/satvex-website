@@ -9,36 +9,27 @@ import { addressService } from '../services/addressService';
 import { authService } from '../services/authService';
 import { redirectToCashfreeCheckout } from '../utils/cashfree';
 import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { EmptyState } from '../components/EmptyState';
 import { OrderSummary } from '../components/OrderSummary';
 import { AddressCard } from '../components/AddressCard';
+import { AddressFormFields, ADDRESS_FORM_EMPTY, addressFormToPayload, validateAddressForm } from '../components/AddressFormFields';
 import { PageHeader } from '../components/PageHeader';
-import { Truck, Loader2, Plus } from 'lucide-react';
+import { Truck, Loader2, Plus, Check, ChevronLeft } from 'lucide-react';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
-import { required, minLength, email as validateEmail, phone as validatePhone, sanitizePhoneInput, pincode as validatePincode, runValidators, hasErrors } from '../utils/validators';
+import { required, minLength, email as validateEmail, phone as validatePhone, pincode as validatePincode, runValidators, hasErrors } from '../utils/validators';
 import { mapServerFieldErrors } from '../utils/formErrors';
 import './Checkout.css';
 
 const CHECKOUT_SERVER_FIELD_MAP = {
-  'customer.name': 'name',
+  'customer.name': 'fullName',
   'customer.phone': 'phone',
   'customer.email': 'email',
-  'address.line1': 'line1',
+  'address.line1': 'houseFlat',
   'address.city': 'city',
   'address.state': 'state',
   'address.pincode': 'pincode',
   'address.country': 'country',
-};
-
-const EMPTY_FORM = {
-  name: '',
-  phone: '',
-  email: '',
-  line1: '',
-  city: '',
-  state: '',
-  pincode: '',
-  country: 'India',
 };
 
 export function Checkout() {
@@ -48,8 +39,10 @@ export function Checkout() {
   const { user, refreshUser } = useAuth();
   const { settings, refresh: refreshSettings } = useSettings();
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const navigate = useNavigate();
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [form, setForm] = useState({ ...ADDRESS_FORM_EMPTY });
+  const [email, setEmail] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [error, setError] = useState(null);
@@ -58,10 +51,17 @@ export function Checkout() {
   const [addresses, setAddresses] = useState(null);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [saveAddress, setSaveAddress] = useState(false);
+  const [showAddressList, setShowAddressList] = useState(false);
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   const [pincodeLookupState, setPincodeLookupState] = useState('idle');
   const [paymentMethod, setPaymentMethod] = useState('COD');
   const [quote, setQuote] = useState(null);
+  const [step, setStep] = useState('address');
+  const STEPS = [
+    { key: 'address', label: 'Address' },
+    { key: 'confirm', label: 'Confirm Details' },
+    { key: 'payment', label: 'Payment' },
+  ];
 
   // Refetch settings on entering checkout — SettingsContext fetches once at
   // app mount, which can predate a same-session login, so an allowlisted
@@ -89,6 +89,9 @@ export function Checkout() {
 
   // Authoritative, backend-computed breakdown (GST/shipping/COD/total) for
   // the currently-selected payment method — never computed on the frontend.
+  // Changing the delivery address never touches this: pricing here depends
+  // only on cart contents, coupon, and payment method, never on address —
+  // so switching addresses can never duplicate or drop a charge.
   useEffect(() => {
     let cancelled = false;
     orderService
@@ -109,20 +112,14 @@ export function Checkout() {
     setTouched((prev) => ({ ...prev, [key]: true }));
   }
 
-  function validate(values, { addressRequired }) {
+  function validate(addressRequired) {
     if (!addressRequired) {
-      return runValidators({ email: () => validateEmail(values.email) });
+      return runValidators({ email: () => validateEmail(email) });
     }
-    return runValidators({
-      name: () => minLength(values.name, 2, 'Full name'),
-      phone: () => validatePhone(values.phone, { optional: false }),
-      email: () => validateEmail(values.email),
-      line1: () => minLength(values.line1, 3, 'Address'),
-      city: () => minLength(values.city, 2, 'City'),
-      state: () => minLength(values.state, 2, 'State'),
-      pincode: () => validatePincode(values.pincode),
-      country: () => required(values.country, 'Country'),
-    });
+    return {
+      ...validateAddressForm(form, { required, minLength, phone: validatePhone, pincode: validatePincode }),
+      email: validateEmail(email),
+    };
   }
 
   useEffect(() => {
@@ -158,69 +155,111 @@ export function Checkout() {
   function applyAddress(addr) {
     setSelectedAddressId(addr.addressId);
     setShowNewAddressForm(false);
-    setForm((prev) => ({
-      ...prev,
-      name: addr.fullName,
+    setShowAddressList(false);
+    setForm({
+      ...ADDRESS_FORM_EMPTY,
+      label: addr.label,
+      fullName: addr.fullName,
       phone: addr.phone,
-      line1: addr.line1,
+      houseFlat: addr.line1,
+      areaStreet: '',
+      landmark: addr.landmark || '',
       city: addr.city,
       state: addr.state,
       pincode: addr.pincode,
       country: addr.country,
-    }));
+    });
   }
 
   function startNewAddress() {
     setSelectedAddressId(null);
     setShowNewAddressForm(true);
-    setForm((prev) => ({ ...EMPTY_FORM, email: prev.email }));
+    setShowAddressList(false);
+    setForm({ ...ADDRESS_FORM_EMPTY });
+  }
+
+  async function handleDeleteAddress(id) {
+    const ok = await confirm({
+      title: 'Delete this address?',
+      message: 'This address will be permanently removed from your account.',
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await addressService.remove(id);
+      const { addresses: list } = await addressService.list();
+      setAddresses(list);
+      if (selectedAddressId === id) {
+        const next = list.find((a) => a.isDefault) || list[0];
+        if (next) applyAddress(next);
+        else startNewAddress();
+      }
+      showToast('Address deleted', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  function handleContinueFromAddress() {
+    const addressRequired = showNewAddressForm || Boolean(selectedAddressId);
+    const errors = validate(addressRequired);
+    setFieldErrors(errors);
+    setTouched(
+      addressRequired
+        ? { fullName: true, phone: true, email: true, houseFlat: true, areaStreet: true, city: true, state: true, pincode: true, country: true }
+        : { email: true }
+    );
+    if (hasErrors(errors)) return;
+    setStep('confirm');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function goToStep(key) {
+    setStep(key);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
-    const errors = validate(form, { addressRequired: showNewAddressForm });
+    const addressRequired = showNewAddressForm || Boolean(selectedAddressId);
+    const errors = validate(addressRequired);
     setFieldErrors(errors);
     setTouched(
-      showNewAddressForm
-        ? { name: true, phone: true, email: true, line1: true, city: true, state: true, pincode: true, country: true }
+      addressRequired
+        ? { fullName: true, phone: true, email: true, houseFlat: true, areaStreet: true, city: true, state: true, pincode: true, country: true }
         : { email: true }
     );
-    if (hasErrors(errors)) return;
+    if (hasErrors(errors)) {
+      setStep('address');
+      return;
+    }
 
     setSubmitting(true);
     try {
+      const addressPayload = addressFormToPayload(form);
       const response = await orderService.checkout({
-        customer: { name: form.name, phone: form.phone, email: form.email },
+        customer: { name: form.fullName, phone: form.phone, email },
         address: {
-          line1: form.line1,
-          city: form.city,
-          state: form.state,
-          pincode: form.pincode,
-          country: form.country,
+          line1: addressPayload.line1,
+          landmark: addressPayload.landmark,
+          city: addressPayload.city,
+          state: addressPayload.state,
+          pincode: addressPayload.pincode,
+          country: addressPayload.country,
         },
         couponCode: appliedCoupon?.code,
         paymentMethod,
       });
 
       if (saveAddress && !selectedAddressId) {
-        addressService
-          .create({
-            label: 'Home',
-            fullName: form.name,
-            phone: form.phone,
-            line1: form.line1,
-            city: form.city,
-            state: form.state,
-            pincode: form.pincode,
-            country: form.country,
-          })
-          .catch(() => {});
+        addressService.create(addressPayload).catch(() => {});
       }
 
       if (user && (!user.name?.trim() || !user.phone?.trim())) {
         authService
-          .updateProfile({ name: user.name?.trim() || form.name, phone: user.phone?.trim() || form.phone })
+          .updateProfile({ name: user.name?.trim() || form.fullName, phone: user.phone?.trim() || form.phone })
           .then(refreshUser)
           .catch(() => {});
       }
@@ -245,6 +284,7 @@ export function Checkout() {
         if (!showNewAddressForm && Object.keys(serverErrors).some((k) => k !== 'email')) {
           setShowNewAddressForm(true);
         }
+        setStep('address');
       } else {
         setError(err.message);
       }
@@ -271,222 +311,255 @@ export function Checkout() {
 
   const discountAmount = quote?.discountAmount ?? appliedCoupon?.discountAmount ?? 0;
   const grandTotal = quote?.total ?? Number((total - discountAmount).toFixed(2));
+  const selectedAddress = addresses?.find((a) => a.addressId === selectedAddressId);
+  const productSavings = items.reduce(
+    (sum, item) => sum + (item.compareAtPrice > item.unitPrice ? (item.compareAtPrice - item.unitPrice) * item.quantity : 0),
+    0
+  );
+  const savingsAmount = productSavings + discountAmount;
+  // The address the Confirm step shows — either the saved card the customer
+  // picked, or a live preview built from the still-unsaved new-address form
+  // so the summary never lags behind what will actually be submitted.
+  const confirmAddress =
+    selectedAddress && !showNewAddressForm
+      ? selectedAddress
+      : { ...addressFormToPayload(form), fullName: form.fullName, phone: form.phone, label: form.label };
+  const currentStepIndex = STEPS.findIndex((s) => s.key === step);
 
   return (
     <div className="container section checkout-page">
       <Link to="/cart" className="checkout-return-link text-label-sm">← Return to Bag</Link>
       <PageHeader title="Secure Checkout" />
 
+      <ol className="checkout-steps">
+        {STEPS.map((s, i) => (
+          <li key={s.key} className={`checkout-step ${i === currentStepIndex ? 'active' : ''} ${i < currentStepIndex ? 'done' : ''}`}>
+            <span className="checkout-step-dot">{i < currentStepIndex ? <Check size={13} /> : i + 1}</span>
+            <span className="checkout-step-label">{s.label}</span>
+            {i < STEPS.length - 1 && <span className="checkout-step-line" aria-hidden="true" />}
+          </li>
+        ))}
+      </ol>
+
       <div className="checkout-layout">
         <form className="checkout-form" onSubmit={handleSubmit}>
-          {addresses && addresses.length > 0 && (
-            <div className="checkout-section card">
-              <h3 className="checkout-section-title">Dispatch Destination</h3>
-              <div className="checkout-address-grid">
-                {addresses.map((addr) => (
-                  <AddressCard
-                    key={addr.addressId}
-                    address={addr}
-                    selected={selectedAddressId === addr.addressId}
-                    onSelect={() => applyAddress(addr)}
-                  />
-                ))}
-              </div>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={startNewAddress} style={{ marginTop: 12 }}>
-                <Plus size={16} /> Add New Address
-              </button>
-            </div>
-          )}
+          {step === 'address' && (
+            <>
+              <div className="checkout-section card">
+                <h3 className="checkout-section-title">Delivery Address</h3>
 
-          {showNewAddressForm && (
-            <div className="checkout-section card">
-              <h3 className="checkout-section-title">Contact &amp; Shipping</h3>
-              <div className={`field ${touched.name && fieldErrors.name ? 'invalid' : ''}`}>
-                <label htmlFor="name">Full Name</label>
-                <input
-                  id="name"
-                  required
-                  value={form.name}
-                  onChange={(e) => setField('name', e.target.value)}
-                  onBlur={() => markTouched('name')}
-                />
-                {touched.name && fieldErrors.name && <p className="field-error">{fieldErrors.name}</p>}
-              </div>
-              <div className="field-row">
-                <div className={`field ${touched.phone && fieldErrors.phone ? 'invalid' : ''}`}>
-                  <label htmlFor="phone">Phone</label>
-                  <input
-                    id="phone"
-                    required
-                    inputMode="numeric"
-                    maxLength={10}
-                    value={form.phone}
-                    onChange={(e) => setField('phone', sanitizePhoneInput(e.target.value))}
-                    onBlur={() => markTouched('phone')}
-                  />
-                  {touched.phone && fieldErrors.phone && <p className="field-error">{fieldErrors.phone}</p>}
-                </div>
-                <div className={`field ${touched.email && fieldErrors.email ? 'invalid' : ''}`}>
-                  <label htmlFor="email">Email</label>
-                  <input
-                    id="email"
-                    type="email"
-                    required
-                    value={form.email}
-                    onChange={(e) => setField('email', e.target.value)}
-                    onBlur={() => markTouched('email')}
-                  />
-                  {touched.email && fieldErrors.email && <p className="field-error">{fieldErrors.email}</p>}
-                </div>
-              </div>
-              <div className={`field ${touched.line1 && fieldErrors.line1 ? 'invalid' : ''}`}>
-                <label htmlFor="line1">Address</label>
-                <input
-                  id="line1"
-                  required
-                  value={form.line1}
-                  onChange={(e) => setField('line1', e.target.value)}
-                  onBlur={() => markTouched('line1')}
-                />
-                {touched.line1 && fieldErrors.line1 && <p className="field-error">{fieldErrors.line1}</p>}
-              </div>
-              <div className="field-row">
-                <div className={`field ${touched.city && fieldErrors.city ? 'invalid' : ''}`}>
-                  <label htmlFor="city">City</label>
-                  <input
-                    id="city"
-                    required
-                    value={form.city}
-                    onChange={(e) => setField('city', e.target.value)}
-                    onBlur={() => markTouched('city')}
-                  />
-                  {touched.city && fieldErrors.city && <p className="field-error">{fieldErrors.city}</p>}
-                </div>
-                <div className={`field ${touched.state && fieldErrors.state ? 'invalid' : ''}`}>
-                  <label htmlFor="state">State</label>
-                  <input
-                    id="state"
-                    required
-                    value={form.state}
-                    onChange={(e) => setField('state', e.target.value)}
-                    onBlur={() => markTouched('state')}
-                  />
-                  {touched.state && fieldErrors.state && <p className="field-error">{fieldErrors.state}</p>}
-                </div>
-              </div>
-              <div className="field-row">
-                <div className={`field ${touched.pincode && fieldErrors.pincode ? 'invalid' : ''}`}>
-                  <label htmlFor="pincode">Pincode</label>
-                  <input
-                    id="pincode"
-                    required
-                    inputMode="numeric"
-                    maxLength={6}
-                    value={form.pincode}
-                    onChange={(e) => setField('pincode', e.target.value.replace(/\D/g, ''))}
-                    onBlur={() => markTouched('pincode')}
-                  />
-                  {pincodeLookupState === 'loading' && <p className="field-hint">Looking up city/state…</p>}
-                  {pincodeLookupState === 'not-found' && (
-                    <p className="field-hint">Couldn&apos;t auto-fill — enter city/state manually.</p>
-                  )}
-                  {touched.pincode && fieldErrors.pincode && <p className="field-error">{fieldErrors.pincode}</p>}
-                </div>
-                <div className={`field ${touched.country && fieldErrors.country ? 'invalid' : ''}`}>
-                  <label htmlFor="country">Country</label>
-                  <input
-                    id="country"
-                    required
-                    value={form.country}
-                    onChange={(e) => setField('country', e.target.value)}
-                    onBlur={() => markTouched('country')}
-                  />
-                  {touched.country && fieldErrors.country && <p className="field-error">{fieldErrors.country}</p>}
-                </div>
-              </div>
-              <label className="checkbox-field">
-                <input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} />
-                Save this address for future orders
-              </label>
-            </div>
-          )}
+                {selectedAddress && !showAddressList && !showNewAddressForm && (
+                  <>
+                    <AddressCard address={selectedAddress} selected />
+                    <div className="checkout-address-actions">
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowAddressList(true)}>
+                        Change
+                      </button>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={startNewAddress}>
+                        <Plus size={14} /> Add New
+                      </button>
+                    </div>
+                  </>
+                )}
 
-          {!showNewAddressForm && (
-            <div className="checkout-section card">
-              <h3 className="checkout-section-title">Client Information</h3>
-              <div className={`field ${touched.email && fieldErrors.email ? 'invalid' : ''}`} style={{ marginBottom: 0 }}>
-                <label htmlFor="email-existing">Email (for order confirmation)</label>
-                <input
-                  id="email-existing"
-                  type="email"
-                  required
-                  value={form.email}
-                  onChange={(e) => setField('email', e.target.value)}
-                  onBlur={() => markTouched('email')}
-                />
-                {touched.email && fieldErrors.email && <p className="field-error">{fieldErrors.email}</p>}
-              </div>
-            </div>
-          )}
+                {addresses && addresses.length > 0 && showAddressList && (
+                  <>
+                    <div className="checkout-address-grid">
+                      {addresses.map((addr) => (
+                        <AddressCard
+                          key={addr.addressId}
+                          address={addr}
+                          selected={selectedAddressId === addr.addressId}
+                          onSelect={() => applyAddress(addr)}
+                          onDelete={() => handleDeleteAddress(addr.addressId)}
+                        />
+                      ))}
+                    </div>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={startNewAddress} style={{ marginTop: 12 }}>
+                      <Plus size={16} /> Add New Address
+                    </button>
+                  </>
+                )}
 
-          <div className="checkout-section card">
-            <h3 className="checkout-section-title">Delivery Method</h3>
-            <div className="checkout-delivery-card">
-              <Truck size={20} />
-              <div>
-                <p className="checkout-delivery-name">Standard Delivery</p>
-                <p className="checkout-delivery-meta">Dispatched within 1-2 business days</p>
+                {showNewAddressForm && (
+                  <>
+                    <AddressFormFields
+                      form={form}
+                      setField={setField}
+                      touched={touched}
+                      markTouched={markTouched}
+                      fieldErrors={fieldErrors}
+                      pincodeLookupState={pincodeLookupState}
+                    />
+                    <div className={`field ${touched.email && fieldErrors.email ? 'invalid' : ''}`}>
+                      <label htmlFor="email">Email (for order confirmation)</label>
+                      <input
+                        id="email"
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        onBlur={() => markTouched('email')}
+                      />
+                      {touched.email && fieldErrors.email && <p className="field-error">{fieldErrors.email}</p>}
+                    </div>
+                    <label className="checkbox-field">
+                      <input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} />
+                      Save this address for future orders
+                    </label>
+                    {addresses && addresses.length > 0 && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        style={{ marginTop: 8 }}
+                        onClick={() => (selectedAddress ? applyAddress(selectedAddress) : setShowAddressList(true))}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </>
+                )}
               </div>
-              <span className="checkout-delivery-price">
-                {quote && quote.shippingEnabled && quote.shipping > 0 ? `₹${quote.shipping.toFixed(2)}` : 'Free'}
-              </span>
-            </div>
-          </div>
 
-          <div className="checkout-section card">
-            <h3 className="checkout-section-title">Payment</h3>
-            <div className="payment-method-options">
-              <label className={`payment-method-option ${paymentMethod === 'COD' ? 'selected' : ''}`}>
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  value="COD"
-                  checked={paymentMethod === 'COD'}
-                  onChange={() => setPaymentMethod('COD')}
-                />
-                <Banknote size={18} />
-                <div>
-                  <p className="payment-method-name">Cash on Delivery</p>
-                  <p className="payment-method-meta">
-                    Pay when your order arrives.
-                    {quote?.codCharge > 0 && ` An extra ₹${quote.codCharge.toFixed(2)} COD charge applies.`}
-                  </p>
-                </div>
-              </label>
-              {settings?.paymentsOnlineAvailable && (
-                <label className={`payment-method-option ${paymentMethod === 'Online' ? 'selected' : ''}`}>
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="Online"
-                    checked={paymentMethod === 'Online'}
-                    onChange={() => setPaymentMethod('Online')}
-                  />
-                  <Wallet size={18} />
-                  <div>
-                    <p className="payment-method-name">Online Payment</p>
-                    <p className="payment-method-meta">UPI / Card — no extra charge.</p>
+              {selectedAddress && !showNewAddressForm && (
+                <div className="checkout-section card">
+                  <h3 className="checkout-section-title">Contact Email</h3>
+                  <div className={`field ${touched.email && fieldErrors.email ? 'invalid' : ''}`} style={{ marginBottom: 0 }}>
+                    <label htmlFor="email-existing">Email (for order confirmation)</label>
+                    <input
+                      id="email-existing"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      onBlur={() => markTouched('email')}
+                    />
+                    {touched.email && fieldErrors.email && <p className="field-error">{fieldErrors.email}</p>}
                   </div>
-                </label>
+                </div>
               )}
-            </div>
 
-            {error && <p className="field-error">{error}</p>}
+              <button type="button" className="btn btn-primary btn-block checkout-step-continue" onClick={handleContinueFromAddress}>
+                Continue
+              </button>
+            </>
+          )}
 
-            <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>
-              {submitting ? <Loader2 size={16} className="btn-spinner" /> : `Place Order · ₹${grandTotal.toFixed(2)}`}
-            </button>
-          </div>
+          {step === 'confirm' && (
+            <>
+              <button type="button" className="checkout-back-link" onClick={() => goToStep('address')}>
+                <ChevronLeft size={16} /> Back to Address
+              </button>
+
+              <div className="checkout-section card">
+                <h3 className="checkout-section-title">Delivery Address</h3>
+                <AddressCard address={confirmAddress} selected />
+                <div className="checkout-address-actions">
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => goToStep('address')}>
+                    Change
+                  </button>
+                </div>
+              </div>
+
+              <div className="checkout-section card">
+                <h3 className="checkout-section-title">Order Items</h3>
+                <div className="checkout-summary-items">
+                  {items.map((item) => (
+                    <div key={item.cartItemId} className="checkout-summary-item">
+                      <img
+                        className="checkout-summary-item-image"
+                        src={item.productImage}
+                        alt={item.productName}
+                        loading="lazy"
+                      />
+                      <span className="checkout-summary-item-info">
+                        <span className="checkout-summary-item-name">
+                          {item.productName} · {item.sellingOptionName} × {item.quantity}
+                        </span>
+                        {item.selectedColorDetails?.length > 0 && (
+                          <span className="checkout-summary-item-colors">
+                            {item.selectedColorDetails.map((c) => c.colorName).join(', ')}
+                          </span>
+                        )}
+                      </span>
+                      <span className="checkout-summary-item-price">₹{item.subtotal.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="checkout-section card">
+                <h3 className="checkout-section-title">Delivery Method</h3>
+                <div className="checkout-delivery-card">
+                  <Truck size={20} />
+                  <div>
+                    <p className="checkout-delivery-name">Standard Delivery</p>
+                    <p className="checkout-delivery-meta">Dispatched within 1-2 business days</p>
+                  </div>
+                  <span className="checkout-delivery-price">
+                    {quote && quote.shippingEnabled && quote.shipping > 0 ? `₹${quote.shipping.toFixed(2)}` : 'Free'}
+                  </span>
+                </div>
+              </div>
+
+              <button type="button" className="btn btn-primary btn-block checkout-step-continue" onClick={() => goToStep('payment')}>
+                Continue to Payment
+              </button>
+            </>
+          )}
+
+          {step === 'payment' && (
+            <>
+              <button type="button" className="checkout-back-link" onClick={() => goToStep('confirm')}>
+                <ChevronLeft size={16} /> Back
+              </button>
+
+              <div className="checkout-section card">
+                <h3 className="checkout-section-title">Payment Method</h3>
+                <div className="payment-method-options">
+                  <label className={`payment-method-option ${paymentMethod === 'COD' ? 'selected' : ''}`}>
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="COD"
+                      checked={paymentMethod === 'COD'}
+                      onChange={() => setPaymentMethod('COD')}
+                    />
+                    <Banknote size={18} />
+                    <div>
+                      <p className="payment-method-name">Cash on Delivery</p>
+                      <p className="payment-method-meta">
+                        Pay when your order arrives.
+                        {quote?.codCharge > 0 && ` An extra ₹${quote.codCharge.toFixed(2)} COD charge applies.`}
+                      </p>
+                    </div>
+                  </label>
+                  {settings?.paymentsOnlineAvailable && (
+                    <label className={`payment-method-option ${paymentMethod === 'Online' ? 'selected' : ''}`}>
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="Online"
+                        checked={paymentMethod === 'Online'}
+                        onChange={() => setPaymentMethod('Online')}
+                      />
+                      <Wallet size={18} />
+                      <div>
+                        <p className="payment-method-name">Online Payment</p>
+                        <p className="payment-method-meta">UPI / Card — no extra charge.</p>
+                      </div>
+                    </label>
+                  )}
+                </div>
+
+                {error && <p className="field-error">{error}</p>}
+
+                <button type="submit" className="btn btn-primary btn-block checkout-place-order" disabled={submitting}>
+                  {submitting ? <Loader2 size={16} className="btn-spinner" /> : `Place Order · ₹${grandTotal.toFixed(2)}`}
+                </button>
+              </div>
+            </>
+          )}
         </form>
 
         <div className="checkout-summary-col">
@@ -500,26 +573,31 @@ export function Checkout() {
             shipping={quote?.shipping}
             codCharge={quote?.codCharge}
             total={grandTotal}
-            itemsSlot={
-              <div className="checkout-summary-items">
-                {items.map((item) => (
-                  <div key={item.cartItemId} className="checkout-summary-item">
-                    <img
-                      className="checkout-summary-item-image"
-                      src={item.productImage}
-                      alt={item.productName}
-                      loading="lazy"
-                    />
-                    <span className="checkout-summary-item-info">
-                      {item.productName} · {item.sellingOptionName} × {item.quantity}
-                    </span>
-                    <span className="checkout-summary-item-price">₹{item.subtotal.toFixed(2)}</span>
-                  </div>
-                ))}
-              </div>
-            }
+            savingsAmount={savingsAmount}
           />
         </div>
+      </div>
+
+      <div className="checkout-mobile-bar">
+        <div className="checkout-mobile-bar-total">
+          <span className="checkout-mobile-bar-amount">₹{grandTotal.toFixed(2)}</span>
+          {savingsAmount > 0 && <span className="checkout-mobile-bar-savings">Saved ₹{savingsAmount.toFixed(2)}</span>}
+        </div>
+        {step === 'address' && (
+          <button type="button" className="btn btn-primary checkout-mobile-bar-cta" onClick={handleContinueFromAddress}>
+            Continue
+          </button>
+        )}
+        {step === 'confirm' && (
+          <button type="button" className="btn btn-primary checkout-mobile-bar-cta" onClick={() => goToStep('payment')}>
+            Continue
+          </button>
+        )}
+        {step === 'payment' && (
+          <button type="button" className="btn btn-primary checkout-mobile-bar-cta" onClick={handleSubmit} disabled={submitting}>
+            {submitting ? <Loader2 size={16} className="btn-spinner" /> : 'Place Order'}
+          </button>
+        )}
       </div>
     </div>
   );

@@ -104,7 +104,6 @@
   align-items: baseline;
   gap: 6px;
   flex-wrap: wrap;
-  font-family: var(--font-display);
 }
 .product-card-from {
   font-size: 0.75rem;
@@ -137,16 +136,16 @@
   width: 100%;
   margin-top: var(--space-2);
   padding: 9px;
-  border: 1.5px solid var(--color-primary);
+  border: 1.5px solid var(--color-accent);
   border-radius: var(--radius-button);
-  background: var(--color-primary);
+  background: var(--color-accent);
   color: #fff;
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   cursor: pointer;
   transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
 }
-.product-card-add-btn:hover { background: var(--color-accent); border-color: var(--color-accent); }
+.product-card-add-btn:hover { background: var(--color-accent-dark); border-color: var(--color-accent-dark); }
 .product-card-add-btn:active { transform: scale(0.98); }

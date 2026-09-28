@@ -8,9 +8,10 @@ const checkoutSchema = z.object({
   }),
   address: z.object({
     line1: z.string().trim().min(3).max(200),
+    landmark: z.string().trim().max(200).optional().or(z.literal('')),
     city: z.string().trim().min(2).max(100),
     state: z.string().trim().min(2).max(100),
-    pincode: z.string().trim().regex(/^[0-9]{4,10}$/, 'Invalid pincode'),
+    pincode: z.string().trim().regex(/^[0-9]{6}$/, 'Enter a valid 6-digit pincode.'),
     country: z.string().trim().min(2).max(100),
   }),
   couponCode: z.string().trim().min(1).optional(),

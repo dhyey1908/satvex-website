@@ -1,4 +1,4 @@
-import { Truck } from 'lucide-react';
+import { Truck, BadgePercent } from 'lucide-react';
 import './OrderSummary.css';
 
 export function OrderSummary({
@@ -11,6 +11,7 @@ export function OrderSummary({
   shipping = 0,
   codCharge = 0,
   total,
+  savingsAmount = 0,
   itemsSlot,
   children,
 }) {
@@ -18,6 +19,12 @@ export function OrderSummary({
     <div className="order-summary">
       <h3>Order Summary</h3>
       {itemsSlot}
+      {savingsAmount > 0 && (
+        <div className="order-summary-savings">
+          <BadgePercent size={15} />
+          <span>You're saving ₹{savingsAmount.toFixed(2)} on this order</span>
+        </div>
+      )}
       <div className="order-summary-row">
         <span>Subtotal</span>
         <span>₹{subtotal.toFixed(2)}</span>

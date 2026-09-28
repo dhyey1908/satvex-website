@@ -11,7 +11,7 @@ import { CouponInput } from '../components/CouponInput';
 import { EmptyState } from '../components/EmptyState';
 import { PageHeader } from '../components/PageHeader';
 import { Loader } from '../components/Loader';
-import { CheckCircle2, ArrowLeft, Trash2, Bookmark } from 'lucide-react';
+import { CheckCircle2, ArrowLeft, Trash2, Bookmark, ShieldCheck, RotateCcw, Lock } from 'lucide-react';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import './Cart.css';
 
@@ -112,6 +112,11 @@ export function Cart() {
 
   const discountAmount = quote?.discountAmount ?? appliedCoupon?.discountAmount ?? 0;
   const grandTotal = quote?.total ?? Number((total - discountAmount).toFixed(2));
+  const productSavings = items.reduce(
+    (sum, item) => sum + (item.compareAtPrice > item.unitPrice ? (item.compareAtPrice - item.unitPrice) * item.quantity : 0),
+    0
+  );
+  const savingsAmount = productSavings + discountAmount;
   const shippingBannerText =
     quote && quote.shippingEnabled && quote.shipping === 0
       ? 'Your order ships free.'
@@ -186,15 +191,39 @@ export function Cart() {
               shippingEnabled={quote?.shippingEnabled}
               shipping={quote?.shipping}
               total={grandTotal}
+              savingsAmount={savingsAmount}
             >
               <CouponInput appliedCoupon={appliedCoupon} onApply={applyCoupon} onClear={clearCoupon} />
               <Link to="/checkout" className="btn btn-primary btn-block">
                 Checkout
               </Link>
             </OrderSummary>
+
+            <div className="cart-trust-section">
+              <div className="cart-trust-item">
+                <ShieldCheck size={16} />
+                <span>100% Secure Checkout</span>
+              </div>
+              <div className="cart-trust-item">
+                <Lock size={16} />
+                <span>Your payment details are safe</span>
+              </div>
+            </div>
           </div>
         )}
       </div>
+
+      {items.length > 0 && (
+        <div className="cart-mobile-bar">
+          <div className="cart-mobile-bar-total">
+            <span className="cart-mobile-bar-amount">₹{grandTotal.toFixed(2)}</span>
+            {savingsAmount > 0 && <span className="cart-mobile-bar-savings">Saved ₹{savingsAmount.toFixed(2)}</span>}
+          </div>
+          <Link to="/checkout" className="btn btn-primary cart-mobile-bar-cta">
+            Proceed to Buy
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

@@ -457,9 +457,14 @@ export function AdminProductForm() {
 
         {error && <p className="field-error">{error}</p>}
 
-        <button type="submit" className="btn btn-primary" disabled={saving}>
-          {saving ? 'Saving…' : isNew ? 'Create Product' : 'Save Changes'}
-        </button>
+        <div className="admin-form-sticky-actions">
+          <button type="button" className="btn btn-outline" onClick={() => navigate('/admin/products')}>
+            Cancel
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={saving}>
+            {saving ? 'Saving…' : isNew ? 'Create Product' : 'Save Changes'}
+          </button>
+        </div>
       </form>
     </div>
   );

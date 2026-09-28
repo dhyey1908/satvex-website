@@ -31,7 +31,7 @@
   letter-spacing: 0.1em;
   color: var(--color-text-muted);
 }
-.contact-info-value { font-weight: 600; color: var(--color-text); }
+.contact-info-value { font-weight: 600; color: var(--color-text); overflow-wrap: break-word; }
 
 .contact-response-note {
   display: flex;
@@ -62,4 +62,8 @@
 
 @media (max-width: 860px) {
   .contact-layout, .field-row { grid-template-columns: 1fr; }
+  /* Grid items default to min-width:auto — without this, a long unbroken
+     string (e.g. the contact email) refuses to shrink below its natural
+     width and pushes the single remaining 1fr track past the viewport. */
+  .contact-layout > * { min-width: 0; }
 }

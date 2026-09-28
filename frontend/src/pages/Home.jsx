@@ -33,7 +33,7 @@ export function Home() {
   });
 
   const { isAuthenticated } = useAuth();
-  const { addItem: addToCart } = useCart();
+  const { addItem: addToCart, isInCart } = useCart();
   const { showToast } = useToast();
   const { settings } = useSettings();
   const navigate = useNavigate();
@@ -78,12 +78,19 @@ export function Home() {
   const showcaseImage = usePreloadedImage(showcaseImageTarget);
   const isSingleProduct = (products?.length ?? 0) <= 1;
 
+  const quickAddInCart =
+    showcase && singleOption && selectedVariant && isInCart(showcase.productId, singleOption.id, [selectedVariant.id]);
+
   async function handleQuickAdd() {
     if (!isAuthenticated) {
       navigate('/login', { state: { from: location } });
       return;
     }
     if (!showcase || !singleOption || !selectedVariant) return;
+    if (quickAddInCart) {
+      navigate('/cart');
+      return;
+    }
     if (selectedVariant.inStock === false) {
       showToast('This color is out of stock.', 'error');
       return;
@@ -172,7 +179,7 @@ export function Home() {
               whileInView={revealOnScroll.whileInView}
               viewport={{ once: true, margin: '-80px' }}
             >
-              <div className="eyebrow-dot"><span>Signature Spectrum</span></div>
+              <div className="eyebrow-dot"><span>Choose Your Shade</span></div>
               <h2 className="text-headline-lg">{activeVariants.length} Colors, One Signature Shape</h2>
               <p className="text-body-md showcase-subcopy">
                 Every shade in the {showcase.name} collection, ready to explore.
@@ -261,10 +268,10 @@ export function Home() {
                       type="button"
                       className="btn btn-primary"
                       onClick={handleQuickAdd}
-                      disabled={adding || selectedVariant?.inStock === false}
+                      disabled={adding || (!quickAddInCart && selectedVariant?.inStock === false)}
                     >
                       <ShoppingBag size={18} />
-                      {adding ? 'Adding…' : `Quick Add · ₹${singleOption.price}`}
+                      {adding ? 'Adding…' : quickAddInCart ? 'Go to Cart' : `Quick Add · ₹${singleOption.price}`}
                     </button>
                   )}
                   <Link to={`/product/${showcase.slug}`} className="btn showcase-view-btn">
@@ -347,6 +354,32 @@ export function Home() {
             </div>
             <div className="quote-banner-glow quote-banner-glow-1" />
             <div className="quote-banner-glow quote-banner-glow-2" />
+          </motion.div>
+        </div>
+      </section>
+
+      {/* BRAND STATEMENT */}
+      <motion.section
+        className="section brand-statement"
+        initial={revealOnScroll.initial}
+        whileInView={revealOnScroll.whileInView}
+        viewport={{ once: true, margin: '-80px' }}
+      >
+        <p>Thoughtfully designed. Quietly luxurious. Made for the woman who notices the details.</p>
+      </motion.section>
+
+      {/* FINAL CTA */}
+      <section className="section">
+        <div className="container">
+          <motion.div
+            className="final-cta"
+            initial={revealOnScroll.initial}
+            whileInView={revealOnScroll.whileInView}
+            viewport={{ once: true, margin: '-80px' }}
+          >
+            <h2 className="text-headline-lg">Ready to Find Your Shade?</h2>
+            <p>Discover the Satvex piece designed to move with you, every day.</p>
+            <Link to="/shop" className="btn btn-primary">{isSingleProduct ? 'Shop Now' : 'Shop the Collection'}</Link>
           </motion.div>
         </div>
       </section>

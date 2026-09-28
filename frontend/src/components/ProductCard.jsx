@@ -13,7 +13,7 @@ import './ProductCard.css';
 export function ProductCard({ product }) {
   const { isAuthenticated } = useAuth();
   const { isInWishlist, addItem, removeItem } = useWishlist();
-  const { addItem: addToCart } = useCart();
+  const { addItem: addToCart, isInCart } = useCart();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -38,6 +38,7 @@ export function ProductCard({ product }) {
   const activeVariants = (product.variants || []).filter((v) => v.isActive);
   const outOfStock = !product.isActive || activeOptions.length === 0 || activeVariants.length === 0;
   const canQuickAdd = !outOfStock && singleOption && activeVariants.length > 0;
+  const quickAddInCart = canQuickAdd && isInCart(product.productId, singleOption.id, [activeVariants[0].id]);
 
   async function quickAdd(e) {
     e.preventDefault();
@@ -45,6 +46,11 @@ export function ProductCard({ product }) {
 
     if (!isAuthenticated) {
       navigate('/login', { state: { from: location } });
+      return;
+    }
+
+    if (quickAddInCart) {
+      navigate('/cart');
       return;
     }
 
@@ -145,7 +151,7 @@ export function ProductCard({ product }) {
         {canQuickAdd && (
           <button type="button" className="product-card-add-btn" onClick={quickAdd}>
             <ShoppingBag size={15} />
-            <span>Add to Bag</span>
+            <span>{quickAddInCart ? 'Go to Cart' : 'Add to Bag'}</span>
           </button>
         )}
       </div>
