@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate, useMatch } from 'react-router-dom';
 import { motion, AnimatePresence, useScroll, useTransform, useReducedMotion } from 'framer-motion';
 import { Heart, ShoppingBag, Menu, User, Package, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -27,6 +27,10 @@ export function Header() {
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const prefersReducedMotion = useReducedMotion();
+  // The Product Detail Page renders its own compact mobile header (back /
+  // search / cart) — the full nav header is redundant there on small
+  // screens, so it's hidden via CSS only (desktop is untouched).
+  const isProductDetail = useMatch('/product/:slug');
 
   const { scrollY } = useScroll();
   const headerShadowOpacity = useTransform(scrollY, [0, 80], [0, 1]);
@@ -49,7 +53,7 @@ export function Header() {
 
   return (
     <motion.header
-      className="site-header"
+      className={`site-header ${isProductDetail ? 'site-header-pdp' : ''}`}
       initial={prefersReducedMotion ? false : { opacity: 0, y: -12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}

@@ -1,6 +1,22 @@
 import { useState } from 'react';
-import { MapPin, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { MapPin, CheckCircle2, XCircle, Loader2, Truck } from 'lucide-react';
 import './PincodeCheck.css';
+
+// Standard estimate window shown once a pincode is verified — matches the
+// same "Dispatched within 1-2 business days" fact Checkout.jsx states, plus
+// a typical transit allowance. Not tied to any per-pincode backend data, so
+// it's presented as a plain estimate, never a guaranteed date.
+const DISPATCH_DAYS = 2;
+const TRANSIT_DAYS = 5;
+
+function formatEstimate() {
+  const fmt = (d) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  const from = new Date();
+  from.setDate(from.getDate() + DISPATCH_DAYS);
+  const to = new Date();
+  to.setDate(to.getDate() + DISPATCH_DAYS + TRANSIT_DAYS);
+  return `${fmt(from)} – ${fmt(to)}`;
+}
 
 /**
  * Self-contained "check delivery to your area" widget for the PDP — a
@@ -42,8 +58,10 @@ export function PincodeCheck() {
 
   return (
     <div className="pincode-check">
+      <p className="pincode-check-title">Delivery Details</p>
+
       <p className="pincode-check-label">
-        <MapPin size={14} /> Check delivery availability
+        <MapPin size={14} /> Select delivery location
       </p>
       <form onSubmit={handleCheck} className="pincode-check-form">
         <input
@@ -59,9 +77,14 @@ export function PincodeCheck() {
         </button>
       </form>
       {state === 'found' && (
-        <p className="pincode-check-result success">
-          <CheckCircle2 size={14} /> Delivers to {area}
-        </p>
+        <>
+          <p className="pincode-check-result success">
+            <CheckCircle2 size={14} /> Delivers to {area}
+          </p>
+          <p className="pincode-check-result">
+            <Truck size={14} /> Estimated delivery: {formatEstimate()}
+          </p>
+        </>
       )}
       {state === 'not-found' && (
         <p className="pincode-check-result error">

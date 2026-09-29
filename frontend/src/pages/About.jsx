@@ -1,10 +1,7 @@
-import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Leaf, Infinity as InfinityIcon, Package, Star, Quote } from 'lucide-react';
-import { productService } from '../services/productService';
 import { useSettings } from '../context/SettingsContext';
-import { ImagePlaceholder } from '../components/ImagePlaceholder';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import { revealOnScroll, staggerContainer, fadeUp } from '../motion';
 import './About.css';
@@ -25,38 +22,19 @@ export function About() {
   });
 
   const { settings } = useSettings();
-  const [fallbackImage, setFallbackImage] = useState(null);
-
-  useEffect(() => {
-    if (settings?.aboutImage) return;
-    productService
-      .list()
-      .then((data) => setFallbackImage(data.products?.[0]?.images?.[0] || null))
-      .catch(() => {});
-  }, [settings?.aboutImage]);
-
-  const heroImage = settings?.aboutImage || fallbackImage;
 
   return (
     <div className="about-page">
       <section className="section about-hero">
-        <div className="container about-hero-grid">
-          <div>
-            <div className="eyebrow-dot"><span>About Us</span></div>
-            <h1 className="text-display-xl">Everyday Essentials, Reimagined.</h1>
-            <p className="text-body-lg">
-              At SATVEX, we believe everyday products should be comfortable, reliable and
-              beautifully designed.
-            </p>
-            <p>
-              Our focus is on creating thoughtfully engineered products that offer flexibility,
-              lasting performance and effortless comfort, while complementing the modern lifestyle
-              of women.
-            </p>
-          </div>
-          <div className="about-hero-image">
-            {heroImage ? <img src={heroImage} alt="Satvex" /> : <ImagePlaceholder />}
-          </div>
+        <div className="container about-hero-inner">
+          <div className="eyebrow-dot"><span>About Us</span></div>
+          <h1 className="text-display-xl">Everyday Essentials, Reimagined.</h1>
+          <p className="text-body-lg">
+           SATVEX creates modern essentials designed around comfort, flexibility, durability, and effortless style. Thoughtfully made for everyday life, every piece combines practical design with refined details.
+          </p>
+          <p>
+            We believe the things women use every day should feel as good as they look — simple, dependable, comfortable, and beautifully considered.
+          </p>
         </div>
       </section>
 

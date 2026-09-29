@@ -16,12 +16,104 @@
   overflow: hidden;
   background: var(--color-surface-muted);
   border: 1.5px solid var(--color-border);
+  /* Reset button defaults — this is a <button> so tap-to-zoom is a real
+     interactive control, not a div with a synthetic click handler. */
+  padding: 0;
+  cursor: zoom-in;
+  display: block;
+  width: 100%;
+  touch-action: pan-y;
 }
 /* Absolutely positioned so the outgoing and incoming image can overlap and
    crossfade in place — without this, having both mounted at once (needed to
    avoid a blank gap between them) would stack them instead of overlapping. */
 .gallery-main img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; transition: transform 400ms ease; }
 .gallery-main:hover img { transform: scale(1.03); }
+
+.gallery-zoom-hint {
+  position: absolute;
+  bottom: var(--space-3);
+  right: var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.gallery-zoom-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 12, 10, 0.92);
+  cursor: zoom-out;
+}
+.gallery-zoom-scroll {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: var(--space-5);
+  cursor: default;
+}
+.gallery-zoom-scroll img {
+  max-width: min(90vw, 900px);
+  max-height: 88vh;
+  object-fit: contain;
+  cursor: zoom-in;
+  transition: max-width 250ms ease, max-height 250ms ease;
+}
+/* Genuinely larger than the viewport (not just "fit to screen") so there is
+   real detail to see and real scrolling to do — this is what makes it read
+   as an actual zoom instead of a same-size popup. */
+.gallery-zoom-scroll img.magnified {
+  max-width: none;
+  max-height: none;
+  width: 200%;
+  cursor: zoom-out;
+}
+.gallery-zoom-close {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  cursor: pointer;
+}
+.gallery-zoom-close:hover { background: rgba(255, 255, 255, 0.22); }
+
+.gallery-zoom-magnify-hint {
+  position: absolute;
+  bottom: var(--space-4);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  pointer-events: none;
+}
 
 .gallery-thumbs {
   display: flex;

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Heart, Loader2, CheckCircle2, XCircle, ShoppingBag, Zap } from 'lucide-react';
+import { Heart, Loader2, CheckCircle2, XCircle, ShoppingBag, Zap, ArrowLeft, ChevronDown, BadgeCheck, Share2 } from 'lucide-react';
 import { productService } from '../services/productService';
 import { ProductGallery } from '../components/ProductGallery';
 import { SellingOptionSelector } from '../components/SellingOptionSelector';
@@ -12,22 +12,32 @@ import { ProductReviews } from '../components/ProductReviews';
 import { PriceDisplay } from '../components/PriceDisplay';
 import { PincodeCheck } from '../components/PincodeCheck';
 import { ProductGrid } from '../components/ProductGrid';
+import { SearchOverlay } from '../components/SearchOverlay';
 import { Loader } from '../components/Loader';
 import { ErrorState } from '../components/ErrorState';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../context/ToastContext';
+import { useSettings } from '../context/SettingsContext';
 import { useDocumentMeta, setProductStructuredData } from '../hooks/useDocumentMeta';
 import { deriveSku } from '../utils/sku';
 import './ProductDetail.css';
 
+const DEFAULT_HIGHLIGHTS = [
+  { title: 'Flexible', description: 'Moves comfortably with your everyday needs.' },
+  { title: 'Comfortable', description: 'Lightweight designs created for effortless everyday use.' },
+  { title: 'Durable', description: 'Made to deliver dependable performance and lasting usability.' },
+  { title: 'Stylish', description: 'Modern aesthetics designed for today’s women.' },
+];
+
 export function ProductDetail() {
   const { slug } = useParams();
   const { isAuthenticated } = useAuth();
-  const { addItem, isInCart, items: cartItems } = useCart();
+  const { addItem, isInCart, items: cartItems, itemCount: cartCount } = useCart();
   const { isInWishlist, addItem: addWishlistItem, removeItem: removeWishlistItem } = useWishlist();
   const { showToast } = useToast();
+  const { settings } = useSettings();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -40,6 +50,7 @@ export function ProductDetail() {
   const [submitting, setSubmitting] = useState(false);
   const [buyingNow, setBuyingNow] = useState(false);
   const [wishlistBurst, setWishlistBurst] = useState(false);
+  const [descOpen, setDescOpen] = useState(false);
 
   useDocumentMeta({
     title: product?.name,
@@ -180,6 +191,24 @@ export function ProductDetail() {
     }
   }
 
+  async function handleShareProduct() {
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: product.name, text: product.shortDescription, url });
+      } catch {
+        // user cancelled the native share sheet — not an error
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast('Link copied to clipboard', 'success');
+    } catch {
+      showToast('Could not copy link', 'error');
+    }
+  }
+
   const inWishlist = isInWishlist(product.productId);
   // "Go to Cart" only replaces "Add to Cart" for the exact combination
   // currently selected — switching to a different color/combo of the same
@@ -194,8 +223,31 @@ export function ProductDetail() {
     handleAddToCart({ redirectToCheckout: false });
   }
 
+  const highlights = settings?.whyPillars || DEFAULT_HIGHLIGHTS;
+  const selectedShadeName =
+    sellingOption?.quantity === 1
+      ? product.variants.find((v) => v.id === selectedColors[0])?.colorName
+      : null;
+
   return (
-    <div className="container section product-detail">
+    <>
+      {/* Compact contextual mobile header — replaces the global site header
+          on this route at mobile widths only (see Header.jsx/.css). Desktop
+          keeps the normal site header untouched. */}
+      <div className="pdp-mobile-header">
+        <button type="button" className="pdp-mobile-header-back" onClick={() => navigate(-1)} aria-label="Go back">
+          <ArrowLeft size={20} />
+        </button>
+        <div className="pdp-mobile-header-search">
+          <SearchOverlay />
+        </div>
+        <Link to="/cart" className="pdp-mobile-header-cart" aria-label={`Cart (${cartCount} items)`}>
+          <ShoppingBag size={20} />
+          {cartCount > 0 && <span className="badge">{cartCount}</span>}
+        </Link>
+      </div>
+
+      <div className="container section product-detail">
       <nav className="pdp-breadcrumb text-label-sm" aria-label="Breadcrumb">
         <Link to="/">Home</Link>
         <span>/</span>
@@ -207,21 +259,31 @@ export function ProductDetail() {
       <div className="product-detail-grid">
         <div className="pdp-gallery-wrap">
           <ProductGallery images={product.images} activeImage={activeVariant?.image} alt={product.name} />
-          <motion.button
-            type="button"
-            className={`pdp-gallery-wishlist ${inWishlist ? 'active' : ''}`}
-            onClick={toggleWishlist}
-            whileTap={{ scale: 0.9 }}
-            aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
-          >
-            <motion.span
-              animate={wishlistBurst ? { scale: [1, 1.35, 1] } : { scale: 1 }}
-              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-              style={{ display: 'inline-flex' }}
+          <div className="pdp-gallery-actions">
+            <button
+              type="button"
+              className="pdp-gallery-share"
+              onClick={handleShareProduct}
+              aria-label="Share this product"
             >
-              <Heart size={18} fill={inWishlist ? 'currentColor' : 'none'} />
-            </motion.span>
-          </motion.button>
+              <Share2 size={17} />
+            </button>
+            <motion.button
+              type="button"
+              className={`pdp-gallery-wishlist ${inWishlist ? 'active' : ''}`}
+              onClick={toggleWishlist}
+              whileTap={{ scale: 0.9 }}
+              aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+            >
+              <motion.span
+                animate={wishlistBurst ? { scale: [1, 1.35, 1] } : { scale: 1 }}
+                transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                style={{ display: 'inline-flex' }}
+              >
+                <Heart size={18} fill={inWishlist ? 'currentColor' : 'none'} />
+              </motion.span>
+            </motion.button>
+          </div>
         </div>
 
         <div className="product-detail-info">
@@ -253,9 +315,10 @@ export function ProductDetail() {
           </div>
 
           {sellingOption && (
-            <div className="product-detail-section">
+            <div className="product-detail-section pdp-color-section">
               <h3>
                 {sellingOption.quantity === 1 ? 'Select a Color' : `Select ${sellingOption.quantity} Colors`}
+                {selectedShadeName && <span className="pdp-selected-shade"> — {selectedShadeName}</span>}
               </h3>
               <ComboColorSelector
                 variants={product.variants}
@@ -267,18 +330,28 @@ export function ProductDetail() {
             </div>
           )}
 
-          <PincodeCheck />
-
           <div className="product-detail-section">
             <h3>Quantity</h3>
             <QuantitySelector value={quantity} onChange={setQuantity} />
           </div>
 
+          {highlights.length > 0 && (
+            <div className="pdp-highlights">
+              {highlights.slice(0, 4).map((h) => (
+                <span key={h.title} className="pdp-highlight-pill">
+                  <BadgeCheck size={13} /> {h.title}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <PincodeCheck />
+
           <div className="product-detail-actions">
             <div className="pdp-primary-row">
               <button
                 type="button"
-                className="btn btn-primary pdp-add-to-cart"
+                className="btn btn-outline pdp-add-to-cart"
                 disabled={submitting || buyingNow || outOfStock}
                 onClick={handleAddOrGoToCart}
               >
@@ -306,7 +379,7 @@ export function ProductDetail() {
             </div>
             <button
               type="button"
-              className="btn btn-outline btn-block"
+              className="btn btn-primary btn-block"
               disabled={submitting || buyingNow || outOfStock}
               onClick={() => handleAddToCart({ redirectToCheckout: true })}
             >
@@ -314,6 +387,28 @@ export function ProductDetail() {
             </button>
           </div>
 
+          {product.description && (
+            <div className="pdp-description-accordion">
+              <button
+                type="button"
+                className="pdp-description-trigger"
+                aria-expanded={descOpen}
+                onClick={() => setDescOpen((v) => !v)}
+              >
+                <span>Product Details</span>
+                <motion.span animate={{ rotate: descOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                  <ChevronDown size={18} />
+                </motion.span>
+              </button>
+              {descOpen && (
+                <div className="pdp-description-body">
+                  {product.description.split(/\n+/).filter(Boolean).map((para, i) => (
+                    <p key={i}>{para}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -323,7 +418,7 @@ export function ProductDetail() {
       <div className="pdp-mobile-bar">
         <button
           type="button"
-          className="btn btn-primary pdp-mobile-bar-cart"
+          className="btn btn-outline pdp-mobile-bar-cart"
           disabled={submitting || buyingNow || outOfStock}
           onClick={handleAddOrGoToCart}
         >
@@ -335,7 +430,7 @@ export function ProductDetail() {
         </button>
         <button
           type="button"
-          className="btn btn-outline pdp-mobile-bar-buy"
+          className="btn btn-primary pdp-mobile-bar-buy"
           disabled={submitting || buyingNow || outOfStock}
           onClick={() => handleAddToCart({ redirectToCheckout: true })}
         >
@@ -357,6 +452,7 @@ export function ProductDetail() {
           <ProductGrid products={relatedProducts} />
         </section>
       )}
-    </div>
+      </div>
+    </>
   );
 }

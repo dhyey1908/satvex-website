@@ -1,3 +1,78 @@
+/* Compact contextual mobile header (back / search / cart) — replaces the
+   global site header on this route at mobile widths (Header.jsx hides
+   itself there). Desktop never sees this at all. */
+.pdp-mobile-header {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .pdp-mobile-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    position: sticky;
+    top: 0;
+    z-index: 500;
+    height: var(--header-height);
+    padding: 0 var(--space-3);
+    background: rgba(251, 246, 240, 0.94);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .pdp-mobile-header-back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border: none;
+    background: none;
+    color: var(--color-text);
+    cursor: pointer;
+    border-radius: 50%;
+  }
+  .pdp-mobile-header-back:active { background: var(--color-surface-muted); }
+  .pdp-mobile-header-search {
+    flex: 1;
+    min-width: 0;
+  }
+  /* SearchOverlay renders its own icon-button trigger + dropdown panel —
+     stretch that trigger to read as a proper search bar in this context
+     instead of a bare icon. */
+  .pdp-mobile-header-search .header-search { width: 100%; }
+  .pdp-mobile-header-search .icon-btn {
+    width: 100%;
+    height: 40px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface-muted);
+    border: 1px solid var(--color-border);
+    justify-content: flex-start;
+    padding: 0 var(--space-3);
+    gap: 8px;
+  }
+  .pdp-mobile-header-search .icon-btn::after {
+    content: 'Search Satvex…';
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+  }
+  .pdp-mobile-header-cart {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    color: var(--color-text);
+  }
+  .pdp-mobile-header-cart .badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+  }
+}
+
 .product-detail-grid {
   display: grid;
   grid-template-columns: 1.2fr 1fr;
@@ -20,11 +95,17 @@
   position: relative;
 }
 
-.pdp-gallery-wishlist {
+.pdp-gallery-actions {
   position: absolute;
   top: var(--space-3);
   right: var(--space-3);
   z-index: 2;
+  display: flex;
+  gap: var(--space-2);
+}
+
+.pdp-gallery-share,
+.pdp-gallery-wishlist {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -38,6 +119,7 @@
   box-shadow: var(--shadow-sm);
   transition: color var(--transition-fast);
 }
+.pdp-gallery-share:hover { color: var(--color-accent); }
 .pdp-gallery-wishlist:hover { color: var(--color-accent); }
 .pdp-gallery-wishlist.active { color: var(--color-accent); }
 
@@ -116,20 +198,55 @@
 .pdp-wishlist-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
 .pdp-wishlist-btn.active { border-color: var(--color-accent); color: var(--color-accent); background: var(--color-accent-light); }
 
-.pdp-trust-row {
+.pdp-selected-shade {
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--color-text);
+}
+
+.pdp-highlights {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 16px;
-  padding-top: var(--sp-sm);
-  border-top: 1px solid var(--color-border);
-  color: var(--color-text-muted);
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
 }
-.pdp-trust-row span { display: inline-flex; align-items: center; gap: 6px; }
-.pdp-trust-row svg { color: var(--color-accent); flex-shrink: 0; }
+.pdp-highlight-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-container);
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.pdp-highlight-pill svg { color: var(--color-accent); flex-shrink: 0; }
+
+.pdp-description-accordion {
+  margin-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+.pdp-description-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-text);
+  text-align: left;
+}
+.pdp-description-body { padding-bottom: var(--space-3); color: var(--color-text-muted); }
+.pdp-description-body p { margin: 0 0 var(--space-2); font-size: 0.9rem; line-height: 1.6; }
+.pdp-description-body p:last-child { margin-bottom: 0; }
 
 /* Full-width and close behind the purchase panel — a tight border-top
    connects it visually instead of a large empty gap implying it's a
@@ -162,15 +279,24 @@
 }
 
 @media (max-width: 860px) {
-  .product-detail-grid { grid-template-columns: 1fr; gap: var(--space-5); }
+  .product-detail-grid { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
   .product-detail-grid .pdp-gallery-wrap,
   .product-detail-info {
     position: static;
+    min-width: 0;
   }
   .product-detail-info {
     border: none;
     padding: 10px;
+    /* Flexbox purely for the `order` reorder below — visual order only,
+       DOM/tab order and all logic stay untouched. */
+    display: flex;
+    flex-direction: column;
   }
+  /* Colors sit directly under the gallery on mobile so a shopper can flip
+     through shades and watch the main image update before reading anything
+     else — the desktop two-column layout is unaffected. */
+  .pdp-color-section { order: -1; }
   .product-detail-sku { border-bottom: none; }
   .pdp-wishlist-btn { width: 48px; }
 

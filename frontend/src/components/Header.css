@@ -7,6 +7,10 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+@media (max-width: 860px) {
+  .site-header-pdp { display: none; }
+}
+
 .site-header-inner {
   height: var(--header-height);
   display: flex;
