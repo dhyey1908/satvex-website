@@ -26,10 +26,6 @@ async function gokwikFetch(path, options) {
   // and 200/202/400/404 for payment/verify — treating every other non-2xx
   // as a generic failure until GoKwik's team confirms the full status list.
   if (!res.ok) {
-    // TEMP diagnostic — remove once the sandbox flow is confirmed working.
-    // Logs the real status/body GoKwik sent back, since our own thrown
-    // AppError only carries a generic fallback message otherwise.
-    logger.error('gokwik request failed', { path, status: res.status, body: data });
     const message = data?.message || data?.error || 'GoKwik request failed.';
     throw new AppError(message, 502, 'GOKWIK_ERROR');
   }
@@ -98,16 +94,7 @@ async function createOrder({
     },
   };
 
-  // TEMP diagnostic (debugging "Amount to Pay: null") — no secrets in this
-  // body (appid/appsecret are headers, never here). Logs the exact request
-  // and the exact raw response so we can see precisely what we sent and
-  // precisely what GoKwik's order/create returned, rather than only the
-  // subset of fields we happened to read out afterward.
-  logger.info('gokwik order/create request', { orderPayload: body.order });
-
   const data = await gokwikFetch('/v1/order/create', { method: 'POST', body: JSON.stringify(body) });
-
-  logger.info('gokwik order/create response', { raw: data });
 
   // Success response per the notes: request_id, gokwik_oid, order_status,
   // total, moid, mid, phone, order_type. Passing the whole `data` block

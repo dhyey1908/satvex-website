@@ -37,6 +37,15 @@ export async function openGoKwikCheckout({ mid, moid, orderType, requestId, gokw
     gokwikSdk.on('modal_closed', (data) => resolve({ outcome: 'modal_closed', data }));
 
     try {
+      const merchantInfo = {
+        order_type: orderType,
+        mid,
+        moid,
+        environment,
+        request_id: requestId,
+        gokwik_oid: gokwikOid,
+      };
+
       // 'auto' mode matters here: the payment widget (gokwik.js) loads
       // asynchronously and only registers its message listener once it
       // emits 'ready'. Calling initPayment plainly races that — the
@@ -48,17 +57,7 @@ export async function openGoKwikCheckout({ mid, moid, orderType, requestId, gokw
       // what the SDK's own source confirms is required for a reliable
       // first call. Fixes rerunning fine too, since this is a no-op after
       // 'ready' has already fired on repeat calls in the same session.
-      gokwikSdk.initPayment(
-        {
-          order_type: orderType,
-          mid,
-          moid,
-          environment,
-          request_id: requestId,
-          gokwik_oid: gokwikOid,
-        },
-        'auto'
-      );
+      gokwikSdk.initPayment(merchantInfo, 'auto');
     } catch (err) {
       reject(err);
     }
