@@ -104,6 +104,22 @@ async function validateCoupon(code, subtotal, userId) {
 }
 
 /**
+ * Picks the shipping charge for the given subtotal from the admin-configured
+ * tier list (store-wide, not per-product — see settingsValidators.js's
+ * shippingTierSchema). Tiers are matched in order on [minSubtotal,
+ * maxSubtotal] inclusive, maxSubtotal: null meaning open-ended. Falls back to
+ * 0 if the configured tiers don't cover the subtotal (misconfiguration), so a
+ * bad admin edit never blocks checkout — it just undercharges shipping.
+ */
+function resolveShippingTierCharge(tiers, subtotal) {
+  if (!Array.isArray(tiers) || tiers.length === 0) return 0;
+  const match = tiers.find(
+    (tier) => subtotal >= tier.minSubtotal && (tier.maxSubtotal == null || subtotal <= tier.maxSubtotal)
+  );
+  return match ? Number(match.charge) : 0;
+}
+
+/**
  * The single, centralized checkout-math function — used by both the /orders
  * quote preview and the real checkout, so there is exactly one place the
  * subtotal -> discount -> GST -> shipping -> COD formula lives. Pure/read-only:
@@ -131,11 +147,9 @@ async function calculateTotals({ items, couponCode, paymentMethod, userId }) {
   const gstAmount = gstEnabled ? Number(((taxableAmount * gstPercent) / 100).toFixed(2)) : 0;
 
   const shippingEnabled = Boolean(settings.shipping?.enabled);
-  const freeThreshold = settings.shipping?.freeThreshold;
   let shipping = 0;
   if (shippingEnabled) {
-    const qualifiesForFree = freeThreshold != null && freeThreshold > 0 && subtotal >= freeThreshold;
-    shipping = qualifiesForFree ? 0 : Number(settings.shipping?.charge ?? 0);
+    shipping = resolveShippingTierCharge(settings.shipping?.tiers, subtotal);
   }
 
   const codEnabled = Boolean(settings.cod?.enabled);
@@ -158,4 +172,4 @@ async function calculateTotals({ items, couponCode, paymentMethod, userId }) {
   };
 }
 
-module.exports = { resolveLineItem, validateCoupon, calculateTotals };
+module.exports = { resolveLineItem, validateCoupon, calculateTotals, resolveShippingTierCharge };

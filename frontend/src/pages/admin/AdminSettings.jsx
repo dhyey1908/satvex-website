@@ -49,6 +49,41 @@ export function AdminSettings() {
     setForm((prev) => ({ ...prev, [group]: { ...prev[group], [key]: value } }));
   }
 
+  function setShippingTierField(index, key, value) {
+    setForm((prev) => {
+      const tiers = [...(prev.shipping?.tiers || [])];
+      tiers[index] = { ...tiers[index], [key]: value };
+      return { ...prev, shipping: { ...prev.shipping, tiers } };
+    });
+  }
+
+  function addShippingTier() {
+    setForm((prev) => {
+      const tiers = [...(prev.shipping?.tiers || [])];
+      const last = tiers[tiers.length - 1];
+      tiers[tiers.length - 1] = { ...last, maxSubtotal: last?.maxSubtotal ?? 0 };
+      tiers.push({ minSubtotal: (last?.maxSubtotal ?? 0) + 0.01, maxSubtotal: null, charge: 0 });
+      return { ...prev, shipping: { ...prev.shipping, tiers } };
+    });
+  }
+
+  function removeShippingTier(index) {
+    setForm((prev) => {
+      const tiers = (prev.shipping?.tiers || []).filter((_, i) => i !== index);
+      return { ...prev, shipping: { ...prev.shipping, tiers } };
+    });
+  }
+
+  function setShiprocketPackageField(key, value) {
+    setForm((prev) => ({
+      ...prev,
+      shiprocket: {
+        ...prev.shiprocket,
+        defaultPackage: { ...prev.shiprocket?.defaultPackage, [key]: value },
+      },
+    }));
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     const errors = validate(form);
@@ -234,32 +269,59 @@ export function AdminSettings() {
             Enable Shipping Charges
           </label>
           {form.shipping?.enabled && (
-            <div className="admin-form-grid">
-              <div className="field">
-                <label htmlFor="shippingCharge">Shipping Charge (₹)</label>
-                <input
-                  id="shippingCharge"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.shipping?.charge ?? 0}
-                  onChange={(e) => setNestedField('shipping', 'charge', Number(e.target.value))}
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="freeShippingThreshold">Free Shipping Above (₹, optional)</label>
-                <input
-                  id="freeShippingThreshold"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.shipping?.freeThreshold ?? ''}
-                  onChange={(e) =>
-                    setNestedField('shipping', 'freeThreshold', e.target.value === '' ? undefined : Number(e.target.value))
-                  }
-                  placeholder="Leave blank for no free-shipping threshold"
-                />
-              </div>
+            <div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', margin: '4px 0 12px' }}>
+                Store-wide tiers by cart subtotal (not per-product). The last tier's "Up To" can be
+                left blank to mean "and above."
+              </p>
+              {(form.shipping?.tiers || []).map((tier, i) => (
+                <div key={i} className="repeatable-row" style={{ gap: 8, alignItems: 'flex-end' }}>
+                  <div className="field" style={{ marginBottom: 0 }}>
+                    <label htmlFor={`tierMin${i}`}>From (₹)</label>
+                    <input
+                      id={`tierMin${i}`}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={tier.minSubtotal ?? 0}
+                      onChange={(e) => setShippingTierField(i, 'minSubtotal', Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="field" style={{ marginBottom: 0 }}>
+                    <label htmlFor={`tierMax${i}`}>Up To (₹)</label>
+                    <input
+                      id={`tierMax${i}`}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={tier.maxSubtotal ?? ''}
+                      onChange={(e) =>
+                        setShippingTierField(i, 'maxSubtotal', e.target.value === '' ? null : Number(e.target.value))
+                      }
+                      placeholder="and above"
+                    />
+                  </div>
+                  <div className="field" style={{ marginBottom: 0 }}>
+                    <label htmlFor={`tierCharge${i}`}>Charge (₹)</label>
+                    <input
+                      id={`tierCharge${i}`}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={tier.charge ?? 0}
+                      onChange={(e) => setShippingTierField(i, 'charge', Number(e.target.value))}
+                    />
+                  </div>
+                  {(form.shipping?.tiers || []).length > 1 && (
+                    <button type="button" className="btn btn-danger btn-sm" onClick={() => removeShippingTier(i)}>
+                      Remove
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button type="button" className="btn btn-secondary btn-sm" onClick={addShippingTier}>
+                Add Tier
+              </button>
             </div>
           )}
         </div>
@@ -360,6 +422,76 @@ export function AdminSettings() {
               These accounts&apos; checkout (COD and Online) goes through GoKwik instead of Cashfree,
               invisible to everyone else.
             </p>
+          </div>
+        </div>
+
+        <div className="admin-form-section">
+          <h3>Shiprocket Shipping</h3>
+          <label className="checkbox-field">
+            <input
+              type="checkbox"
+              checked={form.shiprocket?.enabled ?? false}
+              onChange={(e) => setNestedField('shiprocket', 'enabled', e.target.checked)}
+            />
+            Create Shiprocket shipments automatically on order confirmation
+          </label>
+          <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', margin: '4px 0 12px' }}>
+            Keep this off until a real Shiprocket pickup location and credentials are confirmed
+            (see shiprocket_integration_notes.md). While off, orders are never sent to Shiprocket
+            and no retry job is queued.
+          </p>
+          <div className="field">
+            <label htmlFor="shiprocketPickupLocation">Pickup Location (as named in Shiprocket)</label>
+            <input
+              id="shiprocketPickupLocation"
+              type="text"
+              value={form.shiprocket?.pickupLocation ?? ''}
+              onChange={(e) => setNestedField('shiprocket', 'pickupLocation', e.target.value)}
+              placeholder="e.g. Primary Warehouse"
+            />
+          </div>
+          <p style={{ fontSize: '0.85rem', margin: '12px 0 4px' }}>Default Package Dimensions</p>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <div className="field">
+              <label htmlFor="srLength">Length (cm)</label>
+              <input
+                id="srLength"
+                type="number"
+                step="0.1"
+                value={form.shiprocket?.defaultPackage?.lengthCm ?? ''}
+                onChange={(e) => setShiprocketPackageField('lengthCm', Number(e.target.value))}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="srBreadth">Breadth (cm)</label>
+              <input
+                id="srBreadth"
+                type="number"
+                step="0.1"
+                value={form.shiprocket?.defaultPackage?.breadthCm ?? ''}
+                onChange={(e) => setShiprocketPackageField('breadthCm', Number(e.target.value))}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="srHeight">Height (cm)</label>
+              <input
+                id="srHeight"
+                type="number"
+                step="0.1"
+                value={form.shiprocket?.defaultPackage?.heightCm ?? ''}
+                onChange={(e) => setShiprocketPackageField('heightCm', Number(e.target.value))}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="srWeight">Weight (kg)</label>
+              <input
+                id="srWeight"
+                type="number"
+                step="0.01"
+                value={form.shiprocket?.defaultPackage?.weightKg ?? ''}
+                onChange={(e) => setShiprocketPackageField('weightKg', Number(e.target.value))}
+              />
+            </div>
           </div>
         </div>
 

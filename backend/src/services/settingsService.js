@@ -16,8 +16,18 @@ const DEFAULT_SETTINGS = {
   authImage: '',
   aboutImage: '',
   tax: { enabled: true, percent: 18 },
-  shipping: { enabled: true, charge: 50, freeThreshold: 999 },
-  cod: { enabled: true, charge: 40 },
+  // Store-wide subtotal tiers — see settingsValidators.js's shippingTierSchema
+  // for how a tier is matched. Approved values: <₹400 = ₹59, ₹400-599 = ₹39,
+  // ₹600+ = free.
+  shipping: {
+    enabled: true,
+    tiers: [
+      { minSubtotal: 0, maxSubtotal: 399.99, charge: 59 },
+      { minSubtotal: 400, maxSubtotal: 599.99, charge: 39 },
+      { minSubtotal: 600, maxSubtotal: null, charge: 0 },
+    ],
+  },
+  cod: { enabled: true, charge: 59 },
   // Sandbox keys must never be reachable by real customers — onlineEnabled
   // stays false until the live-cutover checklist is complete.
   // onlineTestUserIds lets specific accounts exercise the real Cashfree
@@ -26,6 +36,13 @@ const DEFAULT_SETTINGS = {
   // sandbox integration — stays false until GoKwik confirms the open
   // questions in gokwik_integration_notes.md.
   payments: { onlineEnabled: false, onlineTestUserIds: [], gokwikEnabled: false, gokwikTestUserIds: [] },
+  // Real Shiprocket account (no sandbox) — stays disabled until pickupLocation
+  // is set to a real pickup address nickname and verified end-to-end.
+  shiprocket: {
+    enabled: false,
+    pickupLocation: '',
+    defaultPackage: { lengthCm: 10, breadthCm: 10, heightCm: 5, weightKg: 0.2 },
+  },
   whyPillars: [
     { title: 'Flexible', description: 'Moves comfortably with your everyday needs.' },
     { title: 'Comfortable', description: 'Lightweight designs created for effortless everyday use.' },
