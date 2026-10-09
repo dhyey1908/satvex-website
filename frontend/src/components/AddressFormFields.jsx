@@ -92,9 +92,8 @@ export function AddressFormFields({ form, setField, touched, markTouched, fieldE
         {touched.houseFlat && fieldErrors.houseFlat && <p className="field-error">{fieldErrors.houseFlat}</p>}
       </div>
       <div className={`field ${touched.areaStreet && fieldErrors.areaStreet ? 'invalid' : ''}`}>
-        <label>Area / Street</label>
+        <label>Area / Street (optional)</label>
         <input
-          required
           value={form.areaStreet}
           onChange={(e) => setField('areaStreet', e.target.value)}
           onBlur={() => markTouched('areaStreet')}
@@ -185,7 +184,11 @@ export function validateAddressForm(values, { required, minLength, phone: valida
     fullName: minLength(values.fullName, 2, 'Full name'),
     phone: validatePhone(values.phone, { optional: false }),
     houseFlat: required(values.houseFlat, 'House/Flat/Building'),
-    areaStreet: required(values.areaStreet, 'Area/Street'),
+    // Optional, not required — a saved address loaded back for editing (or
+    // selected at checkout) has no way to split its stored `line1` back
+    // into houseFlat/areaStreet, so areaStreet always reloads empty. Making
+    // it required made every saved-address "Continue"/"Save" silently fail
+    // validation on a field the saved-address view doesn't even render.
     city: minLength(values.city, 2, 'City'),
     state: minLength(values.state, 2, 'State'),
     pincode: validatePincode(values.pincode, { optional: false }),
