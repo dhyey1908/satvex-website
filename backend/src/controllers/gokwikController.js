@@ -1,5 +1,6 @@
 const orderService = require('../services/orderService');
 const gokwikService = require('../services/gokwikService');
+const shipmentService = require('../services/shipmentService');
 const { ok } = require('../utils/response');
 
 // Public endpoint — GoKwik calls this server-to-server. Per
@@ -47,6 +48,7 @@ async function webhook(req, res) {
       gokwikTransactionId: verifyResult?.transaction_id || transactionId,
       paidAt: new Date().toISOString(),
     });
+    await shipmentService.triggerShipmentIfNeeded(moid);
   }
   // Anything else (pending/not found/error): leave the order as
   // awaiting_payment — never mark paid on an inconclusive result. A later

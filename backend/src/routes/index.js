@@ -12,6 +12,7 @@ const couponRoutes = require('./couponRoutes');
 const reviewRoutes = require('./reviewRoutes');
 const paymentRoutes = require('./paymentRoutes');
 const gokwikRoutes = require('./gokwikRoutes');
+const shiprocketRoutes = require('./shiprocketRoutes');
 
 const router = express.Router();
 
@@ -28,5 +29,6 @@ router.use('/coupons', couponRoutes);
 router.use('/reviews', reviewRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/gokwik', gokwikRoutes);
+router.use('/shiprocket', shiprocketRoutes);
 
 module.exports = router;

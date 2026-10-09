@@ -58,6 +58,29 @@ Parameters:
     Type: String
     Default: sandbox
     AllowedValues: [sandbox, production]
+  ShiprocketEmail:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: >
+      Shiprocket API user email (from Settings > API > Add New API User — must
+      differ from the main panel login email). Leave blank until ready to test;
+      gated separately by settings.shipping.shiprocketEnabled, which defaults
+      to false so no real shipments are created until explicitly turned on.
+  ShiprocketPassword:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: Shiprocket API user password.
+  ShiprocketWebhookToken:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: >
+      Our own chosen token, set as the "security token" in Shiprocket's
+      Settings > API > Webhooks panel. Compared against the x-api-key header
+      on every webhook call. Optional — leave blank to skip the check
+      entirely (not recommended once this is live).
 
 Globals:
   Function:
@@ -117,6 +140,8 @@ Resources:
           AttributeType: S
         - AttributeName: paymentExpiresAt
           AttributeType: S
+        - AttributeName: shiprocketOrderId
+          AttributeType: S
       KeySchema:
         - AttributeName: orderId
           KeyType: HASH
@@ -140,6 +165,16 @@ Resources:
               KeyType: HASH
             - AttributeName: paymentExpiresAt
               KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        # Lets Shiprocket's tracking webhook (which identifies the order by
+        # Shiprocket's own order id, sr_order_id, never ours) look the order
+        # up directly instead of a Scan. Orders with no Shiprocket shipment
+        # yet simply have no entry here, same omission behavior as above.
+        - IndexName: shiprocketOrderId-index
+          KeySchema:
+            - AttributeName: shiprocketOrderId
+              KeyType: HASH
           Projection:
             ProjectionType: ALL
 
@@ -277,6 +312,36 @@ Resources:
           Projection:
             ProjectionType: ALL
 
+  # Shiprocket shipment-creation retry queue (plan §3) — tries immediately when
+  # an order becomes paid/confirmed, falls back to the scheduled sweep
+  # (shipmentSweep.js) on failure. status-nextAttemptAt-index lets the sweep
+  # Query just the jobs actually due instead of Scanning the whole table,
+  # same pattern as OrdersTable's payment-expiry GSI.
+  ShipmentJobsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub satvex_shipment_jobs_${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: jobId
+          AttributeType: S
+        - AttributeName: status
+          AttributeType: S
+        - AttributeName: nextAttemptAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: jobId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: status-nextAttemptAt-index
+          KeySchema:
+            - AttributeName: status
+              KeyType: HASH
+            - AttributeName: nextAttemptAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
   ## ---------- API + Lambda ----------
 
   HttpApi:
@@ -317,6 +382,7 @@ Resources:
           TABLE_COUPONS: !Ref CouponsTable
           TABLE_REVIEWS: !Ref ReviewsTable
           TABLE_COUPON_REDEMPTIONS: !Ref CouponRedemptionsTable
+          TABLE_SHIPMENT_JOBS: !Ref ShipmentJobsTable
           S3_MEDIA_BUCKET: !Ref MediaBucket
           CLOUDFRONT_MEDIA_URL: !Sub https://${MediaDistribution.DomainName}
           JWT_SECRET: !Ref JwtSecret
@@ -330,6 +396,9 @@ Resources:
           GOKWIK_APP_ID: !Ref GoKwikAppId
           GOKWIK_APP_SECRET: !Ref GoKwikAppSecret
           GOKWIK_ENV: !Ref GoKwikEnv
+          SHIPROCKET_EMAIL: !Ref ShiprocketEmail
+          SHIPROCKET_PASSWORD: !Ref ShiprocketPassword
+          SHIPROCKET_WEBHOOK_TOKEN: !Ref ShiprocketWebhookToken
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UsersTable
@@ -353,6 +422,8 @@ Resources:
             TableName: !Ref ReviewsTable
         - DynamoDBCrudPolicy:
             TableName: !Ref CouponRedemptionsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ShipmentJobsTable
         - S3CrudPolicy:
             BucketName: !Ref MediaBucket
         - SESCrudPolicy:
@@ -391,6 +462,13 @@ Resources:
           CASHFREE_SECRET_KEY: !Ref CashfreeSecretKey
           CASHFREE_ENV: !Ref CashfreeEnv
           CASHFREE_API_VERSION: !Ref CashfreeApiVersion
+          # Needed transitively: a reconciled-paid order now calls
+          # shipmentService.triggerShipmentIfNeeded, which reads settings and
+          # (if Shiprocket is enabled) writes a shipment job.
+          TABLE_SETTINGS: !Ref SettingsTable
+          TABLE_SHIPMENT_JOBS: !Ref ShipmentJobsTable
+          SHIPROCKET_EMAIL: !Ref ShiprocketEmail
+          SHIPROCKET_PASSWORD: !Ref ShiprocketPassword
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref OrdersTable
@@ -398,6 +476,10 @@ Resources:
             TableName: !Ref CouponsTable
         - DynamoDBCrudPolicy:
             TableName: !Ref CouponRedemptionsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SettingsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ShipmentJobsTable
       Events:
         HourlySweep:
           Type: Schedule
@@ -408,6 +490,44 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/satvex-expire-payments-${Stage}
+      RetentionInDays: 14
+
+  # Shiprocket shipment-creation retry sweep (plan §3) — picks up jobs the
+  # immediate attempt (in orderController, on order paid/confirmed) failed to
+  # create, retries with backoff, caps attempts, and marks a job 'failed'
+  # (visible in the admin retry-shipment UI) once exhausted. Runs every 10
+  # minutes, inside the 5-15 min window approved for this feature.
+  ShipmentSweepFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub satvex-shipment-sweep-${Stage}
+      CodeUri: ./
+      Handler: src/shipmentSweep.handler
+      Timeout: 60
+      Environment:
+        Variables:
+          TABLE_ORDERS: !Ref OrdersTable
+          TABLE_SHIPMENT_JOBS: !Ref ShipmentJobsTable
+          TABLE_SETTINGS: !Ref SettingsTable
+          SHIPROCKET_EMAIL: !Ref ShiprocketEmail
+          SHIPROCKET_PASSWORD: !Ref ShiprocketPassword
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrdersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ShipmentJobsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SettingsTable
+      Events:
+        TenMinuteSweep:
+          Type: Schedule
+          Properties:
+            Schedule: rate(10 minutes)
+
+  ShipmentSweepFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/satvex-shipment-sweep-${Stage}
       RetentionInDays: 14
 
   ## ---------- S3: product/variant media ----------
@@ -566,3 +686,5 @@ Outputs:
     Value: !Ref ReviewsTable
   CouponRedemptionsTableName:
     Value: !Ref CouponRedemptionsTable
+  ShipmentJobsTableName:
+    Value: !Ref ShipmentJobsTable

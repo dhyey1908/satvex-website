@@ -6,6 +6,8 @@ const couponRedemptionService = require('../services/couponRedemptionService');
 const pricingService = require('../services/pricingService');
 const paymentService = require('../services/paymentService');
 const gokwikService = require('../services/gokwikService');
+const shipmentService = require('../services/shipmentService');
+const shipmentJobService = require('../services/shipmentJobService');
 const settingsService = require('../services/settingsService');
 const env = require('../config/env');
 const logger = require('../utils/logger');
@@ -223,6 +225,14 @@ async function checkout(req, res) {
   // Step 7: clear the cart.
   await cartService.clearCart(req.user.id);
 
+  // COD auto-confirms at creation (see orderService.createOrder) — this is
+  // the earliest point a shipment can be created for it. Online orders stay
+  // Pending here; their trigger point is getPaymentStatus/webhook, once
+  // actually paid.
+  if (order.status === 'Confirmed') {
+    await shipmentService.triggerShipmentIfNeeded(order.orderId);
+  }
+
   // Step 8: return.
   created(res, { order, paymentSessionId });
 }
@@ -322,6 +332,10 @@ async function checkoutViaGoKwik(req, res, { customer, address, couponCode, paym
   // Step 7: clear the cart.
   await cartService.clearCart(req.user.id);
 
+  if (order.status === 'Confirmed') {
+    await shipmentService.triggerShipmentIfNeeded(order.orderId);
+  }
+
   // Step 8: return everything the frontend's gokwikSdk.initPayment needs.
   // order_type mirrors payment_details.method_id sent to GoKwik above.
   created(res, {
@@ -393,6 +407,7 @@ async function getPaymentStatus(req, res) {
         gokwikTransactionId: verifyResult.transaction_id,
         paidAt: new Date().toISOString(),
       });
+      await shipmentService.triggerShipmentIfNeeded(order.orderId);
     }
     const freshGoKwik = await orderService.findById(req.params.id);
     return ok(res, { paymentStatus: freshGoKwik.paymentStatus, needsReview: freshGoKwik.needsReview || false });
@@ -406,6 +421,7 @@ async function getPaymentStatus(req, res) {
       await orderService.flagForReview(order.orderId, 'Payment amount mismatch on reconciliation.');
     } else {
       await orderService.markPaid(order.orderId, { cfPaymentId: success?.cf_payment_id, paidAt: new Date().toISOString() });
+      await shipmentService.triggerShipmentIfNeeded(order.orderId);
     }
   } else if (cfStatus?.orderStatus === 'EXPIRED') {
     await finalizeExpiry(order);
@@ -456,6 +472,7 @@ async function retryPayment(req, res) {
   const cfStatus = await paymentService.fetchOrderStatus(order.orderId);
   if (cfStatus.orderStatus === 'PAID') {
     await orderService.markPaid(order.orderId, { paidAt: new Date().toISOString() });
+    await shipmentService.triggerShipmentIfNeeded(order.orderId);
     return ok(res, { paymentSessionId: null, alreadyPaid: true });
   }
   if (cfStatus.orderStatus !== 'ACTIVE' || !cfStatus.paymentSessionId) {
@@ -603,6 +620,30 @@ async function adminRefund(req, res) {
   ok(res, { order: finalOrder });
 }
 
+// Admin-triggered manual retry (plan §5 — "retry shipment" button). Calls
+// attemptShipmentCreation directly (synchronous, so the admin gets
+// immediate pass/fail feedback) rather than just re-queuing a job and
+// making them wait for the next sweep. Resumable — safe to click even if a
+// previous attempt partially succeeded (see shipmentService.js).
+async function adminRetryShipment(req, res) {
+  const order = await orderService.findById(req.params.id);
+  if (!order) {
+    throw new AppError('Order not found.', 404, 'NOT_FOUND');
+  }
+
+  try {
+    const updated = await shipmentService.attemptShipmentCreation(order.orderId);
+    const existingJob = await shipmentJobService.findByOrderId(order.orderId);
+    if (existingJob) await shipmentJobService.markDone(order.orderId);
+    ok(res, { order: updated });
+  } catch (err) {
+    const existingJob = await shipmentJobService.findByOrderId(order.orderId);
+    if (existingJob) await shipmentJobService.resetForManualRetry(order.orderId);
+    else await shipmentJobService.createJob(order.orderId);
+    throw new AppError(err.message || 'Shipment retry failed.', 502, 'SHIPMENT_RETRY_FAILED');
+  }
+}
+
 module.exports = {
   quote,
   checkout,
@@ -616,5 +657,6 @@ module.exports = {
   adminGetOrder,
   adminUpdateStatus,
   adminRefund,
+  adminRetryShipment,
   finalizeExpiry,
 };

@@ -26,6 +26,7 @@ export function AdminOrderDetail() {
   const [error, setError] = useState(null);
   const [updating, setUpdating] = useState(false);
   const [refunding, setRefunding] = useState(false);
+  const [retryingShipment, setRetryingShipment] = useState(false);
 
   function load() {
     setError(null);
@@ -67,6 +68,19 @@ export function AdminOrderDetail() {
       showToast(err.message, 'error');
     } finally {
       setRefunding(false);
+    }
+  }
+
+  async function handleRetryShipment() {
+    setRetryingShipment(true);
+    try {
+      await adminService.retryShipment(id);
+      showToast('Shipment retry succeeded', 'success');
+      load();
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setRetryingShipment(false);
     }
   }
 
@@ -151,6 +165,35 @@ export function AdminOrderDetail() {
               </button>
             )}
           </>
+        )}
+      </div>
+
+      <div className="admin-form-section">
+        <h3>Shipment</h3>
+        <p>
+          Status: <strong>{order.shipmentStatus || 'not_created'}</strong>
+        </p>
+        {order.awbCode && (
+          <p>
+            AWB: <strong>{order.awbCode}</strong> {order.courierName ? `(${order.courierName})` : ''}
+          </p>
+        )}
+        {order.labelUrl && (
+          <p>
+            <a href={order.labelUrl} target="_blank" rel="noreferrer">
+              Download Label
+            </a>
+          </p>
+        )}
+        {order.lastTrackingStatus && (
+          <p>
+            Last Tracking Update: <strong>{order.lastTrackingStatus}</strong>
+          </p>
+        )}
+        {order.shipmentStatus !== 'label_generated' && (
+          <button type="button" className="btn btn-secondary btn-sm" onClick={handleRetryShipment} disabled={retryingShipment}>
+            {retryingShipment ? 'Retrying…' : 'Retry Shipment'}
+          </button>
         )}
       </div>
 

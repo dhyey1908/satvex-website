@@ -13,6 +13,7 @@ const orderService = require('./services/orderService');
 const paymentService = require('./services/paymentService');
 const couponService = require('./services/couponService');
 const couponRedemptionService = require('./services/couponRedemptionService');
+const shipmentService = require('./services/shipmentService');
 
 const BATCH_DELAY_MS = 250;
 
@@ -30,6 +31,17 @@ async function finalizeExpiry(order) {
 }
 
 async function processOrder(order) {
+  // SANDBOX ONLY — bug fixed 2026-10: this sweep used to call Cashfree's API
+  // unconditionally on every candidate, including GoKwik orders (which also
+  // set paymentExpiresAt) — Cashfree never created that order, so the call
+  // just errored and the GoKwik order silently never got swept at all.
+  // TODO(confirm): GoKwik's payment/verify has no documented "expired"
+  // signal (see gokwik_integration_notes.md), so this never auto-expires a
+  // GoKwik order either — it only skips it safely instead of erroring.
+  if (order.paymentProvider === 'gokwik') {
+    return 'skipped-gokwik';
+  }
+
   let cfStatus;
   try {
     cfStatus = await paymentService.fetchOrderStatus(order.orderId);
@@ -43,6 +55,7 @@ async function processOrder(order) {
     const payments = await paymentService.fetchOrderPayments(order.orderId).catch(() => []);
     const success = payments.find((p) => p.payment_status === 'SUCCESS');
     await orderService.markPaid(order.orderId, { cfPaymentId: success?.cf_payment_id, paidAt: new Date().toISOString() });
+    await shipmentService.triggerShipmentIfNeeded(order.orderId);
     return 'reconciled-paid';
   }
 

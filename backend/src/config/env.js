@@ -43,6 +43,7 @@ const env = {
     coupons: required('TABLE_COUPONS', 'satvex_coupons'),
     reviews: required('TABLE_REVIEWS', 'satvex_reviews'),
     couponRedemptions: required('TABLE_COUPON_REDEMPTIONS', 'satvex_coupon_redemptions'),
+    shipmentJobs: required('TABLE_SHIPMENT_JOBS', 'satvex_shipment_jobs'),
   },
 
   s3: {
@@ -66,6 +67,20 @@ const env = {
     appSecret: process.env.GOKWIK_APP_SECRET,
     // 'sandbox' | 'production' — controls which GoKwik base URL is used.
     env: process.env.GOKWIK_ENV || 'sandbox',
+  },
+
+  // Real Shiprocket account — there's no sandbox/production split the way
+  // Cashfree/GoKwik have (one account, real panel). Gated by
+  // settings.shipping.shiprocketEnabled (defaults false) so no real
+  // shipments are created until explicitly turned on, same caution as the
+  // other two integrations use a test-user allowlist for.
+  shiprocket: {
+    email: process.env.SHIPROCKET_EMAIL,
+    password: process.env.SHIPROCKET_PASSWORD,
+    // Compared against the x-api-key header Shiprocket sends if a webhook
+    // security token is configured in their panel (Settings > API >
+    // Webhooks) — our own choice of value, set in both places.
+    webhookToken: process.env.SHIPROCKET_WEBHOOK_TOKEN,
   },
 
   jwt: {

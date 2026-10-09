@@ -6,6 +6,7 @@ const env = require('../config/env');
 const TABLE = env.tables.orders;
 const USER_INDEX = 'userId-createdAt-index';
 const PAYMENT_EXPIRY_INDEX = 'paymentStatus-paymentExpiresAt-index';
+const SHIPROCKET_ORDER_INDEX = 'shiprocketOrderId-index';
 
 const ORDER_STATUSES = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 
@@ -84,6 +85,9 @@ async function createOrder({
     paymentStatus: paymentStatus || 'not_required',
     ...(paymentExpiresAt ? { paymentExpiresAt } : {}),
     ...(paymentProvider ? { paymentProvider, gokwikOid, gokwikRequestId, gokwikMid, gokwikEnvironment } : {}),
+    // Shiprocket lifecycle (plan §3) — not_created until the shipment job
+    // succeeds; see shipmentJobService.js / shipmentSweep.js.
+    shipmentStatus: 'not_created',
     paymentAttemptCount: 0,
     couponReleased: false,
     needsReview: false,
@@ -445,6 +449,106 @@ async function recordRefundResult(order, { refundId, status, cfRefundId }) {
   }
 }
 
+// ---------- Shiprocket lifecycle (plan §3) ----------
+
+async function recordShiprocketOrderCreated(orderId, { shiprocketOrderId }) {
+  await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE,
+      Key: { orderId },
+      UpdateExpression: 'SET shiprocketOrderId = :srId, shipmentStatus = :status, updatedAt = :now',
+      // Always stored as a string — Shiprocket's own response type for this
+      // field is unconfirmed (see shiprocket_integration_notes.md), and a
+      // GSI attribute's type must stay consistent across every item.
+      ExpressionAttributeValues: { ':srId': String(shiprocketOrderId), ':status': 'order_created', ':now': new Date().toISOString() },
+    })
+  );
+}
+
+// Used by Shiprocket's tracking webhook, which identifies the order by
+// Shiprocket's own order id (sr_order_id in the webhook payload) — never
+// ours. Query against the GSI, not a Scan.
+async function findByShiprocketOrderId(shiprocketOrderId) {
+  const result = await docClient.send(
+    new QueryCommand({
+      TableName: TABLE,
+      IndexName: SHIPROCKET_ORDER_INDEX,
+      KeyConditionExpression: 'shiprocketOrderId = :id',
+      ExpressionAttributeValues: { ':id': String(shiprocketOrderId) },
+      Limit: 1,
+    })
+  );
+  return withLegacyPaymentStatus(result.Items?.[0]) || null;
+}
+
+async function recordAwbAssigned(orderId, { awbCode, courierName, shiprocketShipmentId }) {
+  await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE,
+      Key: { orderId },
+      UpdateExpression:
+        'SET awbCode = :awb, courierName = :courier, shiprocketShipmentId = :shipId, shipmentStatus = :status, updatedAt = :now',
+      ExpressionAttributeValues: {
+        ':awb': awbCode,
+        ':courier': courierName,
+        ':shipId': shiprocketShipmentId,
+        ':status': 'awb_assigned',
+        ':now': new Date().toISOString(),
+      },
+    })
+  );
+}
+
+async function recordPickupScheduled(orderId) {
+  await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE,
+      Key: { orderId },
+      UpdateExpression: 'SET shipmentStatus = :status, updatedAt = :now',
+      ExpressionAttributeValues: { ':status': 'pickup_scheduled', ':now': new Date().toISOString() },
+    })
+  );
+}
+
+async function recordLabelGenerated(orderId, { labelUrl }) {
+  await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE,
+      Key: { orderId },
+      UpdateExpression: 'SET labelUrl = :url, shipmentStatus = :status, updatedAt = :now',
+      ExpressionAttributeValues: { ':url': labelUrl, ':status': 'label_generated', ':now': new Date().toISOString() },
+    })
+  );
+}
+
+// Driven by Shiprocket's tracking webhook. Only auto-advances our own
+// fulfilment `status` on an unambiguous DELIVERED event — same "bump on an
+// unambiguous terminal signal" principle as bumpStatusToConfirmedIfPending.
+// TODO(design question, not Shiprocket's — ours): ORDER_STATUSES has no
+// RTO/Returned value, so an RTO webhook is recorded in shipmentStatus/
+// lastTrackingStatus only and intentionally does NOT touch `status` — mapping
+// it to 'Cancelled' would be factually wrong (the customer didn't cancel)
+// and there's currently no better-fitting status to put it in.
+async function recordShipmentTracking(orderId, { shipmentStatus, courierName, currentStatus }) {
+  const now = new Date().toISOString();
+  const isDelivered = currentStatus === 'DELIVERED';
+  await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE,
+      Key: { orderId },
+      UpdateExpression: `SET shipmentStatus = :shipmentStatus, courierName = :courier, lastTrackingStatus = :currentStatus, updatedAt = :now${isDelivered ? ', #status = :delivered' : ''}`,
+      ...(isDelivered ? { ExpressionAttributeNames: { '#status': 'status' } } : {}),
+      ExpressionAttributeValues: {
+        ':shipmentStatus': shipmentStatus,
+        ':courier': courierName,
+        ':currentStatus': currentStatus,
+        ':now': now,
+        ...(isDelivered ? { ':delivered': 'Delivered' } : {}),
+      },
+    })
+  );
+}
+
 module.exports = {
   ORDER_STATUSES,
   createOrder,
@@ -461,4 +565,10 @@ module.exports = {
   flagForReview,
   recordRefundPending,
   recordRefundResult,
+  recordShiprocketOrderCreated,
+  findByShiprocketOrderId,
+  recordAwbAssigned,
+  recordPickupScheduled,
+  recordLabelGenerated,
+  recordShipmentTracking,
 };
