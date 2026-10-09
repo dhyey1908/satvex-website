@@ -69,7 +69,7 @@ async function createOrder({
     // 0 here and the real amount only on the order-level total_tax below
     // until GoKwik confirms whether per-line tax is actually required.
     tax: 0,
-    product_url: item.productSlug ? `${env.frontendOrigin}/product/${item.productSlug}` : undefined,
+    product_url: item.productSlug ? `${env.publicSiteUrl}/product/${item.productSlug}` : undefined,
     product_thumbnail_url: item.productImage || undefined,
   }));
 
@@ -98,12 +98,45 @@ async function createOrder({
     },
   };
 
+  // TEMP diagnostic (debugging "Amount to Pay: null") — no secrets in this
+  // body (appid/appsecret are headers, never here). Logs the exact request
+  // and the exact raw response so we can see precisely what we sent and
+  // precisely what GoKwik's order/create returned, rather than only the
+  // subset of fields we happened to read out afterward.
+  logger.info('gokwik order/create request', { orderPayload: body.order });
+
   const data = await gokwikFetch('/v1/order/create', { method: 'POST', body: JSON.stringify(body) });
+
+  logger.info('gokwik order/create response', { raw: data });
+
   // Success response per the notes: request_id, gokwik_oid, order_status,
   // total, moid, mid, phone, order_type. Passing the whole `data` block
   // through so the caller has everything (including `mid`) without this
   // file guessing which subset the frontend's initPayment actually needs.
-  return data?.data || data;
+  const result = data?.data || data;
+  assertValidOrderTotal(result);
+  return result;
+}
+
+// Fails loudly and early rather than letting checkout proceed to a payment
+// screen that silently shows "Amount to Pay: null" — a broken-looking
+// checkout for a real customer is worse than a clear server error here.
+// Exported separately so it's unit-testable without mocking fetch/HTTP.
+//
+// CONFIRMED 2026-10: GoKwik's real sandbox response returns `total` as a
+// formatted decimal STRING (e.g. "1.0000"), not a JSON number — accepting
+// numeric strings here (not just `typeof === 'number'`) so a legitimate
+// response isn't rejected. This does NOT fix the widget showing "Amount to
+// Pay: null" — that reads from GoKwik's own stored copy of this same order,
+// not from anything our code passes it, so if it's still null after this,
+// it's confirmed GoKwik-side (their widget failing to parse their own
+// stored string total) and needs to go to their support team.
+function assertValidOrderTotal(result) {
+  const numeric = typeof result?.total === 'string' ? Number(result.total) : result?.total;
+  if (typeof numeric !== 'number' || !Number.isFinite(numeric)) {
+    logger.error('gokwik order/create returned no usable numeric total', { total: result?.total, typeofTotal: typeof result?.total });
+    throw new AppError('GoKwik did not return a valid order amount.', 502, 'GOKWIK_INVALID_TOTAL');
+  }
 }
 
 // Always called server-to-server before trusting a webhook or a frontend
@@ -152,4 +185,5 @@ module.exports = {
   verifyPayment,
   updateOrder,
   verifyWebhookHeaders,
+  assertValidOrderTotal,
 };

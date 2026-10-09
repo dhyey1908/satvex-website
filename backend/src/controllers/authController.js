@@ -97,7 +97,7 @@ async function forgotPassword(req, res) {
     const expiry = new Date(Date.now() + env.resetTokenExpiresMin * 60 * 1000).toISOString();
     await userService.setResetToken(user.userId, hashToken(rawToken), expiry);
 
-    const resetLink = `${env.frontendOrigin}/reset-password?token=${rawToken}&uid=${user.userId}`;
+    const resetLink = `${env.publicSiteUrl}/reset-password?token=${rawToken}&uid=${user.userId}`;
     await sendPasswordResetEmail({ toEmail: user.email, resetLink });
   }
 

@@ -37,14 +37,28 @@ export async function openGoKwikCheckout({ mid, moid, orderType, requestId, gokw
     gokwikSdk.on('modal_closed', (data) => resolve({ outcome: 'modal_closed', data }));
 
     try {
-      gokwikSdk.initPayment({
-        order_type: orderType,
-        mid,
-        moid,
-        environment,
-        request_id: requestId,
-        gokwik_oid: gokwikOid,
-      });
+      // 'auto' mode matters here: the payment widget (gokwik.js) loads
+      // asynchronously and only registers its message listener once it
+      // emits 'ready'. Calling initPayment plainly races that — the
+      // postMessage can fire before anyone's listening and silently gets
+      // dropped (this was the actual bug: no popup ever opened, and the
+      // only visible symptom was an unrelated analytics-ping 400). 'auto'
+      // still fires an immediate (possibly-too-early, harmless) attempt,
+      // but also registers a retry for the real 'ready' event, which is
+      // what the SDK's own source confirms is required for a reliable
+      // first call. Fixes rerunning fine too, since this is a no-op after
+      // 'ready' has already fired on repeat calls in the same session.
+      gokwikSdk.initPayment(
+        {
+          order_type: orderType,
+          mid,
+          moid,
+          environment,
+          request_id: requestId,
+          gokwik_oid: gokwikOid,
+        },
+        'auto'
+      );
     } catch (err) {
       reject(err);
     }

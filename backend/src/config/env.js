@@ -8,10 +8,26 @@ function required(name, fallback) {
   return value;
 }
 
+const frontendOrigin = required('FRONTEND_ORIGIN', 'http://localhost:5173');
+
+// frontendOrigin is a CORS allowlist and can be comma-separated (local dev +
+// production together, e.g. "http://localhost:5173,https://real-site.com").
+// Anything that builds an actual outbound link for a real person — a
+// password-reset email, a product URL sent to a payment provider — must use
+// a single real origin, never the raw multi-value CORS string (that
+// produces a literally broken, comma-containing URL). Picks the first
+// non-local entry; falls back to whatever's first if everything looks local
+// (e.g. pure local dev with no production origin configured at all).
+const publicSiteUrl = (() => {
+  const origins = frontendOrigin.split(',').map((o) => o.trim());
+  return origins.find((o) => !/localhost|127\.0\.0\.1/.test(o)) || origins[0];
+})();
+
 const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT || 4000),
-  frontendOrigin: required('FRONTEND_ORIGIN', 'http://localhost:5173'),
+  frontendOrigin,
+  publicSiteUrl,
 
   awsRegion: required('AWS_REGION', 'ap-south-1'),
 
