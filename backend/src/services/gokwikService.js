@@ -1,5 +1,6 @@
 const env = require('../config/env');
 const AppError = require('../utils/AppError');
+const logger = require('../utils/logger');
 
 // Everything GoKwik-specific lives in this one file, mirroring how
 // paymentService.js isolates Cashfree. SANDBOX ONLY — see
@@ -25,6 +26,10 @@ async function gokwikFetch(path, options) {
   // and 200/202/400/404 for payment/verify — treating every other non-2xx
   // as a generic failure until GoKwik's team confirms the full status list.
   if (!res.ok) {
+    // TEMP diagnostic — remove once the sandbox flow is confirmed working.
+    // Logs the real status/body GoKwik sent back, since our own thrown
+    // AppError only carries a generic fallback message otherwise.
+    logger.error('gokwik request failed', { path, status: res.status, body: data });
     const message = data?.message || data?.error || 'GoKwik request failed.';
     throw new AppError(message, 502, 'GOKWIK_ERROR');
   }
