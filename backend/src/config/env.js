@@ -42,6 +42,16 @@ const env = {
     apiVersion: process.env.CASHFREE_API_VERSION || '2023-08-01',
   },
 
+  // SANDBOX ONLY until GoKwik confirms the open questions in
+  // gokwik_integration_notes.md — gated separately from Cashfree via
+  // settings.payments.gokwikEnabled/gokwikTestUserIds, never auto-enabled.
+  gokwik: {
+    appId: process.env.GOKWIK_APP_ID,
+    appSecret: process.env.GOKWIK_APP_SECRET,
+    // 'sandbox' | 'production' — controls which GoKwik base URL is used.
+    env: process.env.GOKWIK_ENV || 'sandbox',
+  },
+
   jwt: {
     secret: required('JWT_SECRET', 'dev-only-insecure-secret'),
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',

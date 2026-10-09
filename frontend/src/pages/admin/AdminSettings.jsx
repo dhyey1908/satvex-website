@@ -326,6 +326,43 @@ export function AdminSettings() {
           </div>
         </div>
 
+        <div className="admin-form-section">
+          <h3>GoKwik Checkout (sandbox)</h3>
+          <label className="checkbox-field">
+            <input
+              type="checkbox"
+              checked={form.payments?.gokwikEnabled ?? false}
+              onChange={(e) => setNestedField('payments', 'gokwikEnabled', e.target.checked)}
+            />
+            Route all customers through GoKwik instead of Cashfree
+          </label>
+          <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', margin: '4px 0 12px' }}>
+            Keep this off — GoKwik is unverified sandbox-only (see gokwik_integration_notes.md). Use the
+            test user IDs below instead. An allowlisted account's checkout (COD and Online both) goes
+            entirely through GoKwik, bypassing Cashfree completely.
+          </p>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label htmlFor="gokwikTestUserIds">Test User IDs (one per line)</label>
+            <textarea
+              id="gokwikTestUserIds"
+              rows={3}
+              value={(form.payments?.gokwikTestUserIds || []).join('\n')}
+              onChange={(e) =>
+                setNestedField(
+                  'payments',
+                  'gokwikTestUserIds',
+                  e.target.value.split('\n').map((v) => v.trim()).filter(Boolean)
+                )
+              }
+              placeholder="userId1&#10;userId2"
+            />
+            <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
+              These accounts&apos; checkout (COD and Online) goes through GoKwik instead of Cashfree,
+              invisible to everyone else.
+            </p>
+          </div>
+        </div>
+
         <div className="admin-form-sticky-actions">
           <button type="submit" className="btn btn-primary" disabled={saving}>
             {saving ? 'Saving…' : 'Save Settings'}

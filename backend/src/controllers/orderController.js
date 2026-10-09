@@ -5,7 +5,10 @@ const couponService = require('../services/couponService');
 const couponRedemptionService = require('../services/couponRedemptionService');
 const pricingService = require('../services/pricingService');
 const paymentService = require('../services/paymentService');
+const gokwikService = require('../services/gokwikService');
 const settingsService = require('../services/settingsService');
+const env = require('../config/env');
+const logger = require('../utils/logger');
 const { checkoutSchema, quoteSchema, updateOrderStatusSchema, refundSchema } = require('../validators/orderValidators');
 const AppError = require('../utils/AppError');
 const { ok, created } = require('../utils/response');
@@ -35,6 +38,62 @@ async function isOnlinePaymentsAvailable(userId) {
   const settings = await settingsService.getSettings();
   const { onlineEnabled, onlineTestUserIds } = settings.payments || {};
   return Boolean(onlineEnabled || (onlineTestUserIds || []).includes(userId));
+}
+
+// SANDBOX ONLY — mirrors isOnlinePaymentsAvailable exactly. Checked before
+// isOnlinePaymentsAvailable in checkout() so an allowlisted test user always
+// goes through GoKwik (which handles both COD and Online), never Cashfree.
+async function isGoKwikAvailable(userId) {
+  const settings = await settingsService.getSettings();
+  const { gokwikEnabled, gokwikTestUserIds } = settings.payments || {};
+  return Boolean(gokwikEnabled || (gokwikTestUserIds || []).includes(userId));
+}
+
+// Best-effort "First Last" split — GoKwik's address schema wants separate
+// first_name/last_name but checkout only collects one `name` field.
+// TODO(confirm): whether GoKwik requires both to be non-empty; this falls
+// back to putting the whole name in first_name if there's no space.
+function splitName(fullName) {
+  const trimmed = fullName.trim();
+  const spaceIndex = trimmed.indexOf(' ');
+  if (spaceIndex === -1) return { firstName: trimmed, lastName: '' };
+  return { firstName: trimmed.slice(0, spaceIndex), lastName: trimmed.slice(spaceIndex + 1) };
+}
+
+// Shared by both the Cashfree/COD path and the GoKwik path — same
+// commit-with-rollback semantics either way, kept in one place so they can
+// never silently diverge. Returns the coupon record (or null) for the
+// caller to pass into the order-write's own rollback-on-DB-failure step.
+async function commitCoupon(totals, userId, orderId, customer) {
+  if (!totals.couponCode) return null;
+  const coupon = await couponService.findByCode(totals.couponCode);
+  if (coupon.oneUsePerCustomer) {
+    await couponRedemptionService.record({
+      code: coupon.code,
+      userId,
+      orderId,
+      customerName: customer.name,
+      customerEmail: customer.email,
+      discountAmount: totals.discountAmount,
+    });
+  }
+  try {
+    await couponService.incrementUsage(coupon.code, coupon.usageLimit);
+  } catch (err) {
+    if (coupon.oneUsePerCustomer) {
+      await couponRedemptionService.remove(coupon.code, userId).catch(() => {});
+    }
+    throw err;
+  }
+  return coupon;
+}
+
+async function rollbackCoupon(coupon, userId) {
+  if (!coupon) return;
+  if (coupon.oneUsePerCustomer) {
+    await couponRedemptionService.remove(coupon.code, userId).catch(() => {});
+  }
+  await couponService.decrementUsage(coupon.code).catch(() => {});
 }
 
 // Shared by checkout and the quote preview — re-derives every line item from
@@ -75,6 +134,14 @@ async function quote(req, res) {
 
 async function checkout(req, res) {
   const { customer, address, couponCode, paymentMethod } = checkoutSchema.parse(req.body);
+
+  // SANDBOX ONLY: an allowlisted test user is routed entirely through
+  // GoKwik (both COD and Online) instead of Cashfree — checked first and
+  // returns early, so every real customer below hits byte-identical code
+  // to before this was added.
+  if (await isGoKwikAvailable(req.user.id)) {
+    return checkoutViaGoKwik(req, res, { customer, address, couponCode, paymentMethod });
+  }
 
   // Step 3: reject up front if Online isn't enabled for this user — before
   // any Cashfree call, coupon commit, or DB write. The API must not trust
@@ -120,31 +187,10 @@ async function checkout(req, res) {
 
   // Step 5: commit the coupon (redemption record + incrementUsage) — same
   // as the existing COD path, including its existing rollback-on-failure.
-  let coupon = null;
-  if (totals.couponCode) {
-    coupon = await couponService.findByCode(totals.couponCode);
-    if (coupon.oneUsePerCustomer) {
-      await couponRedemptionService.record({
-        code: coupon.code,
-        userId: req.user.id,
-        orderId,
-        customerName: customer.name,
-        customerEmail: customer.email,
-        discountAmount: totals.discountAmount,
-      });
-    }
-    try {
-      await couponService.incrementUsage(coupon.code, coupon.usageLimit);
-    } catch (err) {
-      if (coupon.oneUsePerCustomer) {
-        await couponRedemptionService.remove(coupon.code, req.user.id).catch(() => {});
-      }
-      throw err;
-      // If a Cashfree order was already created above, it's harmless and
-      // self-cleaning — it simply expires on Cashfree's side with no money
-      // ever collected. No extra cleanup code needed for this edge case.
-    }
-  }
+  // If a Cashfree order was already created above and this throws, it's
+  // harmless and self-cleaning — it simply expires on Cashfree's side with
+  // no money ever collected. No extra cleanup code needed for this edge case.
+  const coupon = await commitCoupon(totals, req.user.id, orderId, customer);
 
   // Step 6: write the DB order. If this fails after the coupon was already
   // committed, roll the coupon back the same way, so the customer can
@@ -170,12 +216,7 @@ async function checkout(req, res) {
       paymentExpiresAt,
     });
   } catch (err) {
-    if (coupon) {
-      if (coupon.oneUsePerCustomer) {
-        await couponRedemptionService.remove(coupon.code, req.user.id).catch(() => {});
-      }
-      await couponService.decrementUsage(coupon.code).catch(() => {});
-    }
+    await rollbackCoupon(coupon, req.user.id);
     throw new AppError('Could not place your order — please try again.', 500, 'ORDER_CREATE_FAILED');
   }
 
@@ -184,6 +225,115 @@ async function checkout(req, res) {
 
   // Step 8: return.
   created(res, { order, paymentSessionId });
+}
+
+// SANDBOX ONLY — GoKwik equivalent of checkout() above, same 8-step order of
+// operations, isolated into its own function so the Cashfree path above is
+// never at risk of a GoKwik-specific bug. Per the approved plan, GoKwik
+// creates an order for BOTH COD and Online (so its COD risk check runs on
+// every order, not just prepaid ones) — unlike Cashfree, which is never
+// involved for COD at all.
+async function checkoutViaGoKwik(req, res, { customer, address, couponCode, paymentMethod }) {
+  // Step 1: resolve items + compute totals (no side effects) — identical to
+  // the Cashfree path; pricing math never differs by payment provider.
+  const orderItems = await resolveOrderItems(req.user.id);
+  const totals = await pricingService.calculateTotals({
+    items: orderItems,
+    couponCode,
+    paymentMethod,
+    userId: req.user.id,
+  });
+
+  // Step 2: mint the order id up front — this is GoKwik's `moid`.
+  const orderId = uuid();
+
+  // Step 3: n/a — GoKwik has no "online payments enabled" style gate in the
+  // notes; both 'cod' and 'upi' are first-class payment_details.method_id
+  // values it documents.
+
+  // Step 4: call GoKwik FIRST, before touching the coupon or our DB.
+  // Failure here needs no rollback — nothing has been committed yet.
+  const { firstName, lastName } = splitName(customer.name);
+  const gokwikAddress = {
+    first_name: firstName,
+    last_name: lastName,
+    address_1: address.line1,
+    address_2: address.landmark || undefined,
+    city: address.city,
+    state: address.state,
+    postcode: address.pincode,
+    country: address.country,
+    email: customer.email,
+    phone: customer.phone,
+  };
+
+  let paymentExpiresAt = null;
+  if (paymentMethod === 'Online') {
+    paymentExpiresAt = new Date(Date.now() + PAYMENT_WINDOW_MS).toISOString();
+  }
+
+  const gkOrder = await gokwikService.createOrder({
+    orderId,
+    items: orderItems,
+    totals,
+    paymentMethod,
+    customerIp: req.ip,
+    customerUserAgent: req.headers['user-agent'],
+    billingAddress: gokwikAddress,
+    shippingAddress: gokwikAddress,
+  });
+
+  // Step 5: commit the coupon — identical helper/semantics as the Cashfree path.
+  const coupon = await commitCoupon(totals, req.user.id, orderId, customer);
+
+  // Step 6: write the DB order, tagged with paymentProvider so every other
+  // code path (webhook, admin status updates, the expiry sweep) can tell a
+  // GoKwik order apart from a Cashfree one.
+  let order;
+  try {
+    order = await orderService.createOrder({
+      orderId,
+      userId: req.user.id,
+      items: orderItems,
+      customer,
+      address,
+      subtotal: totals.subtotal,
+      couponCode: totals.couponCode,
+      discountAmount: totals.discountAmount,
+      gstPercent: totals.gstPercent,
+      gstAmount: totals.gstAmount,
+      shipping: totals.shipping,
+      paymentMethod: totals.paymentMethod,
+      codCharge: totals.codCharge,
+      total: totals.total,
+      paymentStatus: paymentMethod === 'Online' ? 'awaiting_payment' : 'not_required',
+      paymentExpiresAt,
+      paymentProvider: 'gokwik',
+      gokwikOid: gkOrder.gokwik_oid,
+      gokwikRequestId: gkOrder.request_id,
+      gokwikMid: gkOrder.mid,
+      gokwikEnvironment: env.gokwik.env,
+    });
+  } catch (err) {
+    await rollbackCoupon(coupon, req.user.id);
+    throw new AppError('Could not place your order — please try again.', 500, 'ORDER_CREATE_FAILED');
+  }
+
+  // Step 7: clear the cart.
+  await cartService.clearCart(req.user.id);
+
+  // Step 8: return everything the frontend's gokwikSdk.initPayment needs.
+  // order_type mirrors payment_details.method_id sent to GoKwik above.
+  created(res, {
+    order,
+    gokwik: {
+      requestId: gkOrder.request_id,
+      gokwikOid: gkOrder.gokwik_oid,
+      mid: gkOrder.mid,
+      orderType: paymentMethod === 'Online' ? 'upi' : 'cod',
+      environment: env.gokwik.env,
+    },
+  });
 }
 
 async function listMyOrders(req, res) {
@@ -229,6 +379,23 @@ async function getPaymentStatus(req, res) {
 
   if (order.paymentMethod !== 'Online' || order.paymentStatus !== 'awaiting_payment') {
     return ok(res, { paymentStatus: order.paymentStatus, needsReview: order.needsReview || false });
+  }
+
+  // SANDBOX ONLY — isolated branch so the Cashfree reconciliation logic
+  // below is never touched by GoKwik work. TODO(confirm): the notes only
+  // document 200/202/404/400 for payment/verify, with no explicit
+  // "expired" signal — unlike Cashfree, this never auto-expires a GoKwik
+  // order from here; it only ever confirms a successful payment.
+  if (order.paymentProvider === 'gokwik') {
+    const verifyResult = await gokwikService.verifyPayment({ gokwikOid: order.gokwikOid, total: order.total }).catch(() => null);
+    if (verifyResult?.transaction_id) {
+      await orderService.markPaidGoKwik(order.orderId, {
+        gokwikTransactionId: verifyResult.transaction_id,
+        paidAt: new Date().toISOString(),
+      });
+    }
+    const freshGoKwik = await orderService.findById(req.params.id);
+    return ok(res, { paymentStatus: freshGoKwik.paymentStatus, needsReview: freshGoKwik.needsReview || false });
   }
 
   const cfStatus = await paymentService.fetchOrderStatus(order.orderId).catch(() => null);
@@ -277,6 +444,13 @@ async function retryPayment(req, res) {
   }
   if (order.paymentExpiresAt && new Date(order.paymentExpiresAt).getTime() < Date.now()) {
     throw new AppError('This order has expired. Please place a new order.', 400, 'PAYMENT_EXPIRED');
+  }
+  // TODO(confirm): gokwik_integration_notes.md doesn't document a
+  // resume-existing-session endpoint (only order/create, which would mint a
+  // new GoKwik order) — this never calls Cashfree with a GoKwik order's id,
+  // which would otherwise 404 against an order Cashfree never created.
+  if (order.paymentProvider === 'gokwik') {
+    throw new AppError('Please place a new order to retry payment.', 400, 'NOT_RETRYABLE');
   }
 
   const cfStatus = await paymentService.fetchOrderStatus(order.orderId);
@@ -357,6 +531,29 @@ async function adminUpdateStatus(req, res) {
   }
 
   await orderService.updateStatus(req.params.id, status);
+
+  // SANDBOX ONLY, best-effort — a GoKwik API hiccup must never block an
+  // admin's ability to update order status, so failures are logged and
+  // swallowed, never thrown. TODO(confirm): our own status set (Pending/
+  // Confirmed/Processing/Shipped/Delivered/Cancelled) doesn't map 1:1 onto
+  // GoKwik's documented list (pending/processing/shipped/in-transit/
+  // delayed/rto/ofd/cancelled/returned/delivered/completed) — "Confirmed"
+  // has no direct equivalent, so it's sent as 'processing' until GoKwik
+  // confirms the right value.
+  if (order.paymentProvider === 'gokwik') {
+    const GOKWIK_STATUS_MAP = {
+      Pending: 'pending',
+      Confirmed: 'processing',
+      Processing: 'processing',
+      Shipped: 'shipped',
+      Delivered: 'delivered',
+      Cancelled: 'cancelled',
+    };
+    gokwikService
+      .updateOrder({ orderId: order.orderId, gokwikOid: order.gokwikOid, status: GOKWIK_STATUS_MAP[status] || 'processing' })
+      .catch((err) => logger.error('gokwik order/update failed', { orderId: order.orderId, message: err.message }));
+  }
+
   ok(res, { updated: true, status });
 }
 

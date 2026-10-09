@@ -45,6 +45,15 @@ async function createOrder({
   total,
   paymentStatus,
   paymentExpiresAt,
+  // Optional — only set by the GoKwik sandbox checkout path (orderController's
+  // checkoutViaGoKwik). Absent/undefined for every normal Cashfree/COD order,
+  // which is how the rest of the codebase tells the two paths apart
+  // (order.paymentProvider === 'gokwik').
+  paymentProvider,
+  gokwikOid,
+  gokwikRequestId,
+  gokwikMid,
+  gokwikEnvironment,
 }) {
   const now = new Date().toISOString();
   const order = {
@@ -74,6 +83,7 @@ async function createOrder({
     // also drives the expiry sweep's GSI query below.
     paymentStatus: paymentStatus || 'not_required',
     ...(paymentExpiresAt ? { paymentExpiresAt } : {}),
+    ...(paymentProvider ? { paymentProvider, gokwikOid, gokwikRequestId, gokwikMid, gokwikEnvironment } : {}),
     paymentAttemptCount: 0,
     couponReleased: false,
     needsReview: false,
@@ -269,6 +279,62 @@ async function markPaid(orderId, { cfPaymentId, paidAt }) {
   }
 }
 
+// GoKwik sandbox equivalent of markPaid above — deliberately a separate,
+// self-contained function (not a shared helper with markPaid) so the live
+// Cashfree payment-confirmation logic is never touched by GoKwik work.
+// Same two-step conditional-write pattern for the same reason: idempotent
+// against a duplicate webhook, and safe against the expiry sweep racing it.
+async function markPaidGoKwik(orderId, { gokwikTransactionId, paidAt }) {
+  const now = new Date().toISOString();
+  try {
+    await docClient.send(
+      new UpdateCommand({
+        TableName: TABLE,
+        Key: { orderId },
+        UpdateExpression: 'SET paymentStatus = :paid, gokwikTransactionId = :txnId, paidAt = :paidAt, updatedAt = :now',
+        ConditionExpression: 'paymentStatus = :awaiting',
+        ExpressionAttributeValues: {
+          ':paid': 'paid',
+          ':awaiting': 'awaiting_payment',
+          ':txnId': gokwikTransactionId,
+          ':paidAt': paidAt,
+          ':now': now,
+        },
+      })
+    );
+    await bumpStatusToConfirmedIfPending(orderId);
+    return { updated: true, late: false };
+  } catch (err) {
+    if (err.name !== 'ConditionalCheckFailedException') throw err;
+  }
+
+  try {
+    await docClient.send(
+      new UpdateCommand({
+        TableName: TABLE,
+        Key: { orderId },
+        UpdateExpression:
+          'SET paymentStatus = :paid, gokwikTransactionId = :txnId, paidAt = :paidAt, needsReview = :true, needsReviewReason = :reason, updatedAt = :now',
+        ConditionExpression: 'paymentStatus = :expired',
+        ExpressionAttributeValues: {
+          ':paid': 'paid',
+          ':expired': 'expired',
+          ':txnId': gokwikTransactionId,
+          ':paidAt': paidAt,
+          ':true': true,
+          ':reason': 'Payment confirmed after order expiry (GoKwik) — coupon was already released; order honored at the price paid.',
+          ':now': now,
+        },
+      })
+    );
+    await bumpStatusToConfirmedIfPending(orderId);
+    return { updated: true, late: true };
+  } catch (err) {
+    if (err.name === 'ConditionalCheckFailedException') return { updated: false };
+    throw err;
+  }
+}
+
 // Flags an order for admin attention without changing its payment state —
 // used for the amount-mismatch case (a webhook reports success but the
 // confirmed amount doesn't match the order total): not auto-accepted, not
@@ -390,6 +456,7 @@ module.exports = {
   hasUserReceivedDeliveredProduct,
   markPaymentAttempt,
   markPaid,
+  markPaidGoKwik,
   markExpired,
   flagForReview,
   recordRefundPending,

@@ -8,6 +8,7 @@ import { Banknote, Wallet } from 'lucide-react';
 import { addressService } from '../services/addressService';
 import { authService } from '../services/authService';
 import { redirectToCashfreeCheckout } from '../utils/cashfree';
+import { openGoKwikCheckout } from '../utils/gokwik';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { EmptyState } from '../components/EmptyState';
@@ -272,6 +273,37 @@ export function Checkout() {
         // nothing after this line runs until the customer is redirected
         // back to the return_url set at order creation.
         await redirectToCashfreeCheckout(response.paymentSessionId);
+        return;
+      }
+
+      // SANDBOX ONLY — present only for allowlisted test accounts (see
+      // orderController's isGoKwikAvailable). COD orders routed through
+      // GoKwik fall through to the normal "navigate to confirmation" path
+      // below — per gokwik_integration_notes.md, initPayment for COD is
+      // called from the confirmation/thank-you page instead, not here.
+      if (paymentMethod === 'Online' && response.gokwik) {
+        const result = await openGoKwikCheckout({
+          mid: response.gokwik.mid,
+          moid: response.order.orderId,
+          orderType: response.gokwik.orderType,
+          requestId: response.gokwik.requestId,
+          gokwikOid: response.gokwik.gokwikOid,
+          environment: response.gokwik.environment,
+        }).catch((err) => ({ outcome: 'failure', data: { message: err.message } }));
+
+        if (result.outcome === 'success') {
+          // Never trust this alone — OrderConfirmation polls the backend,
+          // which always re-confirms with GoKwik's payment/verify.
+          showToast('Confirming your payment…', 'success');
+          navigate(`/order-confirmation/${response.order.orderId}`);
+          return;
+        }
+        if (result.outcome === 'modal_closed') {
+          showToast('Payment window closed — you can try again.', 'warning');
+          return;
+        }
+        // failure — data.type per the notes: ORDER_CANCELLED or WRONG_ORDER_OBJECT
+        showToast(result.data?.message || 'Payment failed. Please try again.', 'error');
         return;
       }
 

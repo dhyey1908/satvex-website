@@ -42,6 +42,22 @@ Parameters:
   CashfreeApiVersion:
     Type: String
     Default: '2023-08-01'
+  GoKwikAppId:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: >
+      GoKwik appid header. SANDBOX ONLY — leave blank/unused until the open
+      questions in gokwik_integration_notes.md are confirmed with GoKwik.
+  GoKwikAppSecret:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: GoKwik appsecret header — sent alongside GoKwikAppId on every server-to-server call.
+  GoKwikEnv:
+    Type: String
+    Default: sandbox
+    AllowedValues: [sandbox, production]
 
 Globals:
   Function:
@@ -311,6 +327,9 @@ Resources:
           CASHFREE_SECRET_KEY: !Ref CashfreeSecretKey
           CASHFREE_ENV: !Ref CashfreeEnv
           CASHFREE_API_VERSION: !Ref CashfreeApiVersion
+          GOKWIK_APP_ID: !Ref GoKwikAppId
+          GOKWIK_APP_SECRET: !Ref GoKwikAppSecret
+          GOKWIK_ENV: !Ref GoKwikEnv
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UsersTable

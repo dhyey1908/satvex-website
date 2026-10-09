@@ -33,6 +33,11 @@ const codSettingsSchema = z.object({
 const paymentsSettingsSchema = z.object({
   onlineEnabled: z.boolean().default(false),
   onlineTestUserIds: z.array(z.string().trim().min(1)).max(50).default([]),
+  // SANDBOX ONLY — mirrors onlineEnabled/onlineTestUserIds exactly. Must stay
+  // false in production settings until GoKwik confirms the open questions in
+  // gokwik_integration_notes.md (see 18-payment-gateway.md's GoKwik section).
+  gokwikEnabled: z.boolean().default(false),
+  gokwikTestUserIds: z.array(z.string().trim().min(1)).max(50).default([]),
 });
 
 const updateSettingsSchema = z.object({

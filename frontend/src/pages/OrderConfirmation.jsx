@@ -7,6 +7,7 @@ import { Loader } from '../components/Loader';
 import { ErrorState } from '../components/ErrorState';
 import { useToast } from '../context/ToastContext';
 import { redirectToCashfreeCheckout } from '../utils/cashfree';
+import { openGoKwikCheckout } from '../utils/gokwik';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import './OrderConfirmation.css';
 
@@ -28,6 +29,7 @@ export function OrderConfirmation() {
   const [pollTick, setPollTick] = useState(0);
   const [retrying, setRetrying] = useState(false);
   const pollCount = useRef(0);
+  const gokwikCodNotified = useRef(false);
 
   useEffect(() => {
     orderService
@@ -35,6 +37,27 @@ export function OrderConfirmation() {
       .then(({ order: o }) => setOrder(o))
       .catch((err) => setError(err.message));
   }, [id]);
+
+  // SANDBOX ONLY, best-effort — per gokwik_integration_notes.md, COD orders
+  // call initPayment here on the thank-you page rather than at checkout
+  // time. Fire-once (ref guard against StrictMode's double-invoke), never
+  // blocks rendering, and never changes what the customer sees either way —
+  // the order is already placed and confirmed regardless of this call's
+  // outcome. TODO(confirm): the notes don't say what GoKwik does with this
+  // call for COD or what, if anything, we should do with its result.
+  useEffect(() => {
+    if (!order || gokwikCodNotified.current) return;
+    if (order.paymentProvider !== 'gokwik' || order.paymentMethod !== 'COD') return;
+    gokwikCodNotified.current = true;
+    openGoKwikCheckout({
+      mid: order.gokwikMid,
+      moid: order.orderId,
+      orderType: 'cod',
+      requestId: order.gokwikRequestId,
+      gokwikOid: order.gokwikOid,
+      environment: order.gokwikEnvironment,
+    }).catch(() => {});
+  }, [order]);
 
   const awaitingPayment = order?.paymentMethod === 'Online' && order?.paymentStatus === 'awaiting_payment';
 

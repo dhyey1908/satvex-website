@@ -22,7 +22,10 @@ const DEFAULT_SETTINGS = {
   // stays false until the live-cutover checklist is complete.
   // onlineTestUserIds lets specific accounts exercise the real Cashfree
   // sandbox flow while it's invisible to everyone else.
-  payments: { onlineEnabled: false, onlineTestUserIds: [] },
+  // gokwikEnabled/gokwikTestUserIds mirror the same pattern for the GoKwik
+  // sandbox integration — stays false until GoKwik confirms the open
+  // questions in gokwik_integration_notes.md.
+  payments: { onlineEnabled: false, onlineTestUserIds: [], gokwikEnabled: false, gokwikTestUserIds: [] },
   whyPillars: [
     { title: 'Flexible', description: 'Moves comfortably with your everyday needs.' },
     { title: 'Comfortable', description: 'Lightweight designs created for effortless everyday use.' },
