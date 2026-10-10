@@ -140,6 +140,40 @@
 .gallery-thumb:hover { border-color: var(--color-outline); }
 .gallery-thumb.active { border-color: var(--color-primary); box-shadow: 0 0 0 1px var(--color-primary); }
 
+/* Video thumbnail reuses the same box as an image thumb (no layout
+   difference in the row) but reads clearly as "the video" via the brand
+   burgundy fill + centered play icon, rather than a frame preview — avoids
+   depending on browser-specific first-frame rendering just for a thumbnail. */
+.gallery-thumb-video {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary);
+  color: var(--color-surface);
+}
+.gallery-thumb-video:hover { background: var(--color-accent); border-color: var(--color-accent); }
+.gallery-thumb-video.active { border-color: var(--color-primary); box-shadow: 0 0 0 1px var(--color-primary); }
+
+/* Reuses the .gallery-main class itself for sizing (flex/aspect-ratio/
+   border-radius/overflow/border/width — see above) so switching between
+   video and images never shifts layout; this only overrides what's
+   actually different about a video vs. a zoomable image. */
+.gallery-main-video {
+  position: relative;
+  background: #000;
+  cursor: default;
+}
+.gallery-main-video video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* contain, not cover — never crop the product out of frame regardless of
+     the uploaded video's own aspect ratio. */
+  object-fit: contain;
+  background: #000;
+}
+
 @media (max-width: 640px) {
   .product-gallery { flex-direction: column-reverse; }
   .gallery-thumbs {

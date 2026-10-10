@@ -258,7 +258,7 @@ export function ProductDetail() {
 
       <div className="product-detail-grid">
         <div className="pdp-gallery-wrap">
-          <ProductGallery images={product.images} activeImage={activeVariant?.image} alt={product.name} />
+          <ProductGallery images={product.images} activeImage={activeVariant?.image} videoUrl={product.videoUrl} alt={product.name} />
           <div className="pdp-gallery-actions">
             <button
               type="button"

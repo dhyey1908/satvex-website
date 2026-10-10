@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ZoomIn } from 'lucide-react';
+import { X, ZoomIn, Play } from 'lucide-react';
 import { ImagePlaceholder } from './ImagePlaceholder';
 import { crossfade } from '../motion';
 import { usePreloadedImage } from '../hooks/usePreloadedImage';
@@ -12,9 +12,13 @@ import './ProductGallery.css';
 // swipe-to-change-image from fighting over the same gesture.
 const SWIPE_THRESHOLD = 40;
 
-export function ProductGallery({ images, activeImage, alt }) {
+export function ProductGallery({ images, activeImage, videoUrl, alt }) {
   const gallery = images && images.length > 0 ? images : [];
   const [index, setIndex] = useState(0);
+  // Images are still the default view (per spec — nothing about the
+  // existing image gallery changes); the video is an extra thumbnail the
+  // customer opts into, same as switching to any other thumbnail.
+  const [showVideo, setShowVideo] = useState(false);
   const [zoomOpen, setZoomOpen] = useState(false);
   const [magnified, setMagnified] = useState(false);
   const touchStartX = useRef(null);
@@ -38,56 +42,82 @@ export function ProductGallery({ images, activeImage, alt }) {
     });
   }
 
+  function selectImage(i) {
+    setShowVideo(false);
+    setIndex(i);
+  }
+
   return (
     <div className="product-gallery">
-      {gallery.length > 1 && (
+      {(gallery.length > 1 || videoUrl) && (
         <div className="gallery-thumbs">
           {gallery.map((src, i) => (
             <button
               key={src + i}
               type="button"
-              className={`gallery-thumb ${!activeImage && i === index ? 'active' : ''}`}
-              onClick={() => setIndex(i)}
+              className={`gallery-thumb ${!activeImage && !showVideo && i === index ? 'active' : ''}`}
+              onClick={() => selectImage(i)}
               aria-label={`View image ${i + 1}`}
             >
               <img src={src} alt="" loading="lazy" />
             </button>
           ))}
+          {videoUrl && (
+            <button
+              type="button"
+              className={`gallery-thumb gallery-thumb-video ${showVideo ? 'active' : ''}`}
+              onClick={() => setShowVideo(true)}
+              aria-label="Play product video"
+            >
+              <Play size={20} fill="currentColor" />
+            </button>
+          )}
         </div>
       )}
-      <button
-        type="button"
-        className="gallery-main"
-        onClick={() => {
-          if (!mainImage) return;
-          setMagnified(false);
-          setZoomOpen(true);
-        }}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        aria-label="View full-size image"
-      >
-        <AnimatePresence>
-          {mainImage ? (
-            <motion.img
-              key={mainImage}
-              src={mainImage}
-              alt={alt}
-              loading="eager"
-              initial={crossfade.initial}
-              animate={crossfade.animate}
-              exit={crossfade.exit}
-            />
-          ) : (
-            <ImagePlaceholder />
+      {showVideo && videoUrl ? (
+        // Plain div, not the zoomable image button below — native <video
+        // controls> already gives play/pause/mute/fullscreen, nothing here
+        // should intercept taps meant for those controls. Same gallery-main
+        // box/aspect-ratio as the image view, so switching between video and
+        // images never shifts layout.
+        <div className="gallery-main gallery-main-video">
+          <video src={videoUrl} controls playsInline aria-label={`${alt} — product video`} />
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="gallery-main"
+          onClick={() => {
+            if (!mainImage) return;
+            setMagnified(false);
+            setZoomOpen(true);
+          }}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          aria-label="View full-size image"
+        >
+          <AnimatePresence>
+            {mainImage ? (
+              <motion.img
+                key={mainImage}
+                src={mainImage}
+                alt={alt}
+                loading="eager"
+                initial={crossfade.initial}
+                animate={crossfade.animate}
+                exit={crossfade.exit}
+              />
+            ) : (
+              <ImagePlaceholder />
+            )}
+          </AnimatePresence>
+          {mainImage && (
+            <span className="gallery-zoom-hint">
+              <ZoomIn size={14} /> Tap to zoom
+            </span>
           )}
-        </AnimatePresence>
-        {mainImage && (
-          <span className="gallery-zoom-hint">
-            <ZoomIn size={14} /> Tap to zoom
-          </span>
-        )}
-      </button>
+        </button>
+      )}
 
       {createPortal(
         <AnimatePresence>

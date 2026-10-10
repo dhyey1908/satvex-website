@@ -4,6 +4,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { productService } from '../../services/productService';
 import { useToast } from '../../context/ToastContext';
 import { ImageUploader } from '../../components/ImageUploader';
+import { MediaUploader } from '../../components/MediaUploader';
 import { Loader } from '../../components/Loader';
 import { minLength, slug as validateSlug, positiveNumber, runValidators, hasErrors } from '../../utils/validators';
 import { mapServerFieldErrors } from '../../utils/formErrors';
@@ -308,8 +309,18 @@ export function AdminProductForm() {
             </div>
           </div>
           <div className="field">
-            <label htmlFor="videoUrl">Video URL</label>
-            <input id="videoUrl" value={form.videoUrl} onChange={(e) => setField('videoUrl', e.target.value)} />
+            <label htmlFor="videoUrl">Product Video (optional, one MP4)</label>
+            {form.videoUrl ? (
+              <div className="repeatable-row">
+                <video src={form.videoUrl} muted style={{ width: 80, height: 80, objectFit: 'contain', background: '#000' }} />
+                <span style={{ flex: 2, fontSize: '0.8rem', wordBreak: 'break-all' }}>{form.videoUrl}</span>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setField('videoUrl', '')}>
+                  <Trash2 size={14} /> Remove
+                </button>
+              </div>
+            ) : (
+              <MediaUploader folder="videos" kind="video" onUploaded={(url) => setField('videoUrl', url)} />
+            )}
           </div>
           <div className="checkbox-field">
             <input
