@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ZoomIn, Play } from 'lucide-react';
@@ -15,10 +15,11 @@ const SWIPE_THRESHOLD = 40;
 export function ProductGallery({ images, activeImage, videoUrl, alt }) {
   const gallery = images && images.length > 0 ? images : [];
   const [index, setIndex] = useState(0);
-  // Images are still the default view (per spec — nothing about the
-  // existing image gallery changes); the video is an extra thumbnail the
-  // customer opts into, same as switching to any other thumbnail.
-  const [showVideo, setShowVideo] = useState(false);
+  // When a product has a video, it's the default view (plays automatically,
+  // muted — the only autoplay browsers reliably allow). Selecting any image
+  // thumbnail switches to images, same as before; nothing about the image
+  // gallery itself changes.
+  const [showVideo, setShowVideo] = useState(Boolean(videoUrl));
   const [zoomOpen, setZoomOpen] = useState(false);
   const [magnified, setMagnified] = useState(false);
   const touchStartX = useRef(null);
@@ -26,6 +27,15 @@ export function ProductGallery({ images, activeImage, videoUrl, alt }) {
   // Keeps showing the previous main image until the newly-requested one has
   // actually loaded, so switching color/thumbnail never shows a blank gap.
   const mainImage = usePreloadedImage(targetImage);
+
+  // ProductDetail doesn't remount this component on every product-page
+  // navigation (same route, just a new slug) — re-derive the default
+  // whenever the product itself changes, so landing on a video product
+  // after a non-video one (or vice versa) still opens on the right view.
+  useEffect(() => {
+    setShowVideo(Boolean(videoUrl));
+    setIndex(0);
+  }, [videoUrl]);
 
   function handleTouchStart(e) {
     touchStartX.current = e.touches[0].clientX;
@@ -81,7 +91,15 @@ export function ProductGallery({ images, activeImage, videoUrl, alt }) {
         // box/aspect-ratio as the image view, so switching between video and
         // images never shifts layout.
         <div className="gallery-main gallery-main-video">
-          <video src={videoUrl} controls playsInline aria-label={`${alt} — product video`} />
+          <video
+            key={videoUrl}
+            src={videoUrl}
+            controls
+            playsInline
+            autoPlay
+            muted
+            aria-label={`${alt} — product video`}
+          />
         </div>
       ) : (
         <button
