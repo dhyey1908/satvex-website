@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { XCircle, RotateCcw, ArrowRight, Star } from 'lucide-react';
 import { OrderStatusBadge } from './OrderStatusBadge';
+import { PaymentStatusBadge } from './PaymentStatusBadge';
 import './OrderCard.css';
 
 export function OrderCard({ order, onCancel, onReorder, reviewedProductIds }) {
@@ -14,7 +15,10 @@ export function OrderCard({ order, onCancel, onReorder, reviewedProductIds }) {
           <p className="order-card-number">#{order.orderId.slice(0, 8)}</p>
           <p className="order-card-date">{new Date(order.createdAt).toLocaleDateString()}</p>
         </div>
-        <OrderStatusBadge status={order.status} />
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <OrderStatusBadge status={order.status} />
+          <PaymentStatusBadge order={order} />
+        </div>
       </div>
 
       <div className="order-card-items">

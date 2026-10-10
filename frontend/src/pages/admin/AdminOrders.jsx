@@ -8,7 +8,17 @@ import { ErrorState } from '../../components/ErrorState';
 import { EmptyState } from '../../components/EmptyState';
 import { Pagination } from '../../components/Pagination';
 import { usePagination } from '../../hooks/usePagination';
+import { effectivePaymentStatus } from '../../utils/paymentStatus';
 import './Admin.css';
+
+const ADMIN_PAYMENT_LIST_LABELS = {
+  paid: 'Paid',
+  expired: 'Expired',
+  failed: 'Failed',
+  dropped: 'Dropped',
+  confirming: 'Pending',
+  awaiting: 'Awaiting',
+};
 
 const STATUSES = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 const PAGE_SIZE = 20;
@@ -203,17 +213,7 @@ export function AdminOrders() {
                     <td>
                       {o.paymentMethod === 'Online' ? (
                         <span className={`pill ${o.paymentStatus === 'paid' ? 'pill-active' : 'pill-inactive'}`}>
-                          {o.paymentStatus === 'paid'
-                            ? 'Paid'
-                            : o.paymentStatus === 'expired'
-                            ? 'Expired'
-                            : o.paymentStatus === 'awaiting_payment' && o.lastPaymentAttemptStatus === 'FAILED'
-                            ? 'Failed'
-                            : o.paymentStatus === 'awaiting_payment' && o.lastPaymentAttemptStatus === 'USER_DROPPED'
-                            ? 'Dropped'
-                            : o.paymentStatus === 'awaiting_payment' && o.lastPaymentAttemptStatus === 'PENDING'
-                            ? 'Pending'
-                            : 'Awaiting'}
+                          {ADMIN_PAYMENT_LIST_LABELS[effectivePaymentStatus(o)] || o.paymentStatus}
                         </span>
                       ) : (
                         <span className="text-label-sm">COD</span>

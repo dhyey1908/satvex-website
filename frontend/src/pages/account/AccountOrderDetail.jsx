@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Star } from 'lucide-react';
+import { Star, Loader2 } from 'lucide-react';
 import { orderService } from '../../services/orderService';
 import { reviewService } from '../../services/reviewService';
 import { useToast } from '../../context/ToastContext';
 import { useConfirm } from '../../context/ConfirmContext';
 import { OrderStatusBadge } from '../../components/OrderStatusBadge';
+import { PaymentStatusBadge } from '../../components/PaymentStatusBadge';
 import { OrderTimeline } from '../../components/OrderTimeline';
 import { OrderSummary } from '../../components/OrderSummary';
 import { Loader } from '../../components/Loader';
 import { ErrorState } from '../../components/ErrorState';
 import { useDocumentMeta } from '../../hooks/useDocumentMeta';
+import { redirectToCashfreeCheckout } from '../../utils/cashfree';
+import { canRetryPayment } from '../../utils/paymentStatus';
 import './Account.css';
 
 export function AccountOrderDetail() {
@@ -22,6 +25,7 @@ export function AccountOrderDetail() {
   const [order, setOrder] = useState(null);
   const [error, setError] = useState(null);
   const [reviewedProductIds, setReviewedProductIds] = useState(new Set());
+  const [retrying, setRetrying] = useState(false);
 
   function load() {
     setError(null);
@@ -66,25 +70,60 @@ export function AccountOrderDetail() {
     }
   }
 
+  async function handleRetryPayment() {
+    setRetrying(true);
+    try {
+      const { paymentSessionId, alreadyPaid } = await orderService.retryPayment(id);
+      if (alreadyPaid) {
+        showToast('Good news — this order is already paid.', 'success');
+        load();
+        return;
+      }
+      await redirectToCashfreeCheckout(paymentSessionId);
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setRetrying(false);
+    }
+  }
+
   if (error) return <ErrorState message={error} onRetry={load} />;
   if (!order) return <Loader label="Loading order…" />;
 
   const canCancel = order.status === 'Pending' || order.status === 'Confirmed';
+  const showRetryPayment = canRetryPayment(order);
 
   return (
     <div>
       <div className="account-page-header-row" style={{ marginBottom: 16 }}>
         <h1 className="text-headline-lg">Order #{order.orderId.slice(0, 8)}</h1>
-        <OrderStatusBadge status={order.status} />
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <OrderStatusBadge status={order.status} />
+          <PaymentStatusBadge order={order} />
+        </div>
       </div>
 
       <div className="account-form" style={{ maxWidth: '100%', marginBottom: 24 }}>
         <OrderTimeline status={order.status} />
       </div>
 
-      <p className="field-hint" style={{ marginBottom: 20 }}>
+      <p className="field-hint" style={{ marginBottom: showRetryPayment ? 8 : 20 }}>
         Payment Method: <strong>{order.paymentMethod === 'COD' ? 'Cash on Delivery' : 'Online Payment'}</strong>
       </p>
+
+      {showRetryPayment && (
+        <div style={{ marginBottom: 20 }}>
+          <p className="field-hint" style={{ marginBottom: 8 }}>
+            {order.lastPaymentAttemptStatus === 'FAILED' && 'Your last payment attempt failed — nothing was charged.'}
+            {order.lastPaymentAttemptStatus === 'USER_DROPPED' && 'Your last payment attempt was not completed — nothing was charged.'}
+            {!order.lastPaymentAttemptStatus && 'This order is still awaiting payment.'}{' '}
+            You can pay again below.
+          </p>
+          <button type="button" className="btn btn-primary btn-sm" onClick={handleRetryPayment} disabled={retrying}>
+            {retrying ? <Loader2 size={16} className="btn-spinner" /> : 'Retry Payment'}
+          </button>
+        </div>
+      )}
 
       <div style={{ maxWidth: 480, marginBottom: 20 }}>
         <OrderSummary

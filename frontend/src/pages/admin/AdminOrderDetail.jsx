@@ -7,32 +7,27 @@ import { useConfirm } from '../../context/ConfirmContext';
 import { Loader } from '../../components/Loader';
 import { ErrorState } from '../../components/ErrorState';
 import { OrderSummary } from '../../components/OrderSummary';
+import { effectivePaymentStatus } from '../../utils/paymentStatus';
 import './Admin.css';
 
 const STATUSES = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 
-const PAYMENT_STATUS_LABELS = {
+// Admin's own, more detailed labels for the same underlying classification
+// the customer-facing pages use (utils/paymentStatus.js's
+// effectivePaymentStatus) — same source of truth, kept consistent across
+// the whole app, just worded for an internal audience here.
+const ADMIN_PAYMENT_LABELS = {
   not_required: 'N/A (Cash on Delivery)',
-  awaiting_payment: 'Awaiting Payment',
   paid: 'Paid',
   expired: 'Expired — Unpaid',
+  failed: 'Awaiting Payment — last attempt Failed',
+  dropped: 'Awaiting Payment — last attempt Dropped',
+  confirming: 'Awaiting Payment — confirming with bank',
+  awaiting: 'Awaiting Payment',
 };
 
-// paymentStatus itself only ever holds not_required/awaiting_payment/paid/
-// expired — it has no distinct "failed"/"dropped" value (changing that
-// enum touches every place that reads it, so this stays a display-only
-// overlay using lastPaymentAttemptStatus, which markPaymentAttempt already
-// records from Cashfree's webhook/reconciliation). Per Cashfree's docs, a
-// FAILED/USER_DROPPED attempt doesn't close the order — the customer can
-// still retry — so the underlying paymentStatus correctly stays
-// 'awaiting_payment' while this label reflects what actually happened.
 function paymentStatusLabel(order) {
-  if (order.paymentStatus === 'awaiting_payment') {
-    if (order.lastPaymentAttemptStatus === 'FAILED') return 'Awaiting Payment — last attempt Failed';
-    if (order.lastPaymentAttemptStatus === 'USER_DROPPED') return 'Awaiting Payment — last attempt Dropped';
-    if (order.lastPaymentAttemptStatus === 'PENDING') return 'Awaiting Payment — confirming with bank';
-  }
-  return PAYMENT_STATUS_LABELS[order.paymentStatus] || order.paymentStatus;
+  return ADMIN_PAYMENT_LABELS[effectivePaymentStatus(order)] || order.paymentStatus;
 }
 
 export function AdminOrderDetail() {
