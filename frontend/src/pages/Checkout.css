@@ -263,3 +263,17 @@
     text-align: center;
   }
 }
+
+@media (max-width: 400px) {
+  /* The 860px-tier sizing above still runs ~15-20px past the available
+     width right at 320px (measured: "3 Payment"'s label clipped at the
+     container edge) — one more, narrower-only reduction closes that gap
+     so all three steps actually fit with no scrolling needed even at the
+     narrowest supported width. Everything else about the mobile layout
+     (sticky bar, hidden inline buttons, etc.) is unaffected — this block
+     only ever touches step-tab sizing. */
+  .checkout-step-dot { width: 18px; height: 18px; font-size: 0.64rem; }
+  .checkout-step-label { font-size: 0.68rem; }
+  .checkout-step-line { width: 12px; margin: 0 4px; }
+  .checkout-step { gap: 4px; }
+}
