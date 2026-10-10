@@ -12,6 +12,7 @@ import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { EmptyState } from '../components/EmptyState';
 import { OrderSummary } from '../components/OrderSummary';
+import { FreeShippingBanner } from '../components/FreeShippingBanner';
 import { AddressCard } from '../components/AddressCard';
 import { AddressFormFields, ADDRESS_FORM_EMPTY, addressFormToPayload, validateAddressForm } from '../components/AddressFormFields';
 import { PageHeader } from '../components/PageHeader';
@@ -87,21 +88,31 @@ export function Checkout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Authoritative, backend-computed breakdown (GST/shipping/COD/total) for
-  // the currently-selected payment method — never computed on the frontend.
-  // Changing the delivery address never touches this: pricing here depends
-  // only on cart contents, coupon, and payment method, never on address —
-  // so switching addresses can never duplicate or drop a charge.
+  // Authoritative, backend-computed breakdown (GST/shipping/COD/total) —
+  // never computed on the frontend. Includes the delivery pincode as soon
+  // as one is known (a selected saved address, or a fully-typed new one) so
+  // the real Shiprocket-rate shipping charge shows well before the Payment
+  // step, not just a flat guess — without a pincode yet, the backend still
+  // returns a usable quote via its own flat fallback charge.
+  const selectedAddressForQuote = addresses?.find((a) => a.addressId === selectedAddressId);
+  const typedPincode = form.pincode.trim();
+  const deliveryPincode =
+    selectedAddressForQuote && !showNewAddressForm
+      ? selectedAddressForQuote.pincode
+      : /^\d{6}$/.test(typedPincode)
+      ? typedPincode
+      : undefined;
+
   useEffect(() => {
     let cancelled = false;
     orderService
-      .quote({ couponCode: appliedCoupon?.code, paymentMethod })
+      .quote({ couponCode: appliedCoupon?.code, paymentMethod, pincode: deliveryPincode })
       .then((data) => !cancelled && setQuote(data))
       .catch(() => !cancelled && setQuote(null));
     return () => {
       cancelled = true;
     };
-  }, [appliedCoupon, paymentMethod]);
+  }, [appliedCoupon, paymentMethod, deliveryPincode]);
 
   function setField(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -563,6 +574,7 @@ export function Checkout() {
         </form>
 
         <div className="checkout-summary-col">
+          <FreeShippingBanner quote={quote} />
           <OrderSummary
             subtotal={quote?.subtotal ?? total}
             discountAmount={discountAmount}
@@ -572,6 +584,7 @@ export function Checkout() {
             shippingEnabled={quote?.shippingEnabled}
             shipping={quote?.shipping}
             codCharge={quote?.codCharge}
+            prepaidDiscount={quote?.prepaidDiscount}
             total={grandTotal}
             savingsAmount={savingsAmount}
           />

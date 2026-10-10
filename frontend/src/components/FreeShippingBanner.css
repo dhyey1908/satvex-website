@@ -1,0 +1,22 @@
+.free-shipping-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding: var(--sp-sm) var(--sp-md);
+  margin-top: var(--sp-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-success-bg);
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.free-shipping-banner svg {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  padding: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  box-sizing: border-box;
+}

@@ -95,6 +95,7 @@ export function AccountOrderDetail() {
           gstAmount={order.gstAmount}
           shipping={order.shipping}
           codCharge={order.codCharge}
+          prepaidDiscount={order.prepaidDiscount}
           total={order.total}
           itemsSlot={
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8 }}>

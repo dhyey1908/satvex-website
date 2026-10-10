@@ -40,8 +40,10 @@ async function createOrder({
   gstPercent,
   gstAmount,
   shipping,
+  shippingCourier,
   paymentMethod,
   codCharge,
+  prepaidDiscount,
   total,
   paymentStatus,
   paymentExpiresAt,
@@ -62,8 +64,10 @@ async function createOrder({
     gstPercent: gstPercent || 0,
     gstAmount: gstAmount || 0,
     shipping: shipping || 0,
+    shippingCourier: shippingCourier || null,
     paymentMethod: paymentMethod || 'COD',
     codCharge: codCharge || 0,
+    prepaidDiscount: prepaidDiscount || 0,
     total,
     // COD has no payment gate to wait for, so it auto-confirms on
     // placement rather than sitting at Pending for no reason. Online stays

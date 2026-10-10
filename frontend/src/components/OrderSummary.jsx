@@ -10,6 +10,7 @@ export function OrderSummary({
   shippingEnabled = true,
   shipping = 0,
   codCharge = 0,
+  prepaidDiscount = 0,
   total,
   savingsAmount = 0,
   itemsSlot,
@@ -53,6 +54,12 @@ export function OrderSummary({
         <div className="order-summary-row">
           <span>COD Charge</span>
           <span>₹{codCharge.toFixed(2)}</span>
+        </div>
+      )}
+      {prepaidDiscount > 0 && (
+        <div className="order-summary-row order-summary-discount">
+          <span>Prepaid Discount</span>
+          <span>−₹{prepaidDiscount.toFixed(2)}</span>
         </div>
       )}
       <div className="order-summary-row order-summary-total">

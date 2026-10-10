@@ -5,13 +5,15 @@ import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { orderService } from '../services/orderService';
+import { addressService } from '../services/addressService';
 import { CartItem } from '../components/CartItem';
 import { OrderSummary } from '../components/OrderSummary';
+import { FreeShippingBanner } from '../components/FreeShippingBanner';
 import { CouponInput } from '../components/CouponInput';
 import { EmptyState } from '../components/EmptyState';
 import { PageHeader } from '../components/PageHeader';
 import { Loader } from '../components/Loader';
-import { CheckCircle2, ArrowLeft, Trash2, Bookmark, ShieldCheck, RotateCcw, Lock } from 'lucide-react';
+import { ArrowLeft, Trash2, Bookmark, ShieldCheck, RotateCcw, Lock } from 'lucide-react';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import './Cart.css';
 
@@ -28,6 +30,21 @@ export function Cart() {
   // stage, so the preview intentionally omits any COD charge (quoted as
   // "Online") — Checkout shows the real total once a payment method is picked.
   const [quote, setQuote] = useState(null);
+  // Default/first saved address's pincode, if any — lets the real
+  // Shiprocket-rate shipping charge show as early as the cart page, not
+  // just at checkout. Without a saved address, the quote still works, just
+  // using the flat fallback charge until a pincode is known.
+  const [defaultPincode, setDefaultPincode] = useState(null);
+
+  useEffect(() => {
+    addressService
+      .list()
+      .then(({ addresses }) => {
+        const def = addresses.find((a) => a.isDefault) || addresses[0];
+        if (def) setDefaultPincode(def.pincode);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (items.length === 0) {
@@ -36,13 +53,13 @@ export function Cart() {
     }
     let cancelled = false;
     orderService
-      .quote({ couponCode: appliedCoupon?.code, paymentMethod: 'Online' })
+      .quote({ couponCode: appliedCoupon?.code, paymentMethod: 'Online', pincode: defaultPincode || undefined })
       .then((data) => !cancelled && setQuote(data))
       .catch(() => !cancelled && setQuote(null));
     return () => {
       cancelled = true;
     };
-  }, [items, appliedCoupon]);
+  }, [items, appliedCoupon, defaultPincode]);
 
   async function handleQuantityChange(cartItemId, quantity) {
     try {
@@ -117,12 +134,6 @@ export function Cart() {
     0
   );
   const savingsAmount = productSavings + discountAmount;
-  const shippingBannerText =
-    quote && quote.shippingEnabled && quote.shipping === 0
-      ? 'Your order ships free.'
-      : quote && quote.shippingEnabled
-      ? `Add more to your bag for free shipping.`
-      : 'Every order ships free — no minimum required.';
 
   return (
     <div className="container section cart-page">
@@ -134,10 +145,7 @@ export function Cart() {
 
       <PageHeader title="Shopping Bag" count={items.length} countLabel="items" />
 
-      <div className="cart-free-shipping-banner">
-        <CheckCircle2 size={16} />
-        <span>{shippingBannerText}</span>
-      </div>
+      <FreeShippingBanner quote={quote} />
 
       <div className="cart-layout">
         <div className="cart-items">
@@ -190,6 +198,7 @@ export function Cart() {
               gstAmount={quote?.gstAmount}
               shippingEnabled={quote?.shippingEnabled}
               shipping={quote?.shipping}
+              prepaidDiscount={quote?.prepaidDiscount}
               total={grandTotal}
               savingsAmount={savingsAmount}
             >

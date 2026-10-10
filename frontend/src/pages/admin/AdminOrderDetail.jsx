@@ -120,6 +120,7 @@ export function AdminOrderDetail() {
           gstAmount={order.gstAmount}
           shipping={order.shipping}
           codCharge={order.codCharge}
+          prepaidDiscount={order.prepaidDiscount}
           total={order.total}
         />
       </div>
