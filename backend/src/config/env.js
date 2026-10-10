@@ -27,6 +27,7 @@ const env = {
     coupons: required('TABLE_COUPONS', 'satvex_coupons'),
     reviews: required('TABLE_REVIEWS', 'satvex_reviews'),
     couponRedemptions: required('TABLE_COUPON_REDEMPTIONS', 'satvex_coupon_redemptions'),
+    shipmentJobs: required('TABLE_SHIPMENT_JOBS', 'satvex_shipment_jobs'),
   },
 
   s3: {
@@ -48,6 +49,11 @@ const env = {
   shiprocket: {
     email: process.env.SHIPROCKET_EMAIL,
     password: process.env.SHIPROCKET_PASSWORD,
+    // Compared against the x-api-key header Shiprocket sends if a webhook
+    // security token is configured in their panel (Settings > API >
+    // Webhooks) — our own choice of value, set in both places. Optional —
+    // left blank, the check is skipped (not recommended once this is live).
+    webhookToken: process.env.SHIPROCKET_WEBHOOK_TOKEN,
   },
 
   jwt: {

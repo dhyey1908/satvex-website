@@ -49,6 +49,13 @@ export function AdminSettings() {
     setForm((prev) => ({ ...prev, [group]: { ...prev[group], [key]: value } }));
   }
 
+  function setShiprocketPackageField(key, value) {
+    setForm((prev) => ({
+      ...prev,
+      shiprocket: { ...prev.shiprocket, defaultPackage: { ...prev.shiprocket?.defaultPackage, [key]: value } },
+    }));
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     const errors = validate(form);
@@ -233,21 +240,80 @@ export function AdminSettings() {
             />
             Use real Shiprocket rates for shipping (off = always use the fallback flat charge below)
           </label>
-          <div className="field" style={{ maxWidth: 220, marginTop: 8 }}>
-            <label htmlFor="pickupPincode">Pickup Pincode (Rajkot)</label>
-            <input
-              id="pickupPincode"
-              type="text"
-              maxLength={6}
-              value={form.shiprocket?.pickupPincode ?? ''}
-              onChange={(e) => setNestedField('shiprocket', 'pickupPincode', e.target.value)}
-              placeholder="e.g. 360001"
-            />
+          <div className="admin-form-grid" style={{ marginTop: 8 }}>
+            <div className="field">
+              <label htmlFor="pickupPincode">Pickup Pincode (Rajkot)</label>
+              <input
+                id="pickupPincode"
+                type="text"
+                maxLength={6}
+                value={form.shiprocket?.pickupPincode ?? ''}
+                onChange={(e) => setNestedField('shiprocket', 'pickupPincode', e.target.value)}
+                placeholder="e.g. 360001"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="pickupLocation">Pickup Location Nickname</label>
+              <input
+                id="pickupLocation"
+                type="text"
+                value={form.shiprocket?.pickupLocation ?? ''}
+                onChange={(e) => setNestedField('shiprocket', 'pickupLocation', e.target.value)}
+                placeholder="Must match Shiprocket panel exactly"
+              />
+            </div>
           </div>
           <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
-            Keep the toggle off until a real Shiprocket account and pickup pincode are confirmed — shipping still
-            works while off, using the flat fallback charge below.
+            Pickup Location Nickname must exactly match a pickup address already created in the Shiprocket panel
+            (Settings → Pickup Addresses) — used when actually booking a shipment. Pickup Pincode is separate, used
+            only for rate quotes. Keep the toggle off until both are confirmed — shipping still works while off,
+            using the flat fallback charge below, and no shipment is ever booked.
           </p>
+
+          <p style={{ fontSize: '0.85rem', margin: '12px 0 4px' }}>Default Package (every order ships under 500g)</p>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <div className="field">
+              <label htmlFor="srLength">Length (cm)</label>
+              <input
+                id="srLength"
+                type="number"
+                step="0.1"
+                value={form.shiprocket?.defaultPackage?.lengthCm ?? ''}
+                onChange={(e) => setShiprocketPackageField('lengthCm', Number(e.target.value))}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="srBreadth">Breadth (cm)</label>
+              <input
+                id="srBreadth"
+                type="number"
+                step="0.1"
+                value={form.shiprocket?.defaultPackage?.breadthCm ?? ''}
+                onChange={(e) => setShiprocketPackageField('breadthCm', Number(e.target.value))}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="srHeight">Height (cm)</label>
+              <input
+                id="srHeight"
+                type="number"
+                step="0.1"
+                value={form.shiprocket?.defaultPackage?.heightCm ?? ''}
+                onChange={(e) => setShiprocketPackageField('heightCm', Number(e.target.value))}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="srWeight">Weight (kg, max 0.5)</label>
+              <input
+                id="srWeight"
+                type="number"
+                step="0.01"
+                max="0.5"
+                value={form.shiprocket?.defaultPackage?.weightKg ?? ''}
+                onChange={(e) => setShiprocketPackageField('weightKg', Number(e.target.value))}
+              />
+            </div>
+          </div>
         </div>
 
         <div className="admin-form-section">

@@ -1,5 +1,6 @@
 const orderService = require('../services/orderService');
 const paymentService = require('../services/paymentService');
+const shipmentService = require('../services/shipmentService');
 const AppError = require('../utils/AppError');
 const { ok } = require('../utils/response');
 
@@ -76,6 +77,7 @@ async function webhook(req, res) {
     cfPaymentId: data.payment?.cf_payment_id,
     paidAt: data.payment?.payment_time || new Date().toISOString(),
   });
+  await shipmentService.triggerShipmentIfNeeded(orderId);
 
   ok(res, { received: true });
 }

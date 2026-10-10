@@ -13,6 +13,7 @@ const orderService = require('./services/orderService');
 const paymentService = require('./services/paymentService');
 const couponService = require('./services/couponService');
 const couponRedemptionService = require('./services/couponRedemptionService');
+const shipmentService = require('./services/shipmentService');
 
 const BATCH_DELAY_MS = 250;
 
@@ -43,6 +44,7 @@ async function processOrder(order) {
     const payments = await paymentService.fetchOrderPayments(order.orderId).catch(() => []);
     const success = payments.find((p) => p.payment_status === 'SUCCESS');
     await orderService.markPaid(order.orderId, { cfPaymentId: success?.cf_payment_id, paidAt: new Date().toISOString() });
+    await shipmentService.triggerShipmentIfNeeded(order.orderId);
     return 'reconciled-paid';
   }
 

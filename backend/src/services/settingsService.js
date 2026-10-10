@@ -37,11 +37,15 @@ const DEFAULT_SETTINGS = {
   // onlineTestUserIds lets specific accounts exercise the real Cashfree
   // sandbox flow while it's invisible to everyone else.
   payments: { onlineEnabled: false, onlineTestUserIds: [] },
-  // Minimal slice for Step 1's rate lookup — extended in Step 2 with
-  // pickupLocation/defaultPackage/booking fields once shipment creation is
-  // built. Stays disabled (no real Shiprocket calls) until pickupPincode is
-  // set and enabled is flipped on.
-  shiprocket: { enabled: false, pickupPincode: '' },
+  // Stays disabled (no real Shiprocket calls — neither rate quotes nor
+  // shipment booking) until pickupPincode/pickupLocation are set and
+  // enabled is flipped on. Do not turn on.
+  shiprocket: {
+    enabled: false,
+    pickupPincode: '',
+    pickupLocation: '',
+    defaultPackage: { lengthCm: 10, breadthCm: 10, heightCm: 5, weightKg: 0.3 },
+  },
   whyPillars: [
     { title: 'Flexible', description: 'Moves comfortably with your everyday needs.' },
     { title: 'Comfortable', description: 'Lightweight designs created for effortless everyday use.' },

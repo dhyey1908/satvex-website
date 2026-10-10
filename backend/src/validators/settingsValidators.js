@@ -61,16 +61,31 @@ const codSettingsSchema = z.object({
   prepaidDiscountValue: z.number().min(0).default(0),
 });
 
-// Minimal slice needed for Step 1's rate lookup (pickupPincode + the
-// enabled gate). Extended with pickupLocation/defaultPackage/booking fields
-// in Step 2 — not added yet since nothing reads them until then.
+// Not real/measured per-product data — the catalog has no weight/dimensions
+// at all, and the whole store ships under 500g (max 3 combos/order per the
+// brief), so one fixed default package is used for every shipment.
+const shiprocketDefaultPackageSchema = z.object({
+  lengthCm: z.number().positive().default(10),
+  breadthCm: z.number().positive().default(10),
+  heightCm: z.number().positive().default(5),
+  weightKg: z.number().positive().max(0.5).default(0.3),
+});
+
 const shiprocketSettingsSchema = z.object({
   // Stays false until a real Shiprocket account is connected — while false,
-  // shippingRateService never attempts a network call, it goes straight to
-  // fallbackFlatCharge. OFF by default per the rollout rule.
+  // shippingRateService never attempts a rate-quote call (fallbackFlatCharge
+  // is used instead) and shipmentService never attempts to book a real
+  // shipment. OFF by default per the rollout rule — do not turn on.
   enabled: z.boolean().default(false),
   // Rajkot pickup pincode, used as the 'from' side of every rate quote.
   pickupPincode: z.string().trim().regex(/^[0-9]{6}$/).optional().or(z.literal('')),
+  // Must exactly match a pickup location nickname already created in the
+  // Shiprocket panel (Settings > Pickup Addresses) — Shiprocket's order/
+  // create endpoint rejects one that doesn't exist. Different from
+  // pickupPincode above (that's for the rate-quote endpoint, which takes a
+  // raw postcode, not a nickname).
+  pickupLocation: z.string().trim().default(''),
+  defaultPackage: shiprocketDefaultPackageSchema.default({}),
 });
 
 const paymentsSettingsSchema = z.object({

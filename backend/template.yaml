@@ -56,6 +56,15 @@ Parameters:
     NoEcho: true
     Default: ''
     Description: Shiprocket API user password.
+  ShiprocketWebhookToken:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: >
+      Our own chosen token, set as the "security token" in Shiprocket's
+      Settings > API > Webhooks panel. Compared against the x-api-key header
+      on every webhook call. Optional — leave blank to skip the check
+      entirely (not recommended once this is live).
 
 Globals:
   Function:
@@ -115,10 +124,23 @@ Resources:
           AttributeType: S
         - AttributeName: paymentExpiresAt
           AttributeType: S
+        - AttributeName: shiprocketOrderId
+          AttributeType: S
       KeySchema:
         - AttributeName: orderId
           KeyType: HASH
       GlobalSecondaryIndexes:
+        # Lets Shiprocket's tracking webhook (which identifies the order by
+        # Shiprocket's own order id, sr_order_id) look the order up by
+        # Query instead of Scan. Orders that haven't been sent to Shiprocket
+        # yet simply have no shiprocketOrderId attribute and so no entry in
+        # this index — same omission behavior as the expiry index above.
+        - IndexName: shiprocketOrderId-index
+          KeySchema:
+            - AttributeName: shiprocketOrderId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
         - IndexName: userId-createdAt-index
           KeySchema:
             - AttributeName: userId
@@ -137,6 +159,36 @@ Resources:
             - AttributeName: paymentStatus
               KeyType: HASH
             - AttributeName: paymentExpiresAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  # Capped-retry queue for Shiprocket shipment creation (Step 2) — mirrors
+  # the paymentStatus-paymentExpiresAt-index pattern above: a GSI on
+  # (status, nextAttemptAt) so the scheduled sweep Queries just the due jobs
+  # instead of Scanning. jobId === the order's own orderId (1:1, natural
+  # idempotency key).
+  ShipmentJobsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub satvex_shipment_jobs_${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: jobId
+          AttributeType: S
+        - AttributeName: status
+          AttributeType: S
+        - AttributeName: nextAttemptAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: jobId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: status-nextAttemptAt-index
+          KeySchema:
+            - AttributeName: status
+              KeyType: HASH
+            - AttributeName: nextAttemptAt
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
@@ -327,6 +379,8 @@ Resources:
           CASHFREE_API_VERSION: !Ref CashfreeApiVersion
           SHIPROCKET_EMAIL: !Ref ShiprocketEmail
           SHIPROCKET_PASSWORD: !Ref ShiprocketPassword
+          SHIPROCKET_WEBHOOK_TOKEN: !Ref ShiprocketWebhookToken
+          TABLE_SHIPMENT_JOBS: !Ref ShipmentJobsTable
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UsersTable
@@ -350,6 +404,8 @@ Resources:
             TableName: !Ref ReviewsTable
         - DynamoDBCrudPolicy:
             TableName: !Ref CouponRedemptionsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ShipmentJobsTable
         - S3CrudPolicy:
             BucketName: !Ref MediaBucket
         - SESCrudPolicy:
@@ -388,6 +444,13 @@ Resources:
           CASHFREE_SECRET_KEY: !Ref CashfreeSecretKey
           CASHFREE_ENV: !Ref CashfreeEnv
           CASHFREE_API_VERSION: !Ref CashfreeApiVersion
+          # Needed transitively: a reconciled-paid order now calls
+          # shipmentService.triggerShipmentIfNeeded, which reads settings
+          # and (if Shiprocket is enabled) writes a shipment retry job.
+          TABLE_SETTINGS: !Ref SettingsTable
+          TABLE_SHIPMENT_JOBS: !Ref ShipmentJobsTable
+          SHIPROCKET_EMAIL: !Ref ShiprocketEmail
+          SHIPROCKET_PASSWORD: !Ref ShiprocketPassword
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref OrdersTable
@@ -395,6 +458,10 @@ Resources:
             TableName: !Ref CouponsTable
         - DynamoDBCrudPolicy:
             TableName: !Ref CouponRedemptionsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SettingsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ShipmentJobsTable
       Events:
         HourlySweep:
           Type: Schedule
@@ -405,6 +472,43 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/satvex-expire-payments-${Stage}
+      RetentionInDays: 14
+
+  # Retries queued Shiprocket shipment-creation jobs every 10 minutes — the
+  # immediate attempt in triggerShipmentIfNeeded tries first; this is the
+  # fallback for whatever didn't succeed right away, with capped attempts
+  # and a failed-jobs list (see shipmentJobService.js / shipmentSweep.js).
+  ShipmentSweepFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub satvex-shipment-sweep-${Stage}
+      CodeUri: ./
+      Handler: src/shipmentSweep.handler
+      Timeout: 60
+      Environment:
+        Variables:
+          TABLE_ORDERS: !Ref OrdersTable
+          TABLE_SHIPMENT_JOBS: !Ref ShipmentJobsTable
+          TABLE_SETTINGS: !Ref SettingsTable
+          SHIPROCKET_EMAIL: !Ref ShiprocketEmail
+          SHIPROCKET_PASSWORD: !Ref ShiprocketPassword
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrdersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ShipmentJobsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SettingsTable
+      Events:
+        TenMinuteSweep:
+          Type: Schedule
+          Properties:
+            Schedule: rate(10 minutes)
+
+  ShipmentSweepFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/satvex-shipment-sweep-${Stage}
       RetentionInDays: 14
 
   ## ---------- S3: product/variant media ----------
@@ -563,3 +667,5 @@ Outputs:
     Value: !Ref ReviewsTable
   CouponRedemptionsTableName:
     Value: !Ref CouponRedemptionsTable
+  ShipmentJobsTableName:
+    Value: !Ref ShipmentJobsTable
