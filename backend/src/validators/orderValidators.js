@@ -21,6 +21,10 @@ const checkoutSchema = z.object({
 const quoteSchema = z.object({
   couponCode: z.string().trim().min(1).optional(),
   paymentMethod: z.enum(['COD', 'Online']).default('COD'),
+  // Optional — cart-page preview before an address is chosen won't have
+  // this; checkout always does. Without it, shipping uses the flat
+  // fallback charge (see pricingService.calculateTotals).
+  pincode: z.string().trim().regex(/^[0-9]{6}$/, 'Enter a valid 6-digit pincode.').optional(),
 });
 
 const updateOrderStatusSchema = z.object({

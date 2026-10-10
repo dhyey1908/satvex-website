@@ -224,44 +224,136 @@ export function AdminSettings() {
         </div>
 
         <div className="admin-form-section">
-          <h3>Shipping</h3>
+          <h3>Shiprocket Connection</h3>
           <label className="checkbox-field">
             <input
               type="checkbox"
-              checked={form.shipping?.enabled ?? true}
-              onChange={(e) => setNestedField('shipping', 'enabled', e.target.checked)}
+              checked={form.shiprocket?.enabled ?? false}
+              onChange={(e) => setNestedField('shiprocket', 'enabled', e.target.checked)}
             />
-            Enable Shipping Charges
+            Use real Shiprocket rates for shipping (off = always use the fallback flat charge below)
           </label>
-          {form.shipping?.enabled && (
-            <div className="admin-form-grid">
-              <div className="field">
-                <label htmlFor="shippingCharge">Shipping Charge (₹)</label>
-                <input
-                  id="shippingCharge"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.shipping?.charge ?? 0}
-                  onChange={(e) => setNestedField('shipping', 'charge', Number(e.target.value))}
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="freeShippingThreshold">Free Shipping Above (₹, optional)</label>
-                <input
-                  id="freeShippingThreshold"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.shipping?.freeThreshold ?? ''}
-                  onChange={(e) =>
-                    setNestedField('shipping', 'freeThreshold', e.target.value === '' ? undefined : Number(e.target.value))
-                  }
-                  placeholder="Leave blank for no free-shipping threshold"
-                />
-              </div>
+          <div className="field" style={{ maxWidth: 220, marginTop: 8 }}>
+            <label htmlFor="pickupPincode">Pickup Pincode (Rajkot)</label>
+            <input
+              id="pickupPincode"
+              type="text"
+              maxLength={6}
+              value={form.shiprocket?.pickupPincode ?? ''}
+              onChange={(e) => setNestedField('shiprocket', 'pickupPincode', e.target.value)}
+              placeholder="e.g. 360001"
+            />
+          </div>
+          <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
+            Keep the toggle off until a real Shiprocket account and pickup pincode are confirmed — shipping still
+            works while off, using the flat fallback charge below.
+          </p>
+        </div>
+
+        <div className="admin-form-section">
+          <h3>Dynamic Shipping (Shiprocket rate)</h3>
+          <div className="admin-form-grid">
+            <div className="field">
+              <label htmlFor="handlingMargin">Handling Margin (₹)</label>
+              <input
+                id="handlingMargin"
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.shipping?.handlingMargin ?? 0}
+                onChange={(e) => setNestedField('shipping', 'handlingMargin', Number(e.target.value))}
+              />
             </div>
-          )}
+            <div className="field">
+              <label htmlFor="minCharge">Minimum Charge (₹)</label>
+              <input
+                id="minCharge"
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.shipping?.minCharge ?? 0}
+                onChange={(e) => setNestedField('shipping', 'minCharge', Number(e.target.value))}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="maxCharge">Maximum Cap (₹, optional)</label>
+              <input
+                id="maxCharge"
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.shipping?.maxCharge ?? ''}
+                onChange={(e) =>
+                  setNestedField('shipping', 'maxCharge', e.target.value === '' ? null : Number(e.target.value))
+                }
+                placeholder="Leave blank for no cap"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="roundTo">Round To</label>
+              <select
+                id="roundTo"
+                value={form.shipping?.roundTo ?? 1}
+                onChange={(e) => setNestedField('shipping', 'roundTo', Number(e.target.value))}
+              >
+                <option value={1}>Nearest ₹1</option>
+                <option value={5}>Nearest ₹5</option>
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="fallbackFlatCharge">Fallback Flat Charge (₹)</label>
+              <input
+                id="fallbackFlatCharge"
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.shipping?.fallbackFlatCharge ?? 59}
+                onChange={(e) => setNestedField('shipping', 'fallbackFlatCharge', Number(e.target.value))}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="freeThreshold">Free Shipping Above (₹)</label>
+              <input
+                id="freeThreshold"
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.shipping?.freeThreshold ?? 700}
+                onChange={(e) => setNestedField('shipping', 'freeThreshold', Number(e.target.value))}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="courierSelectionRule">Courier Selection Rule</label>
+              <select
+                id="courierSelectionRule"
+                value={form.shipping?.courierSelectionRule ?? 'lowest_rate'}
+                onChange={(e) => setNestedField('shipping', 'courierSelectionRule', e.target.value)}
+              >
+                <option value="lowest_rate">Lowest Rate</option>
+                <option value="fastest">Fastest (by ETD)</option>
+              </select>
+            </div>
+          </div>
+          <label className="checkbox-field" style={{ marginTop: 8 }}>
+            <input
+              type="checkbox"
+              checked={form.shipping?.rateIncludesGst ?? false}
+              onChange={(e) => setNestedField('shipping', 'rateIncludesGst', e.target.checked)}
+            />
+            Shiprocket&apos;s rate already includes GST (don&apos;t add it again)
+          </label>
+          <label className="checkbox-field">
+            <input
+              type="checkbox"
+              checked={form.shipping?.rateIncludesCodCharge ?? false}
+              onChange={(e) => setNestedField('shipping', 'rateIncludesCodCharge', e.target.checked)}
+            />
+            Shiprocket&apos;s COD rate already includes their COD handling charge (skip our flat COD fee)
+          </label>
+          <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
+            Both checkboxes above are unconfirmed until a real Shiprocket response is checked (run{' '}
+            <code>scripts/shiprocket-sample-rate.js</code>) — leave them off until then.
+          </p>
         </div>
 
         <div className="admin-form-section">
@@ -287,6 +379,35 @@ export function AdminSettings() {
               />
             </div>
           )}
+          <div className="admin-form-grid" style={{ marginTop: 8 }}>
+            <div className="field">
+              <label htmlFor="prepaidDiscountType">Prepaid Discount</label>
+              <select
+                id="prepaidDiscountType"
+                value={form.cod?.prepaidDiscountType ?? 'none'}
+                onChange={(e) => setNestedField('cod', 'prepaidDiscountType', e.target.value)}
+              >
+                <option value="none">None</option>
+                <option value="percentage">Percentage</option>
+                <option value="flat">Flat (₹)</option>
+              </select>
+            </div>
+            {form.cod?.prepaidDiscountType && form.cod.prepaidDiscountType !== 'none' && (
+              <div className="field">
+                <label htmlFor="prepaidDiscountValue">
+                  Discount Value {form.cod.prepaidDiscountType === 'percentage' ? '(%)' : '(₹)'}
+                </label>
+                <input
+                  id="prepaidDiscountValue"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.cod?.prepaidDiscountValue ?? 0}
+                  onChange={(e) => setNestedField('cod', 'prepaidDiscountValue', Number(e.target.value))}
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="admin-form-section">

@@ -62,13 +62,14 @@ async function resolveOrderItems(userId) {
 // total) so the frontend never has to guess/recompute any of it — Cart and
 // Checkout just display what this returns. Never mutates coupon usage.
 async function quote(req, res) {
-  const { couponCode, paymentMethod } = quoteSchema.parse(req.body);
+  const { couponCode, paymentMethod, pincode } = quoteSchema.parse(req.body);
   const orderItems = await resolveOrderItems(req.user.id);
   const totals = await pricingService.calculateTotals({
     items: orderItems,
     couponCode,
     paymentMethod,
     userId: req.user.id,
+    deliveryPincode: pincode,
   });
   ok(res, { ...totals, items: orderItems });
 }
@@ -90,6 +91,7 @@ async function checkout(req, res) {
     couponCode,
     paymentMethod,
     userId: req.user.id,
+    deliveryPincode: address.pincode,
   });
 
   // Step 2: mint the order id up front — also used as Cashfree's order_id,

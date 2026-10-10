@@ -16,13 +16,32 @@ const DEFAULT_SETTINGS = {
   authImage: '',
   aboutImage: '',
   tax: { enabled: true, percent: 18 },
-  shipping: { enabled: true, charge: 50, freeThreshold: 999 },
-  cod: { enabled: true, charge: 40 },
+  // Dynamic, Shiprocket-rate-based shipping — see pricingService.js /
+  // shippingRateService.js. fallbackFlatCharge keeps pricing working even
+  // before Shiprocket is connected (shiprocket.enabled stays false until
+  // then, so every quote uses this flat charge).
+  shipping: {
+    handlingMargin: 0,
+    minCharge: 0,
+    maxCharge: null,
+    roundTo: 1,
+    fallbackFlatCharge: 59,
+    freeThreshold: 700,
+    rateIncludesGst: false,
+    rateIncludesCodCharge: false,
+    courierSelectionRule: 'lowest_rate',
+  },
+  cod: { enabled: true, charge: 59, prepaidDiscountType: 'none', prepaidDiscountValue: 0 },
   // Sandbox keys must never be reachable by real customers — onlineEnabled
   // stays false until the live-cutover checklist is complete.
   // onlineTestUserIds lets specific accounts exercise the real Cashfree
   // sandbox flow while it's invisible to everyone else.
   payments: { onlineEnabled: false, onlineTestUserIds: [] },
+  // Minimal slice for Step 1's rate lookup — extended in Step 2 with
+  // pickupLocation/defaultPackage/booking fields once shipment creation is
+  // built. Stays disabled (no real Shiprocket calls) until pickupPincode is
+  // set and enabled is flipped on.
+  shiprocket: { enabled: false, pickupPincode: '' },
   whyPillars: [
     { title: 'Flexible', description: 'Moves comfortably with your everyday needs.' },
     { title: 'Comfortable', description: 'Lightweight designs created for effortless everyday use.' },

@@ -10,6 +10,8 @@
     "start": "node src/server.js",
     "seed": "node src/scripts/seed.js",
     "create-admin": "node src/scripts/createAdmin.js",
+    "shiprocket-sample-rate": "node src/scripts/shiprocket-sample-rate.js",
+    "test": "node --test src/**/*.test.js",
     "deploy": "sam build && sam deploy",
     "deploy:prod": "sam build && sam deploy --config-env prod"
   },

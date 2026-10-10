@@ -42,6 +42,20 @@ Parameters:
   CashfreeApiVersion:
     Type: String
     Default: '2023-08-01'
+  ShiprocketEmail:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: >
+      Shiprocket API user email (Settings > API > Add New API User — must
+      differ from the main panel login email). Leave blank until ready —
+      gated separately by settings.shiprocket.enabled, which defaults to
+      false so no real API calls happen until explicitly turned on.
+  ShiprocketPassword:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: Shiprocket API user password.
 
 Globals:
   Function:
@@ -311,6 +325,8 @@ Resources:
           CASHFREE_SECRET_KEY: !Ref CashfreeSecretKey
           CASHFREE_ENV: !Ref CashfreeEnv
           CASHFREE_API_VERSION: !Ref CashfreeApiVersion
+          SHIPROCKET_EMAIL: !Ref ShiprocketEmail
+          SHIPROCKET_PASSWORD: !Ref ShiprocketPassword
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UsersTable

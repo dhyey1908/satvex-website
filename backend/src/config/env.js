@@ -42,6 +42,14 @@ const env = {
     apiVersion: process.env.CASHFREE_API_VERSION || '2023-08-01',
   },
 
+  // Real Shiprocket account — no sandbox/live split on Shiprocket's own
+  // side. Gated by settings.shiprocket.enabled (defaults false) so no real
+  // API calls happen until explicitly turned on.
+  shiprocket: {
+    email: process.env.SHIPROCKET_EMAIL,
+    password: process.env.SHIPROCKET_PASSWORD,
+  },
+
   jwt: {
     secret: required('JWT_SECRET', 'dev-only-insecure-secret'),
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',

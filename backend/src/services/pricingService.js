@@ -2,6 +2,7 @@ const productService = require('./productService');
 const couponService = require('./couponService');
 const couponRedemptionService = require('./couponRedemptionService');
 const settingsService = require('./settingsService');
+const shippingRateService = require('./shippingRateService');
 const AppError = require('../utils/AppError');
 
 /**
@@ -111,10 +112,15 @@ async function validateCoupon(code, subtotal, userId) {
  * increments usage or records a redemption — callers that actually place an
  * order do that separately, after this succeeds.
  *
- * Order of operations (matches the spec's flow exactly):
- *   subtotal -> coupon discount -> taxable amount -> GST -> shipping -> COD -> total
+ * Order of operations:
+ *   subtotal -> coupon discount -> taxable amount -> GST -> free-shipping
+ *   check -> dynamic shipping quote -> COD fee -> prepaid discount -> total
+ *
+ * deliveryPincode is optional (e.g. the cart-page quote preview before an
+ * address is chosen) — without it, shipping always uses the flat fallback
+ * charge, same as when Shiprocket isn't connected.
  */
-async function calculateTotals({ items, couponCode, paymentMethod, userId }) {
+async function calculateTotals({ items, couponCode, paymentMethod, userId, deliveryPincode }) {
   const subtotal = Number(items.reduce((sum, item) => sum + item.subtotal, 0).toFixed(2));
 
   let couponResult = null;
@@ -130,18 +136,47 @@ async function calculateTotals({ items, couponCode, paymentMethod, userId }) {
   const gstPercent = gstEnabled ? Number(settings.tax?.percent ?? 0) : 0;
   const gstAmount = gstEnabled ? Number(((taxableAmount * gstPercent) / 100).toFixed(2)) : 0;
 
-  const shippingEnabled = Boolean(settings.shipping?.enabled);
-  const freeThreshold = settings.shipping?.freeThreshold;
+  // Free-shipping check is on the product total INCLUDING GST, after
+  // coupon, before shipping/COD — per spec, not on raw subtotal.
+  const freeShippingBase = Number((taxableAmount + gstAmount).toFixed(2));
+  const freeThreshold = Number(settings.shipping?.freeThreshold ?? 700);
+  const qualifiesForFreeShipping = freeThreshold > 0 && freeShippingBase >= freeThreshold;
+
   let shipping = 0;
-  if (shippingEnabled) {
-    const qualifiesForFree = freeThreshold != null && freeThreshold > 0 && subtotal >= freeThreshold;
-    shipping = qualifiesForFree ? 0 : Number(settings.shipping?.charge ?? 0);
+  let shippingSource = 'free';
+  let shippingCourier = null;
+  if (!qualifiesForFreeShipping) {
+    const weightKg = Number(settings.shiprocket?.defaultPackage?.weightKg ?? 0.3);
+    const quote = await shippingRateService.getShippingQuote({ deliveryPincode, paymentMethod, weightKg });
+    shipping = quote.charge;
+    shippingSource = quote.source;
+    shippingCourier = quote.courierName;
   }
 
   const codEnabled = Boolean(settings.cod?.enabled);
-  const codCharge = paymentMethod === 'COD' && codEnabled ? Number(settings.cod?.charge ?? 0) : 0;
+  // If the Shiprocket rate is confirmed (via settings.shipping.
+  // rateIncludesCodCharge) to already include COD handling, our own flat
+  // fee would double-charge the customer for it — skip it in that case.
+  // Default/until confirmed: treat the quote as freight-only, so the flat
+  // fee always applies (see shippingSettingsSchema's comment).
+  const rateIncludesCodCharge = Boolean(settings.shipping?.rateIncludesCodCharge);
+  const skipFlatCodFee = rateIncludesCodCharge && shippingSource === 'shiprocket';
+  const codCharge = paymentMethod === 'COD' && codEnabled && !skipFlatCodFee ? Number(settings.cod?.charge ?? 59) : 0;
 
-  const total = Number((taxableAmount + gstAmount + shipping + codCharge).toFixed(2));
+  // Optional prepaid discount — off by default (type 'none'), applied to
+  // the product total (never to shipping/COD).
+  let prepaidDiscount = 0;
+  const prepaidDiscountType = settings.cod?.prepaidDiscountType || 'none';
+  if (paymentMethod === 'Online' && prepaidDiscountType !== 'none') {
+    const base = freeShippingBase;
+    const raw =
+      prepaidDiscountType === 'percentage'
+        ? (base * Number(settings.cod?.prepaidDiscountValue || 0)) / 100
+        : Number(settings.cod?.prepaidDiscountValue || 0);
+    prepaidDiscount = Number(Math.min(raw, base).toFixed(2));
+  }
+
+  const total = Number((taxableAmount + gstAmount + shipping + codCharge - prepaidDiscount).toFixed(2));
 
   return {
     subtotal,
@@ -150,9 +185,15 @@ async function calculateTotals({ items, couponCode, paymentMethod, userId }) {
     taxableAmount,
     gstPercent,
     gstAmount,
-    shippingEnabled,
+    shippingEnabled: true,
     shipping,
+    shippingSource,
+    shippingCourier,
+    freeShippingThreshold: freeThreshold,
+    qualifiesForFreeShipping,
+    amountToFreeShipping: qualifiesForFreeShipping ? 0 : Number((freeThreshold - freeShippingBase).toFixed(2)),
     codCharge,
+    prepaidDiscount,
     paymentMethod,
     total,
   };
