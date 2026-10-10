@@ -185,7 +185,14 @@ export function validateAddressForm(values, { required, minLength, phone: valida
     fullName: minLength(values.fullName, 2, 'Full name'),
     phone: validatePhone(values.phone, { optional: false }),
     houseFlat: required(values.houseFlat, 'House/Flat/Building'),
-    areaStreet: required(values.areaStreet, 'Area/Street'),
+    // Optional, not required: reloading a saved address always sets this
+    // to '' (its full address text can't be split back into houseFlat/
+    // areaStreet), so requiring it here silently blocked every saved-
+    // address checkout — the saved-address view doesn't even render this
+    // field's error, so the "Continue" button looked broken with no
+    // visible reason. line1 (which does include the full street text) is
+    // still required via houseFlat above.
+    areaStreet: '',
     city: minLength(values.city, 2, 'City'),
     state: minLength(values.state, 2, 'State'),
     pincode: validatePincode(values.pincode, { optional: false }),
