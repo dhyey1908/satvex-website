@@ -228,7 +228,11 @@ async function getPaymentStatus(req, res) {
   }
 
   if (order.paymentMethod !== 'Online' || order.paymentStatus !== 'awaiting_payment') {
-    return ok(res, { paymentStatus: order.paymentStatus, needsReview: order.needsReview || false });
+    return ok(res, {
+      paymentStatus: order.paymentStatus,
+      lastPaymentAttemptStatus: order.lastPaymentAttemptStatus || null,
+      needsReview: order.needsReview || false,
+    });
   }
 
   const cfStatus = await paymentService.fetchOrderStatus(order.orderId).catch(() => null);
@@ -242,13 +246,32 @@ async function getPaymentStatus(req, res) {
     }
   } else if (cfStatus?.orderStatus === 'EXPIRED') {
     await finalizeExpiry(order);
+  } else if (cfStatus?.orderStatus === 'ACTIVE') {
+    // The Cashfree ORDER hasn't closed, but a specific payment ATTEMPT may
+    // already have a definitive outcome (FAILED/USER_DROPPED/etc) before
+    // the webhook arrives — surface that immediately via
+    // lastPaymentAttemptStatus rather than making the customer wait for a
+    // webhook or the poll timeout to find out their card was declined.
+    // Per Cashfree's docs (api-reference/payments/enums), payment_status is
+    // one of SUCCESS/FAILED/NOT_ATTEMPTED/PENDING/FLAGGED/CANCELLED/VOID/
+    // USER_DROPPED. Ordering of the payments list isn't documented, so this
+    // sorts by payment_time itself rather than assuming index order.
+    const payments = await paymentService.fetchOrderPayments(order.orderId).catch(() => []);
+    const latest = [...payments].sort((a, b) => new Date(b.payment_time) - new Date(a.payment_time))[0];
+    if (latest?.payment_status && latest.payment_status !== 'NOT_ATTEMPTED') {
+      await orderService.markPaymentAttempt(order.orderId, latest.payment_status);
+    }
   }
-  // On a Cashfree API error, or ACTIVE/anything else: leave the order as
-  // awaiting_payment, exactly as the expiry sweep does — never expire or
-  // mark paid on an inconclusive result.
+  // On a Cashfree API error: leave the order as awaiting_payment, exactly as
+  // the expiry sweep does — never expire or mark paid on an inconclusive
+  // result.
 
   const fresh = await orderService.findById(req.params.id);
-  ok(res, { paymentStatus: fresh.paymentStatus, needsReview: fresh.needsReview || false });
+  ok(res, {
+    paymentStatus: fresh.paymentStatus,
+    lastPaymentAttemptStatus: fresh.lastPaymentAttemptStatus || null,
+    needsReview: fresh.needsReview || false,
+  });
 }
 
 // Shared by the on-read reconcile above and the scheduled expiry sweep

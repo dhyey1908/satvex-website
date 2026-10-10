@@ -11,7 +11,8 @@
     "seed": "node src/scripts/seed.js",
     "create-admin": "node src/scripts/createAdmin.js",
     "deploy": "sam build && sam deploy",
-    "deploy:prod": "sam build && sam deploy --config-env prod"
+    "deploy:prod": "sam build && sam deploy --config-env prod",
+    "test": "node --test src/**/*.test.js"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.658.0",
