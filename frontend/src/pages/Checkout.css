@@ -273,7 +273,7 @@
      (sticky bar, hidden inline buttons, etc.) is unaffected — this block
      only ever touches step-tab sizing. */
   .checkout-step-dot { width: 18px; height: 18px; font-size: 0.64rem; }
-  .checkout-step-label { font-size: 0.68rem; }
-  .checkout-step-line { width: 12px; margin: 0 4px; }
-  .checkout-step { gap: 4px; }
+  .checkout-step-label { font-size: 0.66rem; letter-spacing: -0.01em; }
+  .checkout-step-line { width: 8px; margin: 0 2px; }
+  .checkout-step { gap: 3px; }
 }
