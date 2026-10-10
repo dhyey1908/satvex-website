@@ -5,7 +5,7 @@ const couponService = require('../services/couponService');
 const couponRedemptionService = require('../services/couponRedemptionService');
 const pricingService = require('../services/pricingService');
 const paymentService = require('../services/paymentService');
-const gokwikService = require('../services/gokwikService');
+const gokwikService = require('../services/gokwikProvider');
 const shipmentService = require('../services/shipmentService');
 const shipmentJobService = require('../services/shipmentJobService');
 const settingsService = require('../services/settingsService');
@@ -323,6 +323,7 @@ async function checkoutViaGoKwik(req, res, { customer, address, couponCode, paym
       gokwikRequestId: gkOrder.request_id,
       gokwikMid: gkOrder.mid,
       gokwikEnvironment: env.gokwik.env,
+      gokwikMode: env.gokwik.mode,
     });
   } catch (err) {
     await rollbackCoupon(coupon, req.user.id);

@@ -67,6 +67,11 @@ const env = {
     appSecret: process.env.GOKWIK_APP_SECRET,
     // 'sandbox' | 'production' — controls which GoKwik base URL is used.
     env: process.env.GOKWIK_ENV || 'sandbox',
+    // 'mock' | 'live' — 'mock' never makes a network call (see
+    // services/mockGokwikService.js), used for local/automated testing
+    // without real sandbox credentials. Defaults to 'live' so deployed
+    // stacks keep today's behavior unless explicitly overridden.
+    mode: process.env.GOKWIK_MODE || 'live',
   },
 
   // Real Shiprocket account — there's no sandbox/production split the way
@@ -81,6 +86,10 @@ const env = {
     // security token is configured in their panel (Settings > API >
     // Webhooks) — our own choice of value, set in both places.
     webhookToken: process.env.SHIPROCKET_WEBHOOK_TOKEN,
+    // 'mock' | 'live' — see services/mockShiprocketService.js. Defaults to
+    // 'live' so deployed stacks keep today's behavior unless explicitly
+    // overridden.
+    mode: process.env.SHIPROCKET_MODE || 'live',
   },
 
   jwt: {

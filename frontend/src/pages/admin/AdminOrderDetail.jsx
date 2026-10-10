@@ -144,6 +144,14 @@ export function AdminOrderDetail() {
         <p>{order.customer.email} · {order.customer.phone}</p>
         <p>
           Payment Method: <strong>{order.paymentMethod === 'COD' ? 'Cash on Delivery' : 'Online Payment'}</strong>
+          {order.paymentProvider === 'gokwik' && (
+            <>
+              {' '}via GoKwik{' '}
+              <span className={`pill ${order.gokwikMode === 'mock' ? 'pill-inactive' : 'pill-active'}`}>
+                {order.gokwikMode === 'mock' ? 'MOCK' : 'LIVE'}
+              </span>
+            </>
+          )}
         </p>
         {order.paymentMethod === 'Online' && (
           <>
@@ -172,6 +180,14 @@ export function AdminOrderDetail() {
         <h3>Shipment</h3>
         <p>
           Status: <strong>{order.shipmentStatus || 'not_created'}</strong>
+          {order.shiprocketOrderId && (
+            <>
+              {' '}
+              <span className={`pill ${order.shiprocketMode === 'mock' ? 'pill-inactive' : 'pill-active'}`}>
+                {order.shiprocketMode === 'mock' ? 'MOCK' : 'LIVE'}
+              </span>
+            </>
+          )}
         </p>
         {order.awbCode && (
           <p>

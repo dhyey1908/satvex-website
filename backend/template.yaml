@@ -58,6 +58,14 @@ Parameters:
     Type: String
     Default: sandbox
     AllowedValues: [sandbox, production]
+  GoKwikMode:
+    Type: String
+    Default: live
+    AllowedValues: [mock, live]
+    Description: >
+      'mock' routes every GoKwik call through src/services/mockGokwikService.js
+      (no network, used for local/automated testing); 'live' (default) calls
+      the real GoKwik API at GoKwikEnv using GoKwikAppId/AppSecret.
   ShiprocketEmail:
     Type: String
     NoEcho: true
@@ -81,6 +89,15 @@ Parameters:
       Settings > API > Webhooks panel. Compared against the x-api-key header
       on every webhook call. Optional — leave blank to skip the check
       entirely (not recommended once this is live).
+  ShiprocketMode:
+    Type: String
+    Default: live
+    AllowedValues: [mock, live]
+    Description: >
+      'mock' routes every Shiprocket call through
+      src/services/mockShiprocketService.js (no network, used for
+      local/automated testing); 'live' (default) calls the real Shiprocket
+      API using ShiprocketEmail/Password.
 
 Globals:
   Function:
@@ -396,9 +413,11 @@ Resources:
           GOKWIK_APP_ID: !Ref GoKwikAppId
           GOKWIK_APP_SECRET: !Ref GoKwikAppSecret
           GOKWIK_ENV: !Ref GoKwikEnv
+          GOKWIK_MODE: !Ref GoKwikMode
           SHIPROCKET_EMAIL: !Ref ShiprocketEmail
           SHIPROCKET_PASSWORD: !Ref ShiprocketPassword
           SHIPROCKET_WEBHOOK_TOKEN: !Ref ShiprocketWebhookToken
+          SHIPROCKET_MODE: !Ref ShiprocketMode
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UsersTable
@@ -469,6 +488,7 @@ Resources:
           TABLE_SHIPMENT_JOBS: !Ref ShipmentJobsTable
           SHIPROCKET_EMAIL: !Ref ShiprocketEmail
           SHIPROCKET_PASSWORD: !Ref ShiprocketPassword
+          SHIPROCKET_MODE: !Ref ShiprocketMode
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref OrdersTable
@@ -511,6 +531,7 @@ Resources:
           TABLE_SETTINGS: !Ref SettingsTable
           SHIPROCKET_EMAIL: !Ref ShiprocketEmail
           SHIPROCKET_PASSWORD: !Ref ShiprocketPassword
+          SHIPROCKET_MODE: !Ref ShiprocketMode
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref OrdersTable

@@ -1,4 +1,4 @@
-const shiprocketService = require('./shiprocketService');
+const shiprocketService = require('./shiprocketProvider');
 const orderService = require('./orderService');
 const settingsService = require('./settingsService');
 const shipmentJobService = require('./shipmentJobService');

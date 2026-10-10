@@ -1,5 +1,5 @@
 const orderService = require('../services/orderService');
-const gokwikService = require('../services/gokwikService');
+const gokwikService = require('../services/gokwikProvider');
 const shipmentService = require('../services/shipmentService');
 const { ok } = require('../utils/response');
 

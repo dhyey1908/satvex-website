@@ -55,6 +55,7 @@ async function createOrder({
   gokwikRequestId,
   gokwikMid,
   gokwikEnvironment,
+  gokwikMode,
 }) {
   const now = new Date().toISOString();
   const order = {
@@ -84,7 +85,7 @@ async function createOrder({
     // also drives the expiry sweep's GSI query below.
     paymentStatus: paymentStatus || 'not_required',
     ...(paymentExpiresAt ? { paymentExpiresAt } : {}),
-    ...(paymentProvider ? { paymentProvider, gokwikOid, gokwikRequestId, gokwikMid, gokwikEnvironment } : {}),
+    ...(paymentProvider ? { paymentProvider, gokwikOid, gokwikRequestId, gokwikMid, gokwikEnvironment, gokwikMode } : {}),
     // Shiprocket lifecycle (plan §3) — not_created until the shipment job
     // succeeds; see shipmentJobService.js / shipmentSweep.js.
     shipmentStatus: 'not_created',
@@ -456,11 +457,19 @@ async function recordShiprocketOrderCreated(orderId, { shiprocketOrderId }) {
     new UpdateCommand({
       TableName: TABLE,
       Key: { orderId },
-      UpdateExpression: 'SET shiprocketOrderId = :srId, shipmentStatus = :status, updatedAt = :now',
+      UpdateExpression: 'SET shiprocketOrderId = :srId, shipmentStatus = :status, shiprocketMode = :mode, updatedAt = :now',
       // Always stored as a string — Shiprocket's own response type for this
       // field is unconfirmed (see shiprocket_integration_notes.md), and a
       // GSI attribute's type must stay consistent across every item.
-      ExpressionAttributeValues: { ':srId': String(shiprocketOrderId), ':status': 'order_created', ':now': new Date().toISOString() },
+      ExpressionAttributeValues: {
+        ':srId': String(shiprocketOrderId),
+        ':status': 'order_created',
+        // Stamped at creation time so admin can tell a mock shipment apart
+        // from a real one after the fact, even if SHIPROCKET_MODE is later
+        // changed — this order's own record never silently reinterprets.
+        ':mode': env.shiprocket.mode,
+        ':now': new Date().toISOString(),
+      },
     })
   );
 }
