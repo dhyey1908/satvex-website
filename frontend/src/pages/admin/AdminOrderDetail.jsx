@@ -18,6 +18,23 @@ const PAYMENT_STATUS_LABELS = {
   expired: 'Expired — Unpaid',
 };
 
+// paymentStatus itself only ever holds not_required/awaiting_payment/paid/
+// expired — it has no distinct "failed"/"dropped" value (changing that
+// enum touches every place that reads it, so this stays a display-only
+// overlay using lastPaymentAttemptStatus, which markPaymentAttempt already
+// records from Cashfree's webhook/reconciliation). Per Cashfree's docs, a
+// FAILED/USER_DROPPED attempt doesn't close the order — the customer can
+// still retry — so the underlying paymentStatus correctly stays
+// 'awaiting_payment' while this label reflects what actually happened.
+function paymentStatusLabel(order) {
+  if (order.paymentStatus === 'awaiting_payment') {
+    if (order.lastPaymentAttemptStatus === 'FAILED') return 'Awaiting Payment — last attempt Failed';
+    if (order.lastPaymentAttemptStatus === 'USER_DROPPED') return 'Awaiting Payment — last attempt Dropped';
+    if (order.lastPaymentAttemptStatus === 'PENDING') return 'Awaiting Payment — confirming with bank';
+  }
+  return PAYMENT_STATUS_LABELS[order.paymentStatus] || order.paymentStatus;
+}
+
 export function AdminOrderDetail() {
   const { id } = useParams();
   const { showToast } = useToast();
@@ -151,9 +168,15 @@ export function AdminOrderDetail() {
             <p>
               Payment Status:{' '}
               <span className={`pill ${order.paymentStatus === 'paid' ? 'pill-active' : 'pill-inactive'}`}>
-                {PAYMENT_STATUS_LABELS[order.paymentStatus] || order.paymentStatus}
+                {paymentStatusLabel(order)}
               </span>
             </p>
+            {order.paymentAttemptCount > 0 && (
+              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
+                {order.paymentAttemptCount} payment attempt{order.paymentAttemptCount === 1 ? '' : 's'}
+                {order.lastPaymentAttemptAt ? ` · last at ${new Date(order.lastPaymentAttemptAt).toLocaleString()}` : ''}
+              </p>
+            )}
             {order.refundStatus && order.refundStatus !== 'none' && (
               <p>
                 Refund Status: <strong>{order.refundStatus}</strong>

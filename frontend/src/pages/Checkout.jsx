@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -58,6 +58,7 @@ export function Checkout() {
   const [paymentMethod, setPaymentMethod] = useState('COD');
   const [quote, setQuote] = useState(null);
   const [step, setStep] = useState('address');
+  const paymentMethodAutoSet = useRef(false);
   const STEPS = [
     { key: 'address', label: 'Address' },
     { key: 'confirm', label: 'Confirm Details' },
@@ -71,6 +72,38 @@ export function Checkout() {
     refreshSettings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Stop asking logged-in customers to retype what we already know. Email
+  // isn't part of a saved address record at all (addresses have no email
+  // field), so this is the only place it ever gets prefilled — applies
+  // regardless of whether a saved address is selected. Name/phone only
+  // prefill from the account when there's no saved address to prefill them
+  // from instead (a saved address's own name/phone is the more specific,
+  // likely more accurate choice for that address). Never clobbers
+  // something the customer already typed.
+  useEffect(() => {
+    if (!user) return;
+    if (user.email) setEmail((prev) => prev || user.email);
+    if (!selectedAddressId) {
+      setForm((prev) => ({
+        ...prev,
+        fullName: prev.fullName || user.name || '',
+        phone: prev.phone || user.phone || '',
+      }));
+    }
+  }, [user, selectedAddressId]);
+
+  // Online is the preselected payment method whenever it's actually
+  // available for this customer — COD remains fully available, just no
+  // longer the default. Runs once, the first time paymentsOnlineAvailable
+  // resolves true, so it never clobbers a choice the customer already made
+  // (e.g. switching to COD) on a later settings refresh.
+  useEffect(() => {
+    if (settings?.paymentsOnlineAvailable && !paymentMethodAutoSet.current) {
+      paymentMethodAutoSet.current = true;
+      setPaymentMethod('Online');
+    }
+  }, [settings?.paymentsOnlineAvailable]);
 
   useEffect(() => {
     addressService

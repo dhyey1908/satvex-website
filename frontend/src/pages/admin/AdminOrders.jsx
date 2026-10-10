@@ -203,7 +203,17 @@ export function AdminOrders() {
                     <td>
                       {o.paymentMethod === 'Online' ? (
                         <span className={`pill ${o.paymentStatus === 'paid' ? 'pill-active' : 'pill-inactive'}`}>
-                          {o.paymentStatus === 'paid' ? 'Paid' : o.paymentStatus === 'expired' ? 'Expired' : 'Awaiting'}
+                          {o.paymentStatus === 'paid'
+                            ? 'Paid'
+                            : o.paymentStatus === 'expired'
+                            ? 'Expired'
+                            : o.paymentStatus === 'awaiting_payment' && o.lastPaymentAttemptStatus === 'FAILED'
+                            ? 'Failed'
+                            : o.paymentStatus === 'awaiting_payment' && o.lastPaymentAttemptStatus === 'USER_DROPPED'
+                            ? 'Dropped'
+                            : o.paymentStatus === 'awaiting_payment' && o.lastPaymentAttemptStatus === 'PENDING'
+                            ? 'Pending'
+                            : 'Awaiting'}
                         </span>
                       ) : (
                         <span className="text-label-sm">COD</span>
