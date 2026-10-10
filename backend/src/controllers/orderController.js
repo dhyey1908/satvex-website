@@ -8,6 +8,7 @@ const paymentService = require('../services/paymentService');
 const settingsService = require('../services/settingsService');
 const shipmentService = require('../services/shipmentService');
 const shipmentJobService = require('../services/shipmentJobService');
+const shiprocketService = require('../services/shiprocketService');
 const { checkoutSchema, quoteSchema, updateOrderStatusSchema, refundSchema } = require('../validators/orderValidators');
 const AppError = require('../utils/AppError');
 const { ok, created } = require('../utils/response');
@@ -446,6 +447,34 @@ async function adminRefund(req, res) {
 // just re-queuing a job and making them wait for the next sweep. Resumable
 // — safe to click even if a previous attempt partially succeeded (see
 // shipmentService.js).
+// Customer-triggered manual refresh — the webhook is the primary source of
+// truth, this just lets a customer pull the latest status on demand (e.g.
+// if a webhook delivery was missed). Only works once an AWB exists; before
+// that there's nothing to track yet.
+async function refreshTracking(req, res) {
+  const order = await orderService.findById(req.params.id);
+  if (!order || order.userId !== req.user.id) {
+    throw new AppError('Order not found.', 404, 'NOT_FOUND');
+  }
+  if (!order.awbCode) {
+    throw new AppError('Tracking is not available yet for this order.', 400, 'NO_AWB');
+  }
+
+  const tracking = await shiprocketService.trackByAwb(order.awbCode);
+  if (tracking) {
+    await orderService.recordShipmentTracking(order.orderId, {
+      shipmentStatus: tracking.shipment_status || tracking.current_status,
+      courierName: tracking.courier_name,
+      currentStatus: tracking.current_status,
+      rawPayload: tracking,
+      estimatedDeliveryDate: tracking.etd || null,
+    });
+  }
+
+  const updated = await orderService.findById(req.params.id);
+  ok(res, { order: updated });
+}
+
 async function adminRetryShipment(req, res) {
   const order = await orderService.findById(req.params.id);
   if (!order) {
@@ -474,6 +503,7 @@ module.exports = {
   getPaymentStatus,
   retryPayment,
   reorder,
+  refreshTracking,
   adminListOrders,
   adminGetOrder,
   adminUpdateStatus,

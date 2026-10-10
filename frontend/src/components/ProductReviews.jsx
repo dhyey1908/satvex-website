@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Star, Loader2 } from 'lucide-react';
+import { Star, Loader2, X } from 'lucide-react';
 import { reviewService } from '../services/reviewService';
 import { orderService } from '../services/orderService';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { Pagination } from './Pagination';
 import { usePagination } from '../hooks/usePagination';
+import { ReviewImageUploader } from './ReviewImageUploader';
 import './ProductReviews.css';
+
+const MAX_REVIEW_IMAGES = 3;
 
 const PAGE_SIZE = 5;
 
@@ -36,8 +39,9 @@ export function ProductReviews({ productId }) {
   const [eligible, setEligible] = useState(false);
   const [myReview, setMyReview] = useState(undefined);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ rating: 0, title: '', comment: '' });
+  const [form, setForm] = useState({ rating: 0, title: '', comment: '', images: [] });
   const [submitting, setSubmitting] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState(null);
   const { page, setPage, totalPages, pageItems, total, rangeStart, rangeEnd } = usePagination(reviews, PAGE_SIZE);
 
   function loadReviews() {
@@ -70,8 +74,16 @@ export function ProductReviews({ productId }) {
   }, [productId, isAuthenticated]);
 
   function startEdit() {
-    setForm({ rating: myReview.rating, title: myReview.title || '', comment: myReview.comment });
+    setForm({ rating: myReview.rating, title: myReview.title || '', comment: myReview.comment, images: myReview.images || [] });
     setEditing(true);
+  }
+
+  function addImage(url) {
+    setForm((p) => ({ ...p, images: [...p.images, url] }));
+  }
+
+  function removeImage(index) {
+    setForm((p) => ({ ...p, images: p.images.filter((_, i) => i !== index) }));
   }
 
   async function handleSubmit(e) {
@@ -125,6 +137,21 @@ export function ProductReviews({ productId }) {
                 </div>
                 {r.title && <p className="product-review-title">{r.title}</p>}
                 <p className="product-review-comment">{r.comment}</p>
+                {r.images && r.images.length > 0 && (
+                  <div className="product-review-images">
+                    {r.images.map((src, i) => (
+                      <button
+                        key={src + i}
+                        type="button"
+                        className="product-review-image-thumb"
+                        onClick={() => setLightboxImage(src)}
+                        aria-label="View full-size review photo"
+                      >
+                        <img src={src} alt="" loading="lazy" />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -164,6 +191,30 @@ export function ProductReviews({ productId }) {
               onChange={(e) => setForm((p) => ({ ...p, comment: e.target.value }))}
             />
           </div>
+          <div className="field">
+            <label>Photos (optional, up to {MAX_REVIEW_IMAGES})</label>
+            {form.images.length > 0 && (
+              <div className="product-review-form-images">
+                {form.images.map((url, i) => (
+                  <div key={url + i} className="product-review-form-image">
+                    <img src={url} alt="" />
+                    <button
+                      type="button"
+                      className="product-review-form-image-remove"
+                      onClick={() => removeImage(i)}
+                      disabled={submitting}
+                      aria-label="Remove photo"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {form.images.length < MAX_REVIEW_IMAGES && (
+              <ReviewImageUploader onUploaded={addImage} disabled={submitting} />
+            )}
+          </div>
           <div className="product-review-form-actions">
             <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>
               {submitting ? <Loader2 size={16} className="btn-spinner" /> : myReview ? 'Save Changes' : 'Submit Review'}
@@ -175,6 +226,15 @@ export function ProductReviews({ productId }) {
             )}
           </div>
         </form>
+      )}
+
+      {lightboxImage && (
+        <div className="product-review-lightbox" onClick={() => setLightboxImage(null)}>
+          <button type="button" className="product-review-lightbox-close" aria-label="Close">
+            <X size={22} />
+          </button>
+          <img src={lightboxImage} alt="" onClick={(e) => e.stopPropagation()} />
+        </div>
       )}
 
       {isAuthenticated && eligible && myReview && !editing && (

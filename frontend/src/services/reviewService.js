@@ -6,4 +6,5 @@ export const reviewService = {
   listMine: () => api.get('/reviews/mine'),
   create: (productId, data) => api.post(`/products/${encodeURIComponent(productId)}/reviews`, data),
   update: (productId, data) => api.put(`/products/${encodeURIComponent(productId)}/reviews/mine`, data),
+  getUploadUrl: (data) => api.post('/reviews/upload-url', data),
 };

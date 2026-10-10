@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Star, Loader2 } from 'lucide-react';
+import { Star, Loader2, RefreshCw, Truck } from 'lucide-react';
 import { orderService } from '../../services/orderService';
 import { reviewService } from '../../services/reviewService';
 import { useToast } from '../../context/ToastContext';
@@ -26,6 +26,7 @@ export function AccountOrderDetail() {
   const [error, setError] = useState(null);
   const [reviewedProductIds, setReviewedProductIds] = useState(new Set());
   const [retrying, setRetrying] = useState(false);
+  const [refreshingTracking, setRefreshingTracking] = useState(false);
 
   function load() {
     setError(null);
@@ -87,6 +88,19 @@ export function AccountOrderDetail() {
     }
   }
 
+  async function handleRefreshTracking() {
+    setRefreshingTracking(true);
+    try {
+      const { order: updated } = await orderService.refreshTracking(id);
+      setOrder(updated);
+      showToast('Tracking updated', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setRefreshingTracking(false);
+    }
+  }
+
   if (error) return <ErrorState message={error} onRetry={load} />;
   if (!order) return <Loader label="Loading order…" />;
 
@@ -106,6 +120,50 @@ export function AccountOrderDetail() {
       <div className="account-form" style={{ maxWidth: '100%', marginBottom: 24 }}>
         <OrderTimeline status={order.status} />
       </div>
+
+      {order.awbCode && (
+        <div className="account-form" style={{ maxWidth: '100%', marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
+              <Truck size={18} /> Shipment Tracking
+            </h3>
+            <button type="button" className="btn btn-outline btn-sm" onClick={handleRefreshTracking} disabled={refreshingTracking}>
+              {refreshingTracking ? (
+                <Loader2 size={14} className="btn-spinner" />
+              ) : (
+                <>
+                  <RefreshCw size={14} /> Refresh
+                </>
+              )}
+            </button>
+          </div>
+          <p style={{ margin: '12px 0 0' }}>
+            Status: <strong>{order.lastTrackingStatus || 'Shipment Created'}</strong>
+          </p>
+          <p style={{ margin: '4px 0 0' }}>
+            Courier: <strong>{order.courierName || '—'}</strong> &nbsp;·&nbsp; AWB: <strong>{order.awbCode}</strong>
+          </p>
+          {order.estimatedDeliveryDate && (
+            <p style={{ margin: '4px 0 0' }}>
+              Estimated Delivery: <strong>{order.estimatedDeliveryDate}</strong>
+            </p>
+          )}
+
+          {order.trackingEvents && order.trackingEvents.length > 0 && (
+            <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {order.trackingEvents
+                .slice()
+                .reverse()
+                .map((ev, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: '0.9rem' }}>
+                    <span>{ev.status}{ev.courierName ? ` — ${ev.courierName}` : ''}</span>
+                    <span className="field-hint">{new Date(ev.timestamp).toLocaleString()}</span>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <p className="field-hint" style={{ marginBottom: showRetryPayment ? 8 : 20 }}>
         Payment Method: <strong>{order.paymentMethod === 'COD' ? 'Cash on Delivery' : 'Online Payment'}</strong>

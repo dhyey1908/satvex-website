@@ -6,7 +6,7 @@ const AppError = require('../utils/AppError');
 
 const client = new S3Client({ region: env.awsRegion });
 
-const ALLOWED_FOLDERS = new Set(['products', 'variants', 'videos', 'branding', 'banners']);
+const ALLOWED_FOLDERS = new Set(['products', 'variants', 'videos', 'branding', 'banners', 'reviews']);
 const ALLOWED_CONTENT_TYPES = new Set([
   'image/jpeg',
   'image/png',

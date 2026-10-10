@@ -34,6 +34,7 @@ async function webhook(req, res) {
     courierName: body.courier_name,
     currentStatus: body.current_status,
     rawPayload: body,
+    estimatedDeliveryDate: body.etd || null,
   });
 
   ok(res, { received: true });

@@ -9,4 +9,5 @@ export const orderService = {
   reorder: (id) => api.post(`/orders/${encodeURIComponent(id)}/reorder`),
   paymentStatus: (id) => api.get(`/orders/${encodeURIComponent(id)}/payment-status`),
   retryPayment: (id) => api.post(`/orders/${encodeURIComponent(id)}/retry-payment`),
+  refreshTracking: (id) => api.post(`/orders/${encodeURIComponent(id)}/refresh-tracking`),
 };

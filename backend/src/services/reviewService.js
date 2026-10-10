@@ -56,7 +56,7 @@ async function recomputeProductAggregate(productId) {
   await productService.updateRatingAggregate(productId, { rating, reviewCount });
 }
 
-async function create({ productId, userId, userName, rating, title, comment }) {
+async function create({ productId, userId, userName, rating, title, comment, images }) {
   const now = new Date().toISOString();
   const review = {
     // Deterministic key (rather than a random uuid) so the ConditionExpression
@@ -70,6 +70,7 @@ async function create({ productId, userId, userName, rating, title, comment }) {
     rating,
     title: title || '',
     comment,
+    images: images || [],
     createdAt: now,
     updatedAt: now,
   };
@@ -91,7 +92,7 @@ async function create({ productId, userId, userName, rating, title, comment }) {
   return review;
 }
 
-async function update(reviewId, { rating, title, comment }) {
+async function update(reviewId, { rating, title, comment, images }) {
   const existing = await findById(reviewId);
   if (!existing) return null;
   const now = new Date().toISOString();
@@ -99,17 +100,18 @@ async function update(reviewId, { rating, title, comment }) {
     new UpdateCommand({
       TableName: TABLE,
       Key: { reviewId },
-      UpdateExpression: 'SET rating = :rating, title = :title, comment = :comment, updatedAt = :now',
+      UpdateExpression: 'SET rating = :rating, title = :title, comment = :comment, images = :images, updatedAt = :now',
       ExpressionAttributeValues: {
         ':rating': rating,
         ':title': title || '',
         ':comment': comment,
+        ':images': images || [],
         ':now': now,
       },
     })
   );
   await recomputeProductAggregate(existing.productId);
-  return { ...existing, rating, title: title || '', comment, updatedAt: now };
+  return { ...existing, rating, title: title || '', comment, images: images || [], updatedAt: now };
 }
 
 async function remove(reviewId) {

@@ -458,6 +458,30 @@ async function recordLabelGenerated(orderId, { labelUrl }) {
   );
 }
 
+// Maps Shiprocket's raw current_status text to the clean customer-facing
+// status list. Only entries actually confirmed (the real webhook sample in
+// shiprocket_integration_notes.md, which shows "IN TRANSIT") plus the few
+// other strings a live order has actually been observed to send are mapped
+// — anything else passes through as Shiprocket's own raw string rather
+// than guessing a translation, per the project's don't-guess rule. Expand
+// this table as real webhook deliveries confirm more strings.
+const SHIPROCKET_STATUS_MAP = {
+  'IN TRANSIT': 'In Transit',
+  'OUT FOR DELIVERY': 'Out for Delivery',
+  DELIVERED: 'Delivered',
+  CANCELLED: 'Cancelled',
+  RTO: 'RTO / Returned',
+  'RTO DELIVERED': 'RTO / Returned',
+  'PICKUP SCHEDULED': 'Pickup Scheduled',
+  'PICKED UP': 'Picked Up',
+  'SHIPMENT CREATED': 'Shipment Created',
+};
+
+function mapShiprocketStatus(rawStatus) {
+  if (!rawStatus) return null;
+  return SHIPROCKET_STATUS_MAP[String(rawStatus).toUpperCase()] || rawStatus;
+}
+
 // Called from the tracking webhook. Deliberately conservative: only ever
 // auto-bumps our own fulfilment `status` to 'Delivered' on an unambiguous
 // DELIVERED event. Does NOT map RTO to our 'Cancelled' status — ORDER_
@@ -465,25 +489,36 @@ async function recordLabelGenerated(orderId, { labelUrl }) {
 // factually wrong (the order was fulfilled, then returned, which is a
 // different thing from never having shipped). Left as an explicit open
 // design question for Step 4 (returns), not guessed here.
-async function recordShipmentTracking(orderId, { shipmentStatus, courierName, currentStatus, rawPayload }) {
+//
+// trackingEvents is an append-only timeline (DynamoDB list_append, atomic —
+// no read-before-write needed) for the customer-facing tracking UI; it is
+// not capped since a real order's event count (a handful of webhook
+// deliveries over its lifetime) is nowhere near large enough to matter.
+async function recordShipmentTracking(orderId, { shipmentStatus, courierName, currentStatus, rawPayload, estimatedDeliveryDate }) {
   const isDelivered = currentStatus === 'DELIVERED';
+  const mappedStatus = mapShiprocketStatus(currentStatus);
+  const now = new Date().toISOString();
+  const event = { status: mappedStatus, courierName: courierName || null, timestamp: now };
+
   await docClient.send(
     new UpdateCommand({
       TableName: TABLE,
       Key: { orderId },
-      UpdateExpression: `SET shipmentStatus = :shipmentStatus, courierName = :courier, lastTrackingStatus = :currentStatus, lastWebhookPayload = :raw, lastWebhookAt = :now, updatedAt = :now${
-        isDelivered ? ', #status = :delivered' : ''
-      }`,
+      UpdateExpression: `SET shipmentStatus = :shipmentStatus, courierName = :courier, lastTrackingStatus = :mappedStatus, lastWebhookPayload = :raw, lastWebhookAt = :now, updatedAt = :now, trackingEvents = list_append(if_not_exists(trackingEvents, :empty), :newEvent)${
+        estimatedDeliveryDate ? ', estimatedDeliveryDate = :etd' : ''
+      }${isDelivered ? ', #status = :delivered, deliveredAt = :now' : ''}`,
       ExpressionAttributeNames: isDelivered ? { '#status': 'status' } : undefined,
       ExpressionAttributeValues: {
         ':shipmentStatus': shipmentStatus || null,
         ':courier': courierName || null,
-        ':currentStatus': currentStatus || null,
+        ':mappedStatus': mappedStatus,
         // Kept for debugging/audit ("keep the raw payload" per the brief) —
-        // only the latest event, not a full history table (nothing in the
-        // current architecture supports that yet — see Step 4).
+        // only the latest event; trackingEvents above is the real history.
         ':raw': rawPayload ? JSON.stringify(rawPayload) : null,
-        ':now': new Date().toISOString(),
+        ':now': now,
+        ':empty': [],
+        ':newEvent': [event],
+        ...(estimatedDeliveryDate ? { ':etd': estimatedDeliveryDate } : {}),
         ...(isDelivered ? { ':delivered': 'Delivered' } : {}),
       },
     })
