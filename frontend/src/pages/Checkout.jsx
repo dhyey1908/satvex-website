@@ -281,6 +281,16 @@ export function Checkout() {
       // GoKwik fall through to the normal "navigate to confirmation" path
       // below — per gokwik_integration_notes.md, initPayment for COD is
       // called from the confirmation/thank-you page instead, not here.
+      if (paymentMethod === 'Online' && response.gokwik?.mode === 'mock') {
+        // Mock mode: there is no real GoKwik order for the widget to show
+        // (our server never called GoKwik at all), so skip it entirely —
+        // OrderConfirmation's existing payment-status poll picks up the
+        // mock provider's simulated success shortly after this navigation.
+        showToast('Confirming your payment…', 'success');
+        navigate(`/order-confirmation/${response.order.orderId}`);
+        return;
+      }
+
       if (paymentMethod === 'Online' && response.gokwik) {
         const result = await openGoKwikCheckout({
           mid: response.gokwik.mid,

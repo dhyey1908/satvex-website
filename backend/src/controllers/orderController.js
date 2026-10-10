@@ -347,6 +347,10 @@ async function checkoutViaGoKwik(req, res, { customer, address, couponCode, paym
       mid: gkOrder.mid,
       orderType: paymentMethod === 'Online' ? 'upi' : 'cod',
       environment: env.gokwik.env,
+      // 'mock' | 'live' — lets the frontend skip ever loading/opening
+      // GoKwik's real hosted widget when the order was created against our
+      // own mock provider (there is no real GoKwik order for it to show).
+      mode: env.gokwik.mode,
     },
   });
 }

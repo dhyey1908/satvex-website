@@ -49,6 +49,10 @@ export function OrderConfirmation() {
     if (!order || gokwikCodNotified.current) return;
     if (order.paymentProvider !== 'gokwik' || order.paymentMethod !== 'COD') return;
     gokwikCodNotified.current = true;
+    // Mock mode: there is no real GoKwik order for the widget to show (our
+    // server never called GoKwik at all) — skip opening it entirely rather
+    // than showing a broken popup on top of an already-confirmed order.
+    if (order.gokwikMode === 'mock') return;
     openGoKwikCheckout({
       mid: order.gokwikMid,
       moid: order.orderId,
