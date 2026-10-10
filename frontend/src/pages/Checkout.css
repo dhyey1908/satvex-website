@@ -219,9 +219,12 @@
 
   /* The sticky bottom bar replaces both the step "Continue" buttons and the
      final inline "Place Order" button on mobile — keeping both is
-     redundant. */
-  .checkout-step-continue,
-  .checkout-place-order {
+     redundant. Scoped to .checkout-form (not just the bare class) so this
+     reliably beats .btn's own `display: inline-flex` — both rules have the
+     same specificity otherwise, and .btn happens to come later in the
+     compiled bundle, which silently won and kept these buttons visible. */
+  .checkout-form .checkout-step-continue,
+  .checkout-form .checkout-place-order {
     display: none;
   }
 
