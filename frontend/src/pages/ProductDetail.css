@@ -305,7 +305,13 @@
      longer sit inside one visually-bordered box giving its own separation. */
   .product-detail-section { margin-bottom: var(--space-5); }
   .product-detail-section h3 { margin-bottom: var(--space-3); }
-  .product-detail-actions { margin: var(--space-4) 0; }
+
+  /* The sticky bar below duplicates Add to Cart + Buy Now — keeping the
+     inline row too meant two full sets of purchase buttons stacked in the
+     page on mobile. The wishlist action stays reachable via the floating
+     button on the gallery image (.pdp-gallery-wishlist), so nothing is
+     actually lost by hiding this whole row. */
+  .product-detail-actions { display: none; }
 
   /* Selling-option buttons get a touch less padding so two combo options
      have a real chance to sit on one row even on narrow phones; they still

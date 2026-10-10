@@ -198,7 +198,20 @@
 @media (max-width: 860px) {
   .checkout-layout, .field-row { grid-template-columns: 1fr; }
 
-  .checkout-steps { overflow-x: auto; }
+  .checkout-steps {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-bottom: 2px;
+  }
+  .checkout-steps::-webkit-scrollbar { display: none; }
+  /* Tighter dot/line/label sizing at narrow widths so all three steps have
+     a real chance to fit without scrolling at all down to 320px; still
+     scrolls smoothly via the rule above on anything narrower than that. */
+  .checkout-step-dot { width: 20px; height: 20px; font-size: 0.68rem; }
+  .checkout-step-label { font-size: 0.74rem; }
+  .checkout-step-line { width: 18px; margin: 0 6px; }
+  .checkout-step { gap: 5px; }
 
   /* Page needs bottom clearance so the sticky bar never covers the last
      card's content. */

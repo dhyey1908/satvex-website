@@ -147,5 +147,14 @@
     overflow-x: auto;
     overflow-y: visible;
     max-height: none;
+    /* Scrolls exactly the same either way — just without a visible native
+       scrollbar track sitting under the thumbnails, which read as a stray
+       clipped-looking line at narrow widths. */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-bottom: 2px;
+    scroll-snap-type: x proximity;
   }
+  .gallery-thumbs::-webkit-scrollbar { display: none; }
+  .gallery-thumb { scroll-snap-align: start; }
 }
