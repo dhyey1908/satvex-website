@@ -4,6 +4,7 @@ import { orderService } from '../../services/orderService';
 import { reviewService } from '../../services/reviewService';
 import { useToast } from '../../context/ToastContext';
 import { useConfirm } from '../../context/ConfirmContext';
+import { useCart } from '../../context/CartContext';
 import { OrderCard } from '../../components/OrderCard';
 import { PageHeader } from '../../components/PageHeader';
 import { EmptyState } from '../../components/EmptyState';
@@ -22,6 +23,7 @@ export function AccountOrders() {
 
   const { showToast } = useToast();
   const confirm = useConfirm();
+  const { refresh: refreshCart } = useCart();
   const [orders, setOrders] = useState(null);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
@@ -79,6 +81,7 @@ export function AccountOrders() {
   async function handleReorder(orderId) {
     try {
       const { addedCount, unavailableCount } = await orderService.reorder(orderId);
+      await refreshCart();
       showToast(
         unavailableCount > 0
           ? `Added ${addedCount} item(s) to cart, ${unavailableCount} unavailable`

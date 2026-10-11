@@ -5,6 +5,7 @@ import { orderService } from '../../services/orderService';
 import { reviewService } from '../../services/reviewService';
 import { useToast } from '../../context/ToastContext';
 import { useConfirm } from '../../context/ConfirmContext';
+import { useCart } from '../../context/CartContext';
 import { OrderStatusBadge } from '../../components/OrderStatusBadge';
 import { PaymentStatusBadge } from '../../components/PaymentStatusBadge';
 import { OrderTimeline } from '../../components/OrderTimeline';
@@ -22,6 +23,7 @@ export function AccountOrderDetail() {
   const { id } = useParams();
   const { showToast } = useToast();
   const confirm = useConfirm();
+  const { refresh: refreshCart } = useCart();
   const [order, setOrder] = useState(null);
   const [error, setError] = useState(null);
   const [reviewedProductIds, setReviewedProductIds] = useState(new Set());
@@ -65,6 +67,7 @@ export function AccountOrderDetail() {
   async function handleReorder() {
     try {
       const { addedCount } = await orderService.reorder(id);
+      await refreshCart();
       showToast(`Added ${addedCount} item(s) to cart`, 'success');
     } catch (err) {
       showToast(err.message, 'error');
