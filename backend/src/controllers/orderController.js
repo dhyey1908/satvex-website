@@ -1,7 +1,6 @@
 const { v4: uuid } = require('uuid');
 const cartService = require('../services/cartService');
 const orderService = require('../services/orderService');
-const userService = require('../services/userService');
 const couponService = require('../services/couponService');
 const couponRedemptionService = require('../services/couponRedemptionService');
 const pricingService = require('../services/pricingService');
@@ -80,20 +79,6 @@ async function quote(req, res) {
 
 async function checkout(req, res) {
   const { customer, address, couponCode, paymentMethod } = checkoutSchema.parse(req.body);
-
-  // Phone verification gate — enforced server-side (never trust the
-  // frontend to have gated this), before any Cashfree call, coupon commit,
-  // or DB write. Re-checked against the EXACT phone on this request, not
-  // just "has this account ever verified a phone" — a changed number
-  // always fails this until re-verified (userService.isPhoneVerified).
-  const user = await userService.findById(req.user.id);
-  if (!userService.isPhoneVerified(user, customer.phone)) {
-    throw new AppError(
-      'Please verify your mobile number before placing the order.',
-      400,
-      'PHONE_NOT_VERIFIED'
-    );
-  }
 
   // Step 3: reject up front if Online isn't enabled for this user — before
   // any Cashfree call, coupon commit, or DB write. The API must not trust

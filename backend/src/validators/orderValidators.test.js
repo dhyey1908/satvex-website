@@ -22,8 +22,11 @@ test('checkoutSchema: COD does not require an email', () => {
   assert.equal(result.customer.email, undefined);
 });
 
-test('checkoutSchema: Online requires an email', () => {
-  assert.throws(() => checkoutSchema.parse(baseCheckout({ paymentMethod: 'Online' })));
+// Confirmed against Cashfree's Create Order API reference: customer_details
+// only requires customer_id + customer_phone, not customer_email.
+test('checkoutSchema: Online does not require an email either', () => {
+  const result = checkoutSchema.parse(baseCheckout({ paymentMethod: 'Online' }));
+  assert.equal(result.customer.email, undefined);
 });
 
 test('checkoutSchema: Online succeeds when an email is given', () => {
