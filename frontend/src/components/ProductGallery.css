@@ -160,7 +160,11 @@
    actually different about a video vs. a zoomable image. */
 .gallery-main-video {
   position: relative;
-  background: #000;
+  /* Same neutral surface as .gallery-main's own background (not black) —
+     object-fit: contain can still letterbox when the video's own aspect
+     ratio doesn't match this square container, but that space now blends
+     into the gallery instead of reading as a harsh black bar. */
+  background: var(--color-surface-muted);
   cursor: default;
 }
 .gallery-main-video video {
@@ -171,7 +175,7 @@
   /* contain, not cover — never crop the product out of frame regardless of
      the uploaded video's own aspect ratio. */
   object-fit: contain;
-  background: #000;
+  background: var(--color-surface-muted);
 }
 
 @media (max-width: 640px) {

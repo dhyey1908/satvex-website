@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import { orderService } from '../services/orderService';
 import { OrderSummary } from '../components/OrderSummary';
+import { OrderCelebration } from '../components/OrderCelebration';
 import { Loader } from '../components/Loader';
 import { ErrorState } from '../components/ErrorState';
 import { useToast } from '../context/ToastContext';
@@ -25,6 +27,7 @@ export function OrderConfirmation() {
 
   const { id } = useParams();
   const { showToast } = useToast();
+  const prefersReducedMotion = useReducedMotion();
   const [order, setOrder] = useState(null);
   const [error, setError] = useState(null);
   const [lastAttemptStatus, setLastAttemptStatus] = useState(null);
@@ -32,8 +35,10 @@ export function OrderConfirmation() {
   const [pollError, setPollError] = useState(false);
   const [pollTick, setPollTick] = useState(0);
   const [retrying, setRetrying] = useState(false);
+  const [celebrationTrigger, setCelebrationTrigger] = useState(0);
   const pollCount = useRef(0);
   const consecutivePollFailures = useRef(0);
+  const celebratedRef = useRef(false);
 
   useEffect(() => {
     orderService
@@ -52,6 +57,20 @@ export function OrderConfirmation() {
   const paymentDefinitivelyFailed = lastAttemptStatus === 'FAILED';
   const paymentDropped = lastAttemptStatus === 'USER_DROPPED';
   const stillPolling = awaitingPayment && !paymentDefinitivelyFailed && !paymentDropped && !pollTimedOut && !pollError;
+  const paymentWindowExpired = order?.paymentMethod === 'Online' && order?.paymentStatus === 'expired';
+  // Mirrors the exact condition that reaches the success render branch
+  // below — only a genuinely confirmed order (COD immediately, or Online
+  // once truly paid) ever fires the celebration, and only once per order
+  // even as this component re-renders through every poll tick.
+  const isConfirmedSuccess =
+    Boolean(order) && !pollError && !awaitingPayment && !paymentDefinitivelyFailed && !paymentDropped && !paymentWindowExpired;
+
+  useEffect(() => {
+    if (isConfirmedSuccess && !celebratedRef.current) {
+      celebratedRef.current = true;
+      setCelebrationTrigger((n) => n + 1);
+    }
+  }, [isConfirmedSuccess]);
 
   useEffect(() => {
     if (!stillPolling) return;
@@ -109,11 +128,6 @@ export function OrderConfirmation() {
 
   if (error) return <ErrorState message={error} />;
   if (!order) return <Loader label="Loading order…" />;
-
-  // Order-level EXPIRED: the payment window closed without ever succeeding
-  // — distinct from a definitive FAILED/USER_DROPPED attempt (those surface
-  // immediately below, well before the order itself expires).
-  const paymentWindowExpired = order.paymentMethod === 'Online' && order.paymentStatus === 'expired';
 
   if (pollError) {
     return (
@@ -227,7 +241,15 @@ export function OrderConfirmation() {
 
   return (
     <div className="container section order-confirmation">
-      <div className="order-confirmation-badge">✓</div>
+      <OrderCelebration trigger={celebrationTrigger} />
+      <motion.div
+        className="order-confirmation-badge"
+        initial={prefersReducedMotion ? false : { scale: 0.4, opacity: 0, rotate: -20 }}
+        animate={{ scale: 1, opacity: 1, rotate: 0 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 16, delay: 0.1 }}
+      >
+        ✓
+      </motion.div>
       <h1>Order Confirmed</h1>
       <p className="order-confirmation-thanks">
         Thank you, {order.customer.name.split(' ')[0]}! Your order has been placed successfully.

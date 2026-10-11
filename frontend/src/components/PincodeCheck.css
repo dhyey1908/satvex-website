@@ -36,7 +36,7 @@
   color: var(--color-text);
   font-size: 0.9rem;
 }
-.pincode-check-form input:focus { outline: none; border-color: var(--color-accent); box-shadow: var(--focus-ring); }
+.pincode-check-form input:focus { outline: none; }
 
 .pincode-check-result {
   display: flex;

@@ -19,7 +19,6 @@
   color: var(--color-text-muted);
   transition: border-color var(--transition-fast);
 }
-.coupon-input-field:focus-within { border-color: var(--color-accent); color: var(--color-accent); }
 .coupon-input-field input {
   flex: 1;
   min-width: 0;

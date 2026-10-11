@@ -301,9 +301,7 @@ ul {
 .field input:focus,
 .field textarea:focus,
 .field select:focus {
-  border-color: var(--color-accent);
   outline: none;
-  box-shadow: var(--focus-ring);
 }
 .field-error {
   color: var(--color-error);

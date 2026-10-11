@@ -1,0 +1,35 @@
+.order-celebration {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Origin near the top of the viewport, roughly where the confirmation
+   checkmark badge sits — so the burst reads as coming from that badge
+   rather than an arbitrary point on screen. */
+.order-celebration-burst {
+  position: absolute;
+  top: 18%;
+  left: 50%;
+  width: 0;
+  height: 0;
+}
+
+.order-celebration-particle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.order-celebration-particle.shape-confetti { border-radius: 1px; }
+.order-celebration-particle.shape-sparkle {
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 7px 2px currentColor;
+}
+.order-celebration-particle.shape-icon { filter: drop-shadow(0 0 3px rgba(176, 141, 87, 0.5)); }

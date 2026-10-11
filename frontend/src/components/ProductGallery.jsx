@@ -15,18 +15,23 @@ const SWIPE_THRESHOLD = 40;
 export function ProductGallery({ images, activeImage, videoUrl, alt, onImageChange }) {
   const gallery = images && images.length > 0 ? images : [];
   const [index, setIndex] = useState(0);
-  // When a product has a video, it's the default view — shown as a static
-  // poster frame with standard play/pause/mute/fullscreen controls, never
-  // autoplaying. Selecting any image thumbnail switches to images, same as
-  // before; nothing about the image gallery itself changes.
+  // When a product has a video, it's the default view. Selecting any image
+  // thumbnail switches to images, same as before; nothing about the image
+  // gallery itself changes.
   const [showVideo, setShowVideo] = useState(Boolean(videoUrl));
+  // Autoplay genuinely failing (blocked, errored, or the viewer prefers
+  // reduced motion) falls back to the plain image view below rather than a
+  // stuck, silent black box — see the autoplay effect further down.
+  const [videoFailed, setVideoFailed] = useState(false);
   const [zoomOpen, setZoomOpen] = useState(false);
   const [magnified, setMagnified] = useState(false);
   const touchStartX = useRef(null);
+  const videoRef = useRef(null);
   const targetImage = activeImage || gallery[index];
   // Keeps showing the previous main image until the newly-requested one has
   // actually loaded, so switching color/thumbnail never shows a blank gap.
   const mainImage = usePreloadedImage(targetImage);
+  const videoVisible = showVideo && Boolean(videoUrl) && !videoFailed;
 
   // ProductDetail doesn't remount this component on every product-page
   // navigation (same route, just a new slug) — re-derive the default
@@ -34,8 +39,26 @@ export function ProductGallery({ images, activeImage, videoUrl, alt, onImageChan
   // after a non-video one (or vice versa) still opens on the right view.
   useEffect(() => {
     setShowVideo(Boolean(videoUrl));
-    setIndex(0);
+    setVideoFailed(false);
   }, [videoUrl]);
+
+  // Ad-style showcase: plays itself, muted, the moment it's visible — an
+  // explicit .play() call (not just the autoPlay attribute) so a genuine
+  // autoplay block surfaces as a promise rejection we can react to, rather
+  // than silently leaving a frozen first frame on screen. Also respects
+  // prefers-reduced-motion by skipping autoplay entirely for it, same
+  // fallback path as a real autoplay failure.
+  useEffect(() => {
+    if (!videoVisible) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setVideoFailed(true);
+      return;
+    }
+    const el = videoRef.current;
+    const playPromise = el?.play();
+    if (playPromise?.catch) playPromise.catch(() => setVideoFailed(true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videoVisible]);
 
   // Reports whatever is ACTUALLY on screen as the main image right now —
   // covers every way it can change (a color selection driving activeImage,
@@ -43,10 +66,10 @@ export function ProductGallery({ images, activeImage, videoUrl, alt, onImageChan
   // Lets a caller (the PDP's color-name badge) stay truthfully in sync with
   // the real photo. Never reported while the video view is showing instead.
   useEffect(() => {
-    if (showVideo) return;
+    if (videoVisible) return;
     onImageChange?.(mainImage || null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mainImage, showVideo]);
+  }, [mainImage, videoVisible]);
 
   function handleTouchStart(e) {
     touchStartX.current = e.touches[0].clientX;
@@ -76,7 +99,7 @@ export function ProductGallery({ images, activeImage, videoUrl, alt, onImageChan
             <button
               key={src + i}
               type="button"
-              className={`gallery-thumb ${!activeImage && !showVideo && i === index ? 'active' : ''}`}
+              className={`gallery-thumb ${!activeImage && !videoVisible && i === index ? 'active' : ''}`}
               onClick={() => selectImage(i)}
               aria-label={`View image ${i + 1}`}
             >
@@ -86,8 +109,11 @@ export function ProductGallery({ images, activeImage, videoUrl, alt, onImageChan
           {videoUrl && (
             <button
               type="button"
-              className={`gallery-thumb gallery-thumb-video ${showVideo ? 'active' : ''}`}
-              onClick={() => setShowVideo(true)}
+              className={`gallery-thumb gallery-thumb-video ${videoVisible ? 'active' : ''}`}
+              onClick={() => {
+                setShowVideo(true);
+                setVideoFailed(false);
+              }}
               aria-label="Play product video"
             >
               <Play size={20} fill="currentColor" />
@@ -95,25 +121,32 @@ export function ProductGallery({ images, activeImage, videoUrl, alt, onImageChan
           )}
         </div>
       )}
-      {showVideo && videoUrl ? (
-        // Plain div, not the zoomable image button below — native <video
-        // controls> already gives play/pause/mute/fullscreen, nothing here
-        // should intercept taps meant for those controls. Same gallery-main
-        // box/aspect-ratio as the image view, so switching between video and
-        // images never shifts layout.
+      {videoVisible ? (
+        // Plain div, not the zoomable image button below — nothing here is
+        // interactive, deliberately. Same gallery-main box/aspect-ratio as
+        // the image view, so switching between video and images never
+        // shifts layout.
         //
-        // No autoPlay/loop — a product video that starts playing itself and
-        // repeats reads as an ad banner, not a product video. poster shows
-        // the first product image until the customer taps play; after the
-        // video ends, the browser's native behavior (no loop) leaves the
-        // last frame on screen instead of restarting.
+        // Ad-style product showcase, not a traditional video player: muted
+        // + autoPlay + loop (autoplay is actually started by the .play()
+        // effect above, which can react to a block; these attributes are
+        // the standard declarative fallback) and no `controls` at all — no
+        // play/pause, scrubber, volume, fullscreen, or overflow menu.
+        // poster shows the first product image until the first frame of
+        // video is ready.
         <div className="gallery-main gallery-main-video">
           <video
             key={videoUrl}
+            ref={videoRef}
             src={videoUrl}
-            controls
+            muted
+            autoPlay
+            loop
             playsInline
+            disablePictureInPicture
+            preload="auto"
             poster={gallery[0] || undefined}
+            onError={() => setVideoFailed(true)}
             aria-label={`${alt} — product video`}
           />
         </div>

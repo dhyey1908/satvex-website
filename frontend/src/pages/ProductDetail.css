@@ -321,12 +321,30 @@
 
 @media (max-width: 860px) {
   .product-detail-grid { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
-  .product-detail-grid .pdp-gallery-wrap,
-  .product-detail-info {
-    position: static;
+  /* Stays `relative` here (not `static`) — this is the positioning context
+     for the absolutely-positioned Share/Wishlist buttons
+     (.pdp-gallery-actions) and the color-name badge (.pdp-color-badge).
+     Dropping it to `static` on mobile removes that context entirely, so
+     those elements fall back to the viewport as their containing block and
+     render pinned near the top of the whole page — overlapping the sticky
+     mobile header/announcement bar above — instead of staying anchored to
+     the gallery image. Only the desktop `sticky` behavior needs dropping
+     here. (This exact rule reverted once already mid-project — if it comes
+     back as a combined `.pdp-gallery-wrap, .product-detail-info { position:
+     static }` rule again, that's the bug; keep them split.) */
+  .product-detail-grid .pdp-gallery-wrap {
+    position: relative;
+    /* The base (desktop) rule above sets `top: calc(var(--header-height) +
+       var(--space-5))` alongside `position: sticky` — unlike `static`,
+       `relative` DOES honor `top`, so without resetting it here that
+       leftover desktop offset shoves the whole gallery down, leaving a
+       large blank gap above it on mobile. */
+    top: auto;
     min-width: 0;
   }
   .product-detail-info {
+    position: static;
+    min-width: 0;
     border: none;
     padding: 10px;
     /* Flexbox purely for the `order` reorder below — visual order only,
