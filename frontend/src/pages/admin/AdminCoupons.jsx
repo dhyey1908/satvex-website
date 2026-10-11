@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2, Users } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { useToast } from '../../context/ToastContext';
 import { useConfirm } from '../../context/ConfirmContext';
+import { formatDate } from '../../utils/date';
 import { Modal } from '../../components/Modal';
 import { Loader } from '../../components/Loader';
 import { EmptyState } from '../../components/EmptyState';
@@ -307,7 +308,7 @@ export function AdminCoupons() {
                       <p className="field-hint" style={{ margin: '2px 0 0' }}>{r.customerEmail}</p>
                     </td>
                     <td>−₹{r.discountAmount.toFixed(2)}</td>
-                    <td>{new Date(r.createdAt).toLocaleDateString()}</td>
+                    <td>{formatDate(r.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>

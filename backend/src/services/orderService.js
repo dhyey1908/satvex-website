@@ -115,7 +115,7 @@ async function listForUser(userId) {
 
 // Admin order volume is expected to stay modest for this store, so a Scan with
 // in-memory filtering avoids maintaining extra GSIs for status/search.
-async function listAll({ status, search } = {}) {
+async function listAll({ status, search, dateFrom, dateTo, paymentMethod, shipmentStatus } = {}) {
   const result = await docClient.send(new ScanCommand({ TableName: TABLE }));
   let items = (result.Items || []).map(withLegacyPaymentStatus);
 
@@ -131,6 +131,21 @@ async function listAll({ status, search } = {}) {
         order.customer?.email?.toLowerCase().includes(term) ||
         order.customer?.phone?.includes(term)
     );
+  }
+  // dateFrom/dateTo are plain YYYY-MM-DD strings (from an HTML date input) —
+  // compared against the date portion of createdAt only, so "today" always
+  // includes every order placed today regardless of time of day.
+  if (dateFrom) {
+    items = items.filter((order) => order.createdAt.slice(0, 10) >= dateFrom);
+  }
+  if (dateTo) {
+    items = items.filter((order) => order.createdAt.slice(0, 10) <= dateTo);
+  }
+  if (paymentMethod) {
+    items = items.filter((order) => order.paymentMethod === paymentMethod);
+  }
+  if (shipmentStatus) {
+    items = items.filter((order) => (order.shipmentStatus || 'not_created') === shipmentStatus);
   }
 
   return items.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));

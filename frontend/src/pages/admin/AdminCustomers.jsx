@@ -5,6 +5,7 @@ import { ErrorState } from '../../components/ErrorState';
 import { EmptyState } from '../../components/EmptyState';
 import { Pagination } from '../../components/Pagination';
 import { usePagination } from '../../hooks/usePagination';
+import { formatDate } from '../../utils/date';
 import './Admin.css';
 
 const PAGE_SIZE = 20;
@@ -74,7 +75,7 @@ export function AdminCustomers() {
                   <td>{c.name}</td>
                   <td>{c.email}</td>
                   <td>{c.phone || '—'}</td>
-                  <td>{new Date(c.createdAt).toLocaleDateString()}</td>
+                  <td>{formatDate(c.createdAt)}</td>
                   <td>{c.orderCount}</td>
                 </tr>
               ))}

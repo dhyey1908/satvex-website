@@ -349,8 +349,8 @@ async function reorder(req, res) {
 }
 
 async function adminListOrders(req, res) {
-  const { status, search } = req.query;
-  const orders = await orderService.listAll({ status, search });
+  const { status, search, dateFrom, dateTo, paymentMethod, shipmentStatus } = req.query;
+  const orders = await orderService.listAll({ status, search, dateFrom, dateTo, paymentMethod, shipmentStatus });
   ok(res, { orders });
 }
 

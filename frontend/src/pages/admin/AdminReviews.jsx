@@ -8,6 +8,7 @@ import { Loader } from '../../components/Loader';
 import { EmptyState } from '../../components/EmptyState';
 import { Pagination } from '../../components/Pagination';
 import { usePagination } from '../../hooks/usePagination';
+import { formatDate } from '../../utils/date';
 import './Admin.css';
 
 const PAGE_SIZE = 20;
@@ -81,7 +82,7 @@ export function AdminReviews() {
                   <td>{'★'.repeat(r.rating)}</td>
                   <td>{r.userName}</td>
                   <td style={{ maxWidth: 280, whiteSpace: 'normal' }}>{r.title && <strong>{r.title}: </strong>}{r.comment}</td>
-                  <td>{new Date(r.createdAt).toLocaleDateString()}</td>
+                  <td>{formatDate(r.createdAt)}</td>
                   <td>
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => handleDelete(r.reviewId)}>
                       <Trash2 size={14} /> Delete

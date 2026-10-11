@@ -9,6 +9,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { Pagination } from '../../components/Pagination';
 import { usePagination } from '../../hooks/usePagination';
 import { effectivePaymentStatus } from '../../utils/paymentStatus';
+import { formatDate } from '../../utils/date';
 import './Admin.css';
 
 const ADMIN_PAYMENT_LIST_LABELS = {
@@ -20,7 +21,16 @@ const ADMIN_PAYMENT_LIST_LABELS = {
   awaiting: 'Awaiting',
 };
 
+const SHIPMENT_STATUS_LABELS = {
+  not_created: 'Not Created',
+  order_created: 'Order Created',
+  awb_assigned: 'AWB Assigned',
+  pickup_scheduled: 'Pickup Scheduled',
+  label_generated: 'Label Ready',
+};
+
 const STATUSES = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+const SHIPMENT_STATUSES = Object.keys(SHIPMENT_STATUS_LABELS);
 const PAGE_SIZE = 20;
 
 function toCsv(orders) {
@@ -44,6 +54,10 @@ export function AdminOrders() {
   const [error, setError] = useState(null);
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [shipmentStatus, setShipmentStatus] = useState('');
   const [selected, setSelected] = useState([]);
   const [bulkStatus, setBulkStatus] = useState('');
   const [bulkUpdating, setBulkUpdating] = useState(false);
@@ -51,7 +65,7 @@ export function AdminOrders() {
   function load() {
     setError(null);
     adminService
-      .orders({ status, search })
+      .orders({ status, search, dateFrom, dateTo, paymentMethod, shipmentStatus })
       .then((data) => {
         setOrders(data.orders);
         setPage(1);
@@ -60,7 +74,7 @@ export function AdminOrders() {
       .catch((err) => setError(err.message));
   }
 
-  useEffect(load, [status]);
+  useEffect(load, [status, dateFrom, dateTo, paymentMethod, shipmentStatus]);
 
   function handleSearchSubmit(e) {
     e.preventDefault();
@@ -141,9 +155,46 @@ export function AdminOrders() {
             </option>
           ))}
         </select>
+        <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+          <option value="">All Payment Methods</option>
+          <option value="COD">COD</option>
+          <option value="Online">Online</option>
+        </select>
+        <select value={shipmentStatus} onChange={(e) => setShipmentStatus(e.target.value)}>
+          <option value="">All Shipping Statuses</option>
+          {SHIPMENT_STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {SHIPMENT_STATUS_LABELS[s]}
+            </option>
+          ))}
+        </select>
+        <label className="text-label-sm" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          From
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+        </label>
+        <label className="text-label-sm" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          To
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+        </label>
         <button type="submit" className="btn btn-outline btn-sm">
           <SearchIcon size={14} /> Search
         </button>
+        {(status || search || dateFrom || dateTo || paymentMethod || shipmentStatus) && (
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => {
+              setStatus('');
+              setSearch('');
+              setDateFrom('');
+              setDateTo('');
+              setPaymentMethod('');
+              setShipmentStatus('');
+            }}
+          >
+            Clear Filters
+          </button>
+        )}
       </form>
 
       {selected.length > 0 && (
@@ -188,6 +239,7 @@ export function AdminOrders() {
                   <th>Total</th>
                   <th>Status</th>
                   <th>Payment</th>
+                  <th>Shipping</th>
                   <th>Date</th>
                   <th></th>
                 </tr>
@@ -220,7 +272,18 @@ export function AdminOrders() {
                       )}
                       {o.needsReview && <AlertTriangle size={14} className="admin-needs-review-icon" title="Needs review" />}
                     </td>
-                    <td>{new Date(o.createdAt).toLocaleDateString()}</td>
+                    <td>
+                      <span className={`pill ${o.awbCode ? 'pill-active' : 'pill-inactive'}`}>
+                        {SHIPMENT_STATUS_LABELS[o.shipmentStatus] || o.shipmentStatus || 'Not Created'}
+                      </span>
+                      {o.awbCode && (
+                        <div className="text-label-sm" style={{ marginTop: 2 }}>
+                          {o.courierName ? `${o.courierName} · ` : ''}
+                          {o.awbCode}
+                        </div>
+                      )}
+                    </td>
+                    <td>{formatDate(o.createdAt)}</td>
                     <td>
                       <Link to={`/admin/orders/${o.orderId}`} className="btn btn-ghost btn-sm">
                         <Eye size={14} /> View

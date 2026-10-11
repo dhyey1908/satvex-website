@@ -15,6 +15,7 @@ import { ErrorState } from '../../components/ErrorState';
 import { useDocumentMeta } from '../../hooks/useDocumentMeta';
 import { redirectToCashfreeCheckout } from '../../utils/cashfree';
 import { canRetryPayment } from '../../utils/paymentStatus';
+import { formatDateTime } from '../../utils/date';
 import './Account.css';
 
 export function AccountOrderDetail() {
@@ -167,7 +168,7 @@ export function AccountOrderDetail() {
                 .map((ev, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: '0.9rem' }}>
                     <span>{ev.status}{ev.courierName ? ` — ${ev.courierName}` : ''}</span>
-                    <span className="field-hint">{new Date(ev.timestamp).toLocaleString()}</span>
+                    <span className="field-hint">{formatDateTime(ev.timestamp)}</span>
                   </div>
                 ))}
             </div>

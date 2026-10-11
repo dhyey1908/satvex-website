@@ -7,6 +7,7 @@ import { useToast } from '../context/ToastContext';
 import { Pagination } from './Pagination';
 import { usePagination } from '../hooks/usePagination';
 import { ReviewImageUploader } from './ReviewImageUploader';
+import { formatDate } from '../utils/date';
 import './ProductReviews.css';
 
 const MAX_REVIEW_IMAGES = 3;
@@ -133,7 +134,7 @@ export function ProductReviews({ productId }) {
                     {'☆'.repeat(5 - r.rating)}
                   </span>
                   <span className="product-review-author">{r.userName}</span>
-                  <span className="product-review-date">{new Date(r.createdAt).toLocaleDateString()}</span>
+                  <span className="product-review-date">{formatDate(r.createdAt)}</span>
                 </div>
                 {r.title && <p className="product-review-title">{r.title}</p>}
                 <p className="product-review-comment">{r.comment}</p>

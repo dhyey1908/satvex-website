@@ -81,9 +81,13 @@ async function attemptShipmentCreation(orderId) {
       billingCountry: order.address?.country || 'India',
       billingEmail: order.customer?.email,
       billingPhone: Number(order.customer?.phone),
-      orderItems: (order.items || []).map((item) => ({
+      // Shiprocket rejects an order whose line items repeat a SKU — our own
+      // items can share a productId when the same product was added with
+      // different variants/colors as separate cart lines, so the line's
+      // index is appended to guarantee uniqueness regardless.
+      orderItems: (order.items || []).map((item, index) => ({
         name: item.productName,
-        sku: item.productId,
+        sku: `${item.productId}-${index}`,
         units: item.quantity,
         sellingPrice: item.unitPrice,
       })),

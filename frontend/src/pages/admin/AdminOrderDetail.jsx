@@ -8,6 +8,7 @@ import { Loader } from '../../components/Loader';
 import { ErrorState } from '../../components/ErrorState';
 import { OrderSummary } from '../../components/OrderSummary';
 import { effectivePaymentStatus } from '../../utils/paymentStatus';
+import { formatDateTime } from '../../utils/date';
 import './Admin.css';
 
 const STATUSES = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
@@ -169,7 +170,7 @@ export function AdminOrderDetail() {
             {order.paymentAttemptCount > 0 && (
               <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
                 {order.paymentAttemptCount} payment attempt{order.paymentAttemptCount === 1 ? '' : 's'}
-                {order.lastPaymentAttemptAt ? ` · last at ${new Date(order.lastPaymentAttemptAt).toLocaleString()}` : ''}
+                {order.lastPaymentAttemptAt ? ` · last at ${formatDateTime(order.lastPaymentAttemptAt)}` : ''}
               </p>
             )}
             {order.refundStatus && order.refundStatus !== 'none' && (

@@ -45,9 +45,9 @@ async function main() {
     billingCountry: order.address?.country || 'India',
     billingEmail: order.customer?.email,
     billingPhone: Number(order.customer?.phone),
-    orderItems: (order.items || []).map((item) => ({
+    orderItems: (order.items || []).map((item, index) => ({
       name: item.productName,
-      sku: item.productId,
+      sku: `${item.productId}-${index}`,
       units: item.quantity,
       sellingPrice: item.unitPrice,
     })),
