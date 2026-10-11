@@ -32,7 +32,11 @@
 }
 .location-picker-suggestions {
   position: absolute;
-  z-index: 20;
+  /* Leaflet's internal panes (tiles/markers/popups) use z-index up to 700,
+     and the Leaflet container doesn't establish its own stacking context —
+     those values compete directly with this dropdown's unless it's set
+     well above them. */
+  z-index: 1000;
   top: calc(100% + 4px);
   left: 0;
   right: 0;
