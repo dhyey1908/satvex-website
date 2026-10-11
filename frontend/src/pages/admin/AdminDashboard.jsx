@@ -27,11 +27,13 @@ function buildDailySeries(orders, days) {
     buckets.set(d.toISOString().slice(0, 10), { orders: 0, revenue: 0 });
   }
   orders.forEach((o) => {
-    const key = new Date(o.createdAt).toISOString().slice(0, 10);
+    const createdAt = new Date(o.createdAt);
+    if (Number.isNaN(createdAt.getTime())) return; // no/invalid createdAt — skip rather than crash the chart
+    const key = createdAt.toISOString().slice(0, 10);
     if (buckets.has(key)) {
       const bucket = buckets.get(key);
       bucket.orders += 1;
-      bucket.revenue += o.total;
+      bucket.revenue += Number(o.total) || 0;
     }
   });
   return Array.from(buckets.entries()).map(([date, v]) => ({

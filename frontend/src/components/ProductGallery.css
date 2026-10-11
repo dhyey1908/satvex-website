@@ -11,7 +11,7 @@
   position: relative;
   flex: 1;
   min-width: 0;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 3 / 2;
   border-radius: var(--radius-lg);
   overflow: hidden;
   background: var(--color-surface-muted);

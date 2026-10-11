@@ -361,7 +361,7 @@ export function ProductDetail() {
           </div>
         </div>
 
-        <div className="product-detail-info">
+        <div className="pdp-head">
           <h1 className="text-headline-lg">{product.name}</h1>
           <RatingDisplay rating={product.rating} reviewCount={product.reviewCount} size="lg" />
           <p className="product-detail-desc">{product.shortDescription}</p>
@@ -379,7 +379,9 @@ export function ProductDetail() {
           </div>
 
           {sku && <p className="product-detail-sku">SKU: {sku}</p>}
+        </div>
 
+        <div className="pdp-purchase">
           <div className="product-detail-section">
             <h3>Selling Option</h3>
             <SellingOptionSelector
@@ -490,6 +492,16 @@ export function ProductDetail() {
             </div>
           )}
         </div>
+
+        {/* Its own grid area (see ProductDetail.css) controls width/
+            position — full-width, last, on both desktop and mobile. Placed
+            here in the DOM (after .pdp-purchase) so visual order and
+            keyboard/tab order agree. */}
+        <div className="product-detail-reviews" id="reviews">
+          <h3 className="text-headline-sm">Reviews</h3>
+          <RatingDisplay rating={product.rating} reviewCount={product.reviewCount} size="lg" />
+          <ProductReviews productId={product.productId} />
+        </div>
       </div>
 
       {/* Mobile-only sticky buy bar — CSS-hidden on desktop. Calls the exact
@@ -516,14 +528,6 @@ export function ProductDetail() {
         >
           {buyingNow ? <Loader2 size={16} className="btn-spinner" /> : (<><Zap size={16} /> Buy Now</>)}
         </button>
-      </div>
-
-      <div className="product-detail-below">
-        <div className="product-detail-reviews" id="reviews">
-          <h3 className="text-headline-sm">Reviews</h3>
-          <RatingDisplay rating={product.rating} reviewCount={product.reviewCount} size="lg" />
-          <ProductReviews productId={product.productId} />
-        </div>
       </div>
 
       {relatedProducts && relatedProducts.length > 0 && (

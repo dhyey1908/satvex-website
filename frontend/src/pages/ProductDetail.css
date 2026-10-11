@@ -73,20 +73,39 @@
   }
 }
 
+/* Named-area grid so Reviews can sit in a completely different position on
+   mobile (between the head info and the purchase panel) vs desktop (full
+   width, below both columns) from the exact same DOM — no duplicated
+   component, no JS. See the mobile override below for the reordered
+   layout. .pdp-head and .pdp-purchase are two halves of what reads as one
+   continuous bordered panel on desktop (see their border rules below) —
+   split only because Reviews needs to slot between them on mobile. */
 .product-detail-grid {
   display: grid;
   grid-template-columns: 1.2fr 1fr;
-  gap: var(--space-7);
+  grid-template-areas:
+    'gallery head'
+    'gallery purchase'
+    'reviews reviews';
+  column-gap: var(--space-7);
+  row-gap: 0;
   align-items: start;
 }
 
-/* Both columns stick independently within the row's bounds — the gallery
-   because it has a predictable fixed aspect ratio, and the purchase panel
-   so the buy actions never scroll out of view while exploring the
-   gallery/details. Neither column can "finish" before the other and leave
-   a blank gap, since both stay in view together. */
+.pdp-gallery-wrap { grid-area: gallery; }
+.pdp-head { grid-area: head; }
+.pdp-purchase { grid-area: purchase; }
+.product-detail-reviews { grid-area: reviews; }
+
+/* Gallery sticks because it has a predictable fixed aspect ratio; the
+   purchase panel (buy actions) sticks so they never scroll out of view
+   while exploring combo/color/description. .pdp-head is short and simply
+   scrolls normally — splitting the old single sticky "info" column into
+   two independently-sticky pieces risks them overlapping mid-scroll, so
+   only the one that actually matters to keep visible (the buy panel)
+   stays sticky. */
 .product-detail-grid .pdp-gallery-wrap,
-.product-detail-info {
+.pdp-purchase {
   position: sticky;
   top: calc(var(--header-height) + var(--space-5));
 }
@@ -164,15 +183,25 @@
 .pdp-gallery-wishlist:hover { color: var(--color-accent); }
 .pdp-gallery-wishlist.active { color: var(--color-accent); }
 
-/* Purchase panel — one subtle-bordered block, not a stack of separate
-   cards. Sections inside it are separated by spacing/dividers only. */
-.product-detail-info {
+/* .pdp-head + .pdp-purchase together read as ONE continuous bordered
+   panel on desktop (matching no-border-between-them + zero row-gap above)
+   — split into two grid items only so Reviews can slot between them on
+   mobile; visually on desktop they're indistinguishable from the single
+   block this used to be. */
+.pdp-head {
   border: 1.5px solid var(--color-border);
-  padding: var(--space-5) var(--space-6);
+  border-bottom: none;
+  padding: var(--space-5) var(--space-6) 0;
+  background: var(--color-surface);
+}
+.pdp-purchase {
+  border: 1.5px solid var(--color-border);
+  border-top: none;
+  padding: 0 var(--space-6) var(--space-5);
   background: var(--color-surface);
 }
 
-.product-detail-info h1 { margin-bottom: var(--space-2); }
+.pdp-head h1 { margin-bottom: var(--space-2); }
 .product-detail-desc { font-size: 1.02rem; margin-top: var(--space-3); margin-bottom: 0; }
 
 .product-detail-price-row {
@@ -289,20 +318,18 @@
 .pdp-description-body p { margin: 0 0 var(--space-2); font-size: 0.9rem; line-height: 1.6; }
 .pdp-description-body p:last-child { margin-bottom: 0; }
 
-/* Full-width and close behind the purchase panel — a tight border-top
-   connects it visually instead of a large empty gap implying it's a
-   separate, disconnected section. */
-.product-detail-below {
-  max-width: 1100px;
-  /* margin: var(--space-6) 0 0; */
-  /* padding-top: var(--space-6); */
-  border-top: 1px solid var(--color-border);
-}
-
 .pdp-wishlist-icon { display: inline-flex; }
 
+/* Full-width (grid-area: reviews, see above) and close behind the purchase
+   panel — a tight border-top connects it visually instead of a large empty
+   gap implying it's a separate, disconnected section. margin-top replaces
+   the row-gap the grid no longer provides (set to 0 so .pdp-head/.pdp-
+   purchase can read as one seamless panel — see their border rules). */
 .product-detail-reviews {
+  max-width: 1100px;
+  margin-top: var(--space-7);
   padding-top: var(--space-6);
+  border-top: 1px solid var(--color-border);
 }
 .product-detail-reviews h3 { margin-bottom: var(--space-3); }
 
@@ -320,7 +347,23 @@
 }
 
 @media (max-width: 860px) {
-  .product-detail-grid { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
+  /* Mobile reorders the SAME four grid items (gallery/head/purchase/
+     reviews) into: gallery -> head (name/rating/price) -> purchase
+     (combo/color/quantity/actions/description) -> reviews, last. Desktop
+     keeps gallery+head+purchase as a 2-column panel with reviews
+     full-width below — see the desktop grid-template-areas above (same
+     relative order: purchase before reviews on both breakpoints). Nothing
+     is duplicated or JS-driven; only which named area each row occupies
+     changes per breakpoint. */
+  .product-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'gallery'
+      'head'
+      'purchase'
+      'reviews';
+    row-gap: var(--space-5);
+  }
   /* Stays `relative` here (not `static`) — this is the positioning context
      for the absolutely-positioned Share/Wishlist buttons
      (.pdp-gallery-actions) and the color-name badge (.pdp-color-badge).
@@ -330,8 +373,8 @@
      mobile header/announcement bar above — instead of staying anchored to
      the gallery image. Only the desktop `sticky` behavior needs dropping
      here. (This exact rule reverted once already mid-project — if it comes
-     back as a combined `.pdp-gallery-wrap, .product-detail-info { position:
-     static }` rule again, that's the bug; keep them split.) */
+     back as a combined selector covering .pdp-gallery-wrap again, that's
+     the bug; keep it its own rule.) */
   .product-detail-grid .pdp-gallery-wrap {
     position: relative;
     /* The base (desktop) rule above sets `top: calc(var(--header-height) +
@@ -342,20 +385,13 @@
     top: auto;
     min-width: 0;
   }
-  .product-detail-info {
+  .pdp-head,
+  .pdp-purchase {
     position: static;
     min-width: 0;
     border: none;
     padding: 10px;
-    /* Flexbox purely for the `order` reorder below — visual order only,
-       DOM/tab order and all logic stay untouched. */
-    display: flex;
-    flex-direction: column;
   }
-  /* Colors sit directly under the gallery on mobile so a shopper can flip
-     through shades and watch the main image update before reading anything
-     else — the desktop two-column layout is unaffected. */
-  .pdp-color-section { order: -1; }
   .product-detail-sku { border-bottom: none; }
   .pdp-wishlist-btn { width: 48px; }
 
@@ -364,6 +400,17 @@
      longer sit inside one visually-bordered box giving its own separation. */
   .product-detail-section { margin-bottom: var(--space-5); }
   .product-detail-section h3 { margin-bottom: var(--space-3); }
+
+  /* The desktop rule's margin-top compensates for the grid's row-gap being
+     0 there (see .pdp-head/.pdp-purchase's seamless-panel border trick) —
+     on mobile the grid already has a real row-gap, so stacking both would
+     be double spacing. The divider itself (border-top/padding-top) still
+     applies, and it's no longer width-capped once it's a normal full-width
+     mobile section. */
+  .product-detail-reviews {
+    max-width: none;
+    margin-top: 0;
+  }
 
   /* The sticky bar below duplicates Add to Cart + Buy Now — keeping the
      inline row too meant two full sets of purchase buttons stacked in the
