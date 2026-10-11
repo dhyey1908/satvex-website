@@ -250,11 +250,11 @@ export function OrderConfirmation() {
           itemsSlot={
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8 }}>
               {order.items.map((item, i) => (
-                <div key={i} className="checkout-summary-item">
-                  <span>
+                <div key={i} className="checkout-summary-item order-confirmation-item">
+                  <span className="order-confirmation-item-name">
                     {item.productName} · {item.sellingOptionName} × {item.quantity}
                   </span>
-                  <span>₹{item.subtotal.toFixed(2)}</span>
+                  <span className="order-confirmation-item-price">₹{item.subtotal.toFixed(2)}</span>
                 </div>
               ))}
             </div>

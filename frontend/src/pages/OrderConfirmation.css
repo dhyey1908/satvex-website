@@ -1,6 +1,10 @@
 .order-confirmation {
   max-width: 780px;
   text-align: center;
+  /* Belt-and-suspenders against any stray wide child forcing the page to
+     scroll sideways — every real fix below targets the actual cause, this
+     just guarantees it can never happen regardless. */
+  overflow-x: hidden;
 }
 
 .order-confirmation-badge {
@@ -17,8 +21,8 @@
   margin: 0 auto var(--space-4);
 }
 
-.order-confirmation-thanks { max-width: 420px; margin: 0 auto var(--space-2); }
-.order-confirmation-number { font-size: 0.9rem; margin-bottom: var(--space-7); }
+.order-confirmation-thanks { max-width: 420px; margin: 0 auto var(--space-2); word-wrap: break-word; }
+.order-confirmation-number { font-size: 0.9rem; margin-bottom: var(--space-7); word-break: break-word; }
 
 .order-confirmation-grid {
   display: grid;
@@ -26,16 +30,41 @@
   gap: var(--space-5);
   text-align: left;
   margin-bottom: var(--space-7);
+  /* Grid items default to min-width: auto, which lets a long, unbroken
+     child (a product name, an address line) push its column — and the
+     whole grid — wider than the viewport instead of wrapping. */
+  min-width: 0;
 }
+.order-confirmation-grid > * { min-width: 0; }
 
-.order-confirmation-address { padding: var(--space-5); }
+.order-confirmation-address { padding: var(--space-5); overflow-wrap: break-word; }
 .order-confirmation-address h3 { margin-bottom: var(--space-3); }
+.order-confirmation-address p { overflow-wrap: break-word; }
 .order-confirmation-processing {
   margin-top: var(--space-4);
   padding-top: var(--space-4);
   border-top: 1px solid var(--color-border);
   font-size: 0.85rem;
   color: var(--color-text-muted);
+}
+
+/* The item row reuses Checkout's .checkout-summary-item, which assumes a
+   fixed-width image as its first child — here there's no image, just two
+   text spans, so the name needs its own flex-shrink/min-width/wrap rules
+   (an un-constrained flex child's default min-width is its content's
+   natural width, which is exactly what was forcing this row, and the page
+   around it, wider than the viewport on a long product name). */
+.order-confirmation-item.checkout-summary-item {
+  justify-content: space-between;
+}
+.order-confirmation-item-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+.order-confirmation-item-price {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .order-confirmation-actions {
@@ -52,4 +81,23 @@
 
 @media (max-width: 700px) {
   .order-confirmation-grid { grid-template-columns: 1fr; }
+}
+
+/* Mobile: tighten the large desktop-tuned vertical gaps (space-7 reads as
+   wasted empty space on a short viewport) and stack the two action
+   buttons full-width instead of risking them being squeezed/clipped
+   side by side. */
+@media (max-width: 480px) {
+  .section.order-confirmation { padding-top: var(--space-4); padding-bottom: var(--space-4); }
+  .order-confirmation-number { margin-bottom: var(--space-5); }
+  .order-confirmation-grid { gap: var(--space-4); margin-bottom: var(--space-5); }
+  .order-confirmation-address { padding: var(--space-4); }
+
+  .order-confirmation-actions {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .order-confirmation-actions .btn {
+    width: 100%;
+  }
 }
