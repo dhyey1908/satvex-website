@@ -37,11 +37,11 @@ function toCsv(orders) {
   const header = ['Order ID', 'Customer', 'Email', 'Total', 'Status', 'Date'];
   const rows = orders.map((o) => [
     o.orderId,
-    o.customer.name,
-    o.customer.email || '',
-    o.total.toFixed(2),
-    o.status,
-    new Date(o.createdAt).toISOString(),
+    o.customer?.name || '',
+    o.customer?.email || '',
+    Number(o.total || 0).toFixed(2),
+    o.status || '',
+    o.createdAt ? new Date(o.createdAt).toISOString() : '',
   ]);
   return [header, ...rows]
     .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
@@ -255,8 +255,8 @@ export function AdminOrders() {
                       />
                     </td>
                     <td>{o.orderId.slice(0, 8)}</td>
-                    <td>{o.customer.name}</td>
-                    <td>₹{o.total.toFixed(2)}</td>
+                    <td>{o.customer?.name || '—'}</td>
+                    <td>₹{Number(o.total || 0).toFixed(2)}</td>
                     <td>
                       <span className={`pill ${o.status === 'Cancelled' ? 'pill-inactive' : 'pill-active'}`}>
                         {o.status}

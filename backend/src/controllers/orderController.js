@@ -41,6 +41,30 @@ function resolveApiBaseUrl(req) {
   return env.apiBaseUrl || `${req.protocol}://${req.get('host')}`;
 }
 
+// PayU's own dashboard doesn't confirm udf1-udf5 as visible columns (only
+// as request/hash/echo fields — see docs.payu.in's merchant-reference
+// search help, which never mentions udf fields as searchable/visible).
+// productinfo, by contrast, IS shown in a transaction's own detail view
+// (per PayU's hosted-checkout response sample) — so it's the one field
+// actually worth putting the SATVEX order reference into, for a human
+// looking at a single transaction in PayU's dashboard to identify which
+// order it belongs to.
+function buildProductInfo(orderId) {
+  return `Order SATVEX-${orderId.slice(0, 8).toUpperCase()}`;
+}
+
+// The txnid of the most recent PayU payment attempt on this order — the
+// only one that can still be "awaiting_payment" (an earlier attempt that
+// didn't succeed is final/abandoned; see retryPayment, which always starts
+// a fresh attempt rather than reusing an old one). Falls back to the order
+// id itself for an order created before this change (back when txnid was
+// always just the bare orderId, with no paymentAttempts array at all) —
+// still correct, since that WAS the real txnid used for that order.
+function latestAttemptTxnid(order) {
+  const attempts = order.paymentAttempts || [];
+  return attempts[attempts.length - 1]?.txnid || order.orderId;
+}
+
 async function isOnlinePaymentsAvailable(userId) {
   const settings = await settingsService.getSettings();
   const { onlineEnabled, onlineTestUserIds } = settings.payments || {};
@@ -104,15 +128,12 @@ async function checkout(req, res) {
     deliveryPincode: address.pincode,
   });
 
-  // Step 2: mint the order id up front — also used as PayU's txnid for this
-  // order's entire lifetime (including any retry — PayU allows re-posting
-  // the same txnid as long as it never had a successful transaction, and
-  // our own paymentStatus check already blocks a retry once paid, so no
-  // separate "latest txnid" tracking is needed).
+  // Step 2: mint the order id up front.
   const orderId = uuid();
 
   let payuParams = null;
   let paymentExpiresAt = null;
+  let paymentAttempts;
 
   if (paymentMethod === 'Online') {
     // No gateway API call here — PayU's hosted checkout is a hashed HTML
@@ -121,17 +142,23 @@ async function checkout(req, res) {
     const normalizedPhone = normalizePhoneForPayu(customer.phone);
     paymentExpiresAt = new Date(Date.now() + PAYMENT_WINDOW_MS).toISOString();
 
+    // Attempt #1 for this order — a unique txnid per attempt (never the
+    // bare orderId reused across retries), so PayU's dashboard can tell
+    // separate attempts apart when an admin searches by it. See
+    // payuService.buildTxnid and retryPayment below for attempt #2+.
+    const txnid = payuService.buildTxnid(orderId, 1);
     const callbackUrl = `${resolveApiBaseUrl(req)}/api/payments/payu/callback`;
     payuParams = payuService.buildPaymentParams({
-      txnid: orderId,
+      txnid,
       amount: totals.total,
-      productinfo: 'Satvex Order',
+      productinfo: buildProductInfo(orderId),
       firstname: customer.name,
       email: customer.email || 'customer@satvex.com', // PayU requires a non-empty email even though our checkout no longer collects one
       phone: normalizedPhone,
       surl: callbackUrl,
       furl: callbackUrl,
     });
+    paymentAttempts = [{ txnid, status: 'initiated', amount: totals.total, currency: 'INR', initiatedAt: new Date().toISOString() }];
   }
 
   // Step 5: commit the coupon (redemption record + incrementUsage) — same
@@ -186,6 +213,7 @@ async function checkout(req, res) {
       total: totals.total,
       paymentStatus: paymentMethod === 'Online' ? 'awaiting_payment' : 'not_required',
       paymentExpiresAt,
+      paymentAttempts,
     });
   } catch (err) {
     if (coupon) {
@@ -274,19 +302,23 @@ async function getPaymentStatus(req, res) {
     });
   }
 
-  const result = await payuService.verifyPayment(order.orderId).catch(() => null);
+  const txnid = latestAttemptTxnid(order);
+  const result = await payuService.verifyPayment(txnid).catch(() => null);
 
   if (result?.status === 'success') {
     if (result.amount != null && result.amount !== Number(order.total)) {
       await orderService.flagForReview(order.orderId, 'Payment amount mismatch on reconciliation.');
     } else {
       await orderService.markPaid(order.orderId, { payuMihpayid: result.mihpayid, paidAt: new Date().toISOString() });
+      await orderService.recordPaymentAttemptResult(order.orderId, { txnid, status: 'success', mihpayid: result.mihpayid, mode: result.mode, bankRefNum: result.bankRefNum });
       await shipmentService.triggerShipmentIfNeeded(order.orderId);
     }
   } else if (result?.status === 'failure') {
     await orderService.markPaymentAttempt(order.orderId, 'FAILED');
+    await orderService.recordPaymentAttemptResult(order.orderId, { txnid, status: 'failure', mihpayid: result.mihpayid, mode: result.mode, bankRefNum: result.bankRefNum });
   } else if (result?.status === 'pending') {
     await orderService.markPaymentAttempt(order.orderId, 'PENDING');
+    await orderService.recordPaymentAttemptResult(order.orderId, { txnid, status: 'pending', mode: result.mode });
   }
   // 'not_found' or an API error: leave the order as awaiting_payment,
   // exactly as the expiry sweep does — never expire or mark paid on an
@@ -313,10 +345,12 @@ async function finalizeExpiry(order) {
 }
 
 // Regenerates PayU payment params for an order that's still awaiting
-// payment and hasn't expired yet. Unlike Cashfree's reusable
-// payment_session_id, PayU has nothing to "re-fetch" — this just rebuilds a
-// fresh hashed form POST against the SAME txnid (order.orderId), after
-// first confirming with PayU that txnid genuinely hasn't already succeeded.
+// payment and hasn't expired yet — after first confirming with PayU that
+// the most recent attempt genuinely hasn't already succeeded. Unlike
+// Cashfree's reusable payment_session_id, PayU has nothing to "re-fetch";
+// this builds a fresh hashed form POST against a NEW, never-before-used
+// txnid (attempt #2, #3, ...), not the previous attempt's — see
+// payuService.buildTxnid.
 async function retryPayment(req, res) {
   const order = await orderService.findById(req.params.id);
   if (!order || order.userId !== req.user.id) {
@@ -329,25 +363,32 @@ async function retryPayment(req, res) {
     throw new AppError('This order has expired. Please place a new order.', 400, 'PAYMENT_EXPIRED');
   }
 
-  const result = await payuService.verifyPayment(order.orderId).catch(() => null);
+  const previousTxnid = latestAttemptTxnid(order);
+  const result = await payuService.verifyPayment(previousTxnid).catch(() => null);
   if (result?.status === 'success') {
     await orderService.markPaid(order.orderId, { payuMihpayid: result.mihpayid, paidAt: new Date().toISOString() });
+    await orderService.recordPaymentAttemptResult(order.orderId, { txnid: previousTxnid, status: 'success', mihpayid: result.mihpayid, mode: result.mode, bankRefNum: result.bankRefNum });
     await shipmentService.triggerShipmentIfNeeded(order.orderId);
     return ok(res, { payuParams: null, alreadyPaid: true });
   }
 
+  const attemptNumber = (order.paymentAttempts?.length || 0) + 1;
+  const txnid = payuService.buildTxnid(order.orderId, attemptNumber);
   const normalizedPhone = normalizePhoneForPayu(order.customer.phone);
   const callbackUrl = `${resolveApiBaseUrl(req)}/api/payments/payu/callback`;
   const payuParams = payuService.buildPaymentParams({
-    txnid: order.orderId,
+    txnid,
     amount: order.total,
-    productinfo: 'Satvex Order',
+    productinfo: buildProductInfo(order.orderId),
     firstname: order.customer.name,
     email: order.customer.email || 'customer@satvex.com',
     phone: normalizedPhone,
     surl: callbackUrl,
     furl: callbackUrl,
   });
+  // Logged before the customer is ever redirected to PayU, same reasoning
+  // as checkout's attempt #1 — see recordPaymentAttemptInitiated.
+  await orderService.recordPaymentAttemptInitiated(order.orderId, { txnid, amount: order.total });
   ok(res, { payuParams });
 }
 

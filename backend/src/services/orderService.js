@@ -50,6 +50,7 @@ async function createOrder({
   total,
   paymentStatus,
   paymentExpiresAt,
+  paymentAttempts,
 }) {
   const now = new Date().toISOString();
   const order = {
@@ -85,6 +86,12 @@ async function createOrder({
     // succeeds; see shipmentJobService.js / shipmentSweep.js.
     shipmentStatus: 'not_created',
     paymentAttemptCount: 0,
+    // Full per-attempt audit trail (PayU txnid, amount, mode, mihpayid,
+    // bank reference, failure reason, timestamps) — one entry per distinct
+    // PayU payment attempt, each with its own unique txnid (never reused
+    // across retries; see orderController's buildTxnid). Empty for COD.
+    // See recordPaymentAttemptInitiated/recordPaymentAttemptResult below.
+    paymentAttempts: paymentAttempts || [],
     couponReleased: false,
     needsReview: false,
     refundStatus: 'none',
@@ -207,6 +214,61 @@ async function markPaymentAttempt(orderId, status) {
       UpdateExpression:
         'SET lastPaymentAttemptStatus = :status, lastPaymentAttemptAt = :now, updatedAt = :now ADD paymentAttemptCount :one',
       ExpressionAttributeValues: { ':status': status, ':now': new Date().toISOString(), ':one': 1 },
+    })
+  );
+}
+
+// Logs a new PayU payment attempt (retryPayment only — the first attempt is
+// included directly in createOrder's initial item). Appended, never
+// overwritten, via list_append — atomic, no read-before-write needed, same
+// pattern as refundAttempts below. `status: 'initiated'` is written before
+// the customer is ever redirected to PayU, so even an attempt the customer
+// abandons on PayU's own page (never posts back to our callback at all)
+// still has an exact-txnid audit record, not just a silent gap.
+async function recordPaymentAttemptInitiated(orderId, { txnid, amount }) {
+  const now = new Date().toISOString();
+  await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE,
+      Key: { orderId },
+      UpdateExpression:
+        'SET paymentAttempts = list_append(if_not_exists(paymentAttempts, :empty), :attempt), updatedAt = :now',
+      ExpressionAttributeValues: {
+        ':empty': [],
+        ':attempt': [{ txnid, status: 'initiated', amount, currency: 'INR', initiatedAt: now }],
+        ':now': now,
+      },
+    })
+  );
+}
+
+// Resolves a logged attempt (found by its own unique txnid) to its final
+// PayU-reported outcome — mode (UPI/CC/DC/etc), PayU's own transaction id,
+// bank reference, and (for a failure) the reason, alongside the existing
+// top-level lastPaymentAttemptStatus/payuMihpayid fields that drive the
+// order's own paymentStatus transitions (markPaid/markPaymentAttempt) —
+// this is purely the detailed audit record for admin/customer display, kept
+// as a separate call so a caller that only needs the status transition
+// (e.g. the expiry sweep) isn't forced to also have mode/bank-ref data on
+// hand. Read-modify-write (no DynamoDB partial-array-element update exists)
+// — safe to call more than once for the same txnid, since it simply
+// overwrites that one entry with the latest data each time (e.g. a
+// duplicate callback delivery resolving the same attempt twice).
+async function recordPaymentAttemptResult(orderId, { txnid, status, mihpayid, mode, bankRefNum, errorMessage }) {
+  const order = await findById(orderId);
+  if (!order) return;
+  const now = new Date().toISOString();
+  const attempts = (order.paymentAttempts || []).map((a) =>
+    a.txnid === txnid
+      ? { ...a, status, mihpayid: mihpayid || null, mode: mode || null, bankRefNum: bankRefNum || null, errorMessage: errorMessage || null, completedAt: now }
+      : a
+  );
+  await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE,
+      Key: { orderId },
+      UpdateExpression: 'SET paymentAttempts = :attempts, updatedAt = :now',
+      ExpressionAttributeValues: { ':attempts': attempts, ':now': now },
     })
   );
 }
@@ -635,6 +697,8 @@ module.exports = {
   updateStatus,
   hasUserReceivedDeliveredProduct,
   markPaymentAttempt,
+  recordPaymentAttemptInitiated,
+  recordPaymentAttemptResult,
   markPaid,
   markExpired,
   flagForReview,

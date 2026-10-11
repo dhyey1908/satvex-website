@@ -179,9 +179,23 @@ export function AccountOrderDetail() {
         </div>
       )}
 
-      <p className="field-hint" style={{ marginBottom: showRetryPayment ? 8 : 20 }}>
+      <p className="field-hint" style={{ marginBottom: 8 }}>
         Payment Method: <strong>{order.paymentMethod === 'COD' ? 'Cash on Delivery' : 'Online Payment'}</strong>
       </p>
+
+      {order.paymentStatus === 'paid' &&
+        order.paymentMethod === 'Online' &&
+        (() => {
+          const paid = order.paymentAttempts?.find((a) => a.status === 'success');
+          if (!paid) return null;
+          return (
+            <p className="field-hint" style={{ marginBottom: 20 }}>
+              Paid via <strong>{paid.mode || 'Online'}</strong>
+              {paid.completedAt ? ` on ${formatDateTime(paid.completedAt)}` : ''}
+              {paid.mihpayid ? ` — Ref: ${paid.mihpayid}` : ''}
+            </p>
+          );
+        })()}
 
       {showRetryPayment && (
         <div style={{ marginBottom: 20 }}>

@@ -32,10 +32,19 @@ async function finalizeExpiry(order) {
   return result;
 }
 
+// The most recent attempt's txnid — orders created before per-attempt
+// txnids existed have no paymentAttempts array at all, so this falls back
+// to the order id itself (that WAS the real txnid for those).
+function latestAttemptTxnid(order) {
+  const attempts = order.paymentAttempts || [];
+  return attempts[attempts.length - 1]?.txnid || order.orderId;
+}
+
 async function processOrder(order) {
+  const txnid = latestAttemptTxnid(order);
   let result;
   try {
-    result = await payuService.verifyPayment(order.orderId);
+    result = await payuService.verifyPayment(txnid);
   } catch {
     // API error — skip this order, retry next hourly run. Never expire on
     // an inconclusive result.
@@ -44,11 +53,13 @@ async function processOrder(order) {
 
   if (result.status === 'success') {
     await orderService.markPaid(order.orderId, { payuMihpayid: result.mihpayid, paidAt: new Date().toISOString() });
+    await orderService.recordPaymentAttemptResult(order.orderId, { txnid, status: 'success', mihpayid: result.mihpayid, mode: result.mode, bankRefNum: result.bankRefNum });
     await shipmentService.triggerShipmentIfNeeded(order.orderId);
     return 'reconciled-paid';
   }
 
   if (result.status === 'failure') {
+    await orderService.recordPaymentAttemptResult(order.orderId, { txnid, status: 'failure', mihpayid: result.mihpayid, mode: result.mode, bankRefNum: result.bankRefNum });
     await finalizeExpiry(order);
     return 'expired';
   }

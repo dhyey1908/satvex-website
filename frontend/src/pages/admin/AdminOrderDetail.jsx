@@ -128,7 +128,7 @@ export function AdminOrderDetail() {
 
       <div className="admin-form-section">
         <h3>Items</h3>
-        {order.items.map((item, i) => (
+        {(order.items || []).map((item, i) => (
           <div key={i} className="repeatable-row">
             <span style={{ flex: 2 }}>
               {item.productName} · {item.sellingOptionName} × {item.quantity}
@@ -154,8 +154,8 @@ export function AdminOrderDetail() {
 
       <div className="admin-form-section">
         <h3>Customer</h3>
-        <p>{order.customer.name}</p>
-        <p>{order.customer.email ? `${order.customer.email} · ` : ''}{order.customer.phone}</p>
+        <p>{order.customer?.name || '—'}</p>
+        <p>{order.customer?.email ? `${order.customer.email} · ` : ''}{order.customer?.phone}</p>
         <p>
           Payment Method: <strong>{order.paymentMethod === 'COD' ? 'Cash on Delivery' : 'Online Payment'}</strong>
         </p>
@@ -187,6 +187,50 @@ export function AdminOrderDetail() {
           </>
         )}
       </div>
+
+      {order.paymentMethod === 'Online' && order.paymentAttempts?.length > 0 && (
+        <div className="admin-form-section">
+          <h3>Payment Transactions</h3>
+          <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: 'var(--sp-md)' }}>
+            One row per PayU payment attempt — each has its own unique transaction reference (txnid), searchable
+            directly in PayU&apos;s dashboard (QuickSearch → Merchant Reference).
+          </p>
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Txn Ref (txnid)</th>
+                  <th>Status</th>
+                  <th>Mode</th>
+                  <th>Amount</th>
+                  <th>PayU ID (mihpayid)</th>
+                  <th>Bank Ref</th>
+                  <th>Initiated</th>
+                  <th>Completed</th>
+                  <th>Failure Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {order.paymentAttempts.map((a, i) => (
+                  <tr key={a.txnid || i}>
+                    <td style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}>{a.txnid}</td>
+                    <td>
+                      <span className={`pill ${a.status === 'success' ? 'pill-active' : 'pill-inactive'}`}>{a.status}</span>
+                    </td>
+                    <td>{a.mode || '—'}</td>
+                    <td>{a.amount != null ? `₹${Number(a.amount).toFixed(2)}` : '—'}</td>
+                    <td style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}>{a.mihpayid || '—'}</td>
+                    <td style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}>{a.bankRefNum || '—'}</td>
+                    <td>{a.initiatedAt ? formatDateTime(a.initiatedAt) : '—'}</td>
+                    <td>{a.completedAt ? formatDateTime(a.completedAt) : '—'}</td>
+                    <td>{a.errorMessage || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="admin-form-section">
         <h3>Shipment</h3>
@@ -226,11 +270,11 @@ export function AdminOrderDetail() {
 
       <div className="admin-form-section">
         <h3>Shipping Address</h3>
-        <p>{order.address.line1}</p>
+        <p>{order.address?.line1 || '—'}</p>
         <p>
-          {order.address.city}, {order.address.state} {order.address.pincode}
+          {order.address?.city}, {order.address?.state} {order.address?.pincode}
         </p>
-        <p>{order.address.country}</p>
+        <p>{order.address?.country}</p>
       </div>
     </div>
   );

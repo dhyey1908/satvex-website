@@ -18,6 +18,23 @@ function sha512(input) {
   return crypto.createHash('sha512').update(input).digest('hex');
 }
 
+// A unique PayU txnid per payment ATTEMPT (not per order) — PayU's merchant
+// dashboard's QuickSearch looks transactions up by this exact "merchant
+// reference" value (confirmed: docs.payu.in's transaction-search help), so
+// reusing one txnid across retries would mean every attempt on an order
+// shares the same searchable reference and an admin can't tell them apart
+// there. The order id is still recoverable from any txnid by stripping the
+// trailing "-N" — orderId is a UUID (fixed hyphen positions), so splitting
+// on the LAST hyphen is safe regardless of the UUID's own internal hyphens.
+function buildTxnid(orderId, attemptNumber) {
+  return `${orderId}-${attemptNumber}`;
+}
+
+function orderIdFromTxnid(txnid) {
+  const i = txnid.lastIndexOf('-');
+  return i === -1 ? txnid : txnid.slice(0, i);
+}
+
 // Request hash, confirmed from PayU's official "Prebuilt Checkout Page
 // Integration" docs: sha512(key|txnid|amount|productinfo|firstname|email|
 // udf1|udf2|udf3|udf4|udf5||||||SALT) — six empty pipe-delimited slots
@@ -109,20 +126,26 @@ async function postService(body) {
 // mirroring how fetchOrderStatus was the Cashfree equivalent. Confirmed
 // shape from PayU's verify_payment docs: { status: 1|0, transaction_details:
 // { [txnid]: { status: 'success'|'failure'|'pending'|'Not Found', ... } } }.
+// mode and bank_ref_num are both confirmed fields on transaction_details
+// (docs.payu.in/reference/addl-info-general-apis) — surfaced here so
+// callers can record which payment method (UPI/card/netbanking/etc) was
+// actually used, for admin/customer-facing display.
 async function verifyPayment(txnid) {
   const hash = sha512([env.payu.key, 'verify_payment', txnid, env.payu.salt].join('|'));
   const data = await postService({ key: env.payu.key, command: 'verify_payment', var1: txnid, hash });
   const detail = data?.transaction_details?.[txnid];
   if (!data || data.status !== 1 || !detail) {
-    return { status: 'not_found', mihpayid: null, amount: null, raw: data };
+    return { status: 'not_found', mihpayid: null, amount: null, mode: null, bankRefNum: null, raw: data };
   }
   // PayU's docs show inconsistent casing across examples (e.g. "Not Found")
   // — normalize to lowercase so callers compare against one known set of
   // strings instead of guessing every casing variant.
   return {
     status: String(detail.status || '').toLowerCase(),
-    mihpayid: detail.mihpayid || null,
+    mihpayid: detail.mihpayid || detail.mihpayupid || null,
     amount: detail.amt != null ? Number(detail.amt) : null,
+    mode: detail.mode || null,
+    bankRefNum: detail.bank_ref_num || null,
     raw: detail,
   };
 }
@@ -154,6 +177,8 @@ async function initiateRefund({ mihpayid, refundId, amount }) {
 
 module.exports = {
   PAYMENT_ACTION_URL,
+  buildTxnid,
+  orderIdFromTxnid,
   buildPaymentParams,
   verifyResponseHash,
   verifyPayment,

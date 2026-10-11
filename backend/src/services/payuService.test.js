@@ -20,6 +20,17 @@ after(() => {
   global.fetch = originalFetch;
 });
 
+test('buildTxnid/orderIdFromTxnid: round-trips a real UUID orderId (with its own internal hyphens) through an attempt suffix', () => {
+  const orderId = '550e8400-e29b-41d4-a716-446655440000';
+  const txnid = payuService.buildTxnid(orderId, 3);
+  assert.equal(txnid, '550e8400-e29b-41d4-a716-446655440000-3');
+  assert.equal(payuService.orderIdFromTxnid(txnid), orderId, 'splitting on the LAST hyphen must recover the full UUID, not truncate it');
+});
+
+test('orderIdFromTxnid: a txnid with no hyphen at all is returned unchanged (legacy/malformed input, never crashes)', () => {
+  assert.equal(payuService.orderIdFromTxnid('PLAINID'), 'PLAINID');
+});
+
 test('buildPaymentParams: produces the documented request hash formula', () => {
   const { actionUrl, fields } = payuService.buildPaymentParams({
     txnid: 'ORDER-1',
@@ -86,12 +97,14 @@ beforeEach(() => {
   global.fetch = undefined;
 });
 
-test('verifyPayment: maps a successful transaction_details entry', async () => {
+test('verifyPayment: maps a successful transaction_details entry, including mode and bank_ref_num', async () => {
   global.fetch = async () =>
     new Response(
       JSON.stringify({
         status: 1,
-        transaction_details: { 'ORDER-1': { status: 'success', mihpayid: 'MIHPAY123', amt: '500.00' } },
+        transaction_details: {
+          'ORDER-1': { status: 'success', mihpayid: 'MIHPAY123', amt: '500.00', mode: 'UPI', bank_ref_num: 'BANKREF123' },
+        },
       }),
       { status: 200 }
     );
@@ -99,6 +112,8 @@ test('verifyPayment: maps a successful transaction_details entry', async () => {
   assert.equal(result.status, 'success');
   assert.equal(result.mihpayid, 'MIHPAY123');
   assert.equal(result.amount, 500);
+  assert.equal(result.mode, 'UPI');
+  assert.equal(result.bankRefNum, 'BANKREF123');
 });
 
 test('verifyPayment: an unknown txnid returns not_found rather than throwing', async () => {

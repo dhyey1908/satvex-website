@@ -2,7 +2,7 @@ import { Truck, BadgePercent } from 'lucide-react';
 import './OrderSummary.css';
 
 export function OrderSummary({
-  subtotal,
+  subtotal = 0,
   discountAmount = 0,
   couponCode,
   gstPercent = 0,
@@ -11,7 +11,7 @@ export function OrderSummary({
   shipping = 0,
   codCharge = 0,
   prepaidDiscount = 0,
-  total,
+  total = 0,
   savingsAmount = 0,
   itemsSlot,
   children,

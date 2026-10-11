@@ -70,6 +70,10 @@ beforeEach(() => {
     orders[orderId] = { ...orders[orderId], paymentStatus: 'expired' };
     return { transitioned: true };
   };
+  orderService.recordPaymentAttemptInitiated = async (orderId, attempt) => {
+    orders[orderId] = { ...orders[orderId], paymentAttempts: [...(orders[orderId]?.paymentAttempts || []), { ...attempt, status: 'initiated' }] };
+  };
+  orderService.recordPaymentAttemptResult = async () => {};
 });
 
 // --- Outcome 1: success ---
@@ -197,6 +201,20 @@ test('retryPayment on a genuinely still-unpaid order returns fresh PayU form par
   const res = fakeRes();
   const req = { params: { id: 'ORDER-1' }, user: { id: 'USER-1' }, protocol: 'https', get: () => 'api.example.com' };
   await orderController.retryPayment(req, res);
-  assert.equal(res.body.data.payuParams.fields.txnid, 'ORDER-1', 'retry reuses the SAME txnid as the original order id');
+  assert.equal(res.body.data.payuParams.fields.txnid, 'ORDER-1-1', 'retry mints a new, unique per-attempt txnid, not a reused one');
   assert.equal(markPaidCalls.length, 0);
+});
+
+test('retryPayment after one prior attempt mints attempt #2, never reusing attempt #1\'s txnid', async () => {
+  orders['ORDER-1'] = baseOrder({
+    paymentExpiresAt: new Date(Date.now() + 60000).toISOString(),
+    paymentAttempts: [{ txnid: 'ORDER-1-1', status: 'failure', amount: 500 }],
+  });
+  payuService.verifyPayment = async () => ({ status: 'failure', mihpayid: null, amount: null });
+  payuService.buildPaymentParams = ({ txnid }) => ({ actionUrl: 'https://test.payu.in/_payment', fields: { txnid, hash: 'h' } });
+
+  const res = fakeRes();
+  const req = { params: { id: 'ORDER-1' }, user: { id: 'USER-1' }, protocol: 'https', get: () => 'api.example.com' };
+  await orderController.retryPayment(req, res);
+  assert.equal(res.body.data.payuParams.fields.txnid, 'ORDER-1-2');
 });

@@ -32,16 +32,18 @@ function fakeRes() {
 let orders;
 let markPaidCalls;
 let markPaymentAttemptCalls;
+let attemptResultCalls;
 
 beforeEach(() => {
   orders = { 'ORDER-1': { orderId: 'ORDER-1', userId: 'USER-1', paymentStatus: 'awaiting_payment', total: 500 } };
   markPaidCalls = [];
   markPaymentAttemptCalls = [];
+  attemptResultCalls = [];
 
   payuService.verifyResponseHash = () => true;
   // The callback never trusts a posted SUCCESS alone — it always re-confirms
   // server-to-server via verifyPayment before calling markPaid.
-  payuService.verifyPayment = async () => ({ status: 'success', mihpayid: 'MIHPAY1', amount: 500 });
+  payuService.verifyPayment = async () => ({ status: 'success', mihpayid: 'MIHPAY1', amount: 500, mode: 'UPI', bankRefNum: 'BANKREF1' });
   orderService.findById = async (orderId) => orders[orderId] || null;
   orderService.markPaid = async (orderId, data) => {
     markPaidCalls.push({ orderId, data });
@@ -51,7 +53,15 @@ beforeEach(() => {
     markPaymentAttemptCalls.push({ orderId, status });
   };
   orderService.flagForReview = async () => {};
+  orderService.recordPaymentAttemptResult = async (orderId, data) => {
+    attemptResultCalls.push({ orderId, data });
+  };
 });
+
+// txnid is always {orderId}-{attemptNumber} — the real scheme
+// (payuService.buildTxnid/orderIdFromTxnid) — so every fixture below posts
+// 'ORDER-1-1' (attempt #1), not the bare order id, and asserts the
+// redirect/lookup correctly resolve back to the real order id 'ORDER-1'.
 
 test('invalid hash -> redirects anyway but never looks up or acts on the order', async () => {
   payuService.verifyResponseHash = () => false;
@@ -61,39 +71,52 @@ test('invalid hash -> redirects anyway but never looks up or acts on the order',
     return null;
   };
   const res = fakeRes();
-  await paymentController.callback({ body: { txnid: 'ORDER-1', status: 'success' } }, res);
+  await paymentController.callback({ body: { txnid: 'ORDER-1-1', status: 'success' } }, res);
   assert.equal(lookedUp, false);
   assert.equal(res.redirectStatus, 302);
   assert.ok(res.redirectedTo.includes('/order-confirmation/ORDER-1'));
 });
 
-test('success: verified via verifyPayment -> marks paid, redirects to confirmation', async () => {
+test('success: verified via verifyPayment -> marks paid, records the attempt with mode/bank ref, redirects to confirmation', async () => {
   const res = fakeRes();
-  await paymentController.callback({ body: { txnid: 'ORDER-1', status: 'success' } }, res);
+  await paymentController.callback({ body: { txnid: 'ORDER-1-1', status: 'success' } }, res);
   assert.equal(markPaidCalls.length, 1);
   assert.equal(markPaidCalls[0].data.payuMihpayid, 'MIHPAY1');
+  assert.equal(attemptResultCalls.length, 1);
+  assert.equal(attemptResultCalls[0].data.txnid, 'ORDER-1-1');
+  assert.equal(attemptResultCalls[0].data.status, 'success');
+  assert.equal(attemptResultCalls[0].data.mode, 'UPI');
+  assert.equal(attemptResultCalls[0].data.bankRefNum, 'BANKREF1');
   assert.ok(res.redirectedTo.includes('/order-confirmation/ORDER-1'));
 });
 
-test('failure: posted status is failure AND verifyPayment confirms failure -> records the attempt, never marks paid', async () => {
-  payuService.verifyPayment = async () => ({ status: 'failure', mihpayid: null, amount: null });
+test('failure: posted status is failure AND verifyPayment confirms failure -> records the attempt with a failure reason, never marks paid', async () => {
+  payuService.verifyPayment = async () => ({ status: 'failure', mihpayid: null, amount: null, mode: 'CC' });
   const res = fakeRes();
-  await paymentController.callback({ body: { txnid: 'ORDER-1', status: 'failure' } }, res);
+  await paymentController.callback({ body: { txnid: 'ORDER-1-1', status: 'failure', error_Message: 'Authorization failed at Bank' } }, res);
   assert.equal(markPaidCalls.length, 0);
   assert.equal(markPaymentAttemptCalls.length, 1);
   assert.equal(markPaymentAttemptCalls[0].status, 'FAILED');
+  assert.equal(attemptResultCalls[0].data.errorMessage, 'Authorization failed at Bank');
+});
+
+test('a callback-posted E000/"No Error" is not recorded as a failure reason', async () => {
+  payuService.verifyPayment = async () => ({ status: 'failure', mihpayid: null, amount: null });
+  const res = fakeRes();
+  await paymentController.callback({ body: { txnid: 'ORDER-1-1', status: 'failure', error_Message: 'No Error' } }, res);
+  assert.equal(attemptResultCalls[0].data.errorMessage, null);
 });
 
 test('a posted SUCCESS is ignored if verifyPayment disagrees (pending) -- never trusts the redirect alone', async () => {
   payuService.verifyPayment = async () => ({ status: 'pending', mihpayid: null, amount: null });
   const res = fakeRes();
-  await paymentController.callback({ body: { txnid: 'ORDER-1', status: 'success' } }, res);
+  await paymentController.callback({ body: { txnid: 'ORDER-1-1', status: 'success' } }, res);
   assert.equal(markPaidCalls.length, 0);
   assert.equal(markPaymentAttemptCalls[0].status, 'PENDING');
 });
 
 test('repeated/duplicate callback delivery of the same success is handled safely both times', async () => {
-  const req = { body: { txnid: 'ORDER-1', status: 'success' } };
+  const req = { body: { txnid: 'ORDER-1-1', status: 'success' } };
   const res1 = fakeRes();
   await paymentController.callback(req, res1);
   const res2 = fakeRes();
@@ -110,13 +133,13 @@ test('an order amount mismatch flags for review instead of marking paid', async 
   orders['ORDER-1'].total = 999;
   payuService.verifyPayment = async () => ({ status: 'success', mihpayid: 'MIHPAY1', amount: 500 });
   const res = fakeRes();
-  await paymentController.callback({ body: { txnid: 'ORDER-1', status: 'success' } }, res);
+  await paymentController.callback({ body: { txnid: 'ORDER-1-1', status: 'success' } }, res);
   assert.equal(markPaidCalls.length, 0);
 });
 
 test('a callback for an order we do not recognize redirects harmlessly, never errors', async () => {
   const res = fakeRes();
-  await paymentController.callback({ body: { txnid: 'UNKNOWN-ORDER', status: 'success' } }, res);
+  await paymentController.callback({ body: { txnid: 'UNKNOWN-ORDER-1', status: 'success' } }, res);
   assert.equal(res.redirectStatus, 302);
   assert.ok(res.redirectedTo.includes('/order-confirmation/UNKNOWN-ORDER'));
 });

@@ -27,7 +27,10 @@ async function callback(req, res) {
     return res.redirect(302, frontendOrigin);
   }
 
-  const redirectTo = `${frontendOrigin}/order-confirmation/${txnid}`;
+  // txnid is per-attempt (orderId-N, see payuService.buildTxnid), not the
+  // order id itself — the confirmation page still takes the real order id.
+  const orderId = payuService.orderIdFromTxnid(txnid);
+  const redirectTo = `${frontendOrigin}/order-confirmation/${orderId}`;
 
   const hashValid = payuService.verifyResponseHash(body);
   if (!hashValid) {
@@ -39,7 +42,7 @@ async function callback(req, res) {
     return res.redirect(302, redirectTo);
   }
 
-  const order = await orderService.findById(txnid);
+  const order = await orderService.findById(orderId);
   if (!order) {
     return res.redirect(302, redirectTo); // stale/forged callback for an order we don't have
   }
@@ -51,18 +54,39 @@ async function callback(req, res) {
   }
 
   const result = await payuService.verifyPayment(txnid).catch(() => null);
+  // PayU's own E000/"No Error" means no failure — only a real error code
+  // is worth recording as a failure reason (confirmed from PayU's hosted-
+  // checkout response reference: a successful transaction's error field is
+  // always E000/"No Error", never blank).
+  const errorMessage = body.error_Message && body.error_Message !== 'No Error' ? body.error_Message : null;
 
   if (result?.status === 'success') {
     if (result.amount != null && result.amount !== Number(order.total)) {
       await orderService.flagForReview(order.orderId, 'Payment amount mismatch on PayU callback.');
     } else {
       await orderService.markPaid(order.orderId, { payuMihpayid: result.mihpayid, paidAt: new Date().toISOString() });
+      await orderService.recordPaymentAttemptResult(order.orderId, {
+        txnid,
+        status: 'success',
+        mihpayid: result.mihpayid,
+        mode: result.mode || body.mode,
+        bankRefNum: result.bankRefNum || body.bank_ref_num,
+      });
       await shipmentService.triggerShipmentIfNeeded(order.orderId);
     }
   } else if (result?.status === 'failure') {
     await orderService.markPaymentAttempt(order.orderId, 'FAILED');
+    await orderService.recordPaymentAttemptResult(order.orderId, {
+      txnid,
+      status: 'failure',
+      mihpayid: result.mihpayid,
+      mode: result.mode || body.mode,
+      bankRefNum: result.bankRefNum || body.bank_ref_num,
+      errorMessage,
+    });
   } else if (result?.status === 'pending') {
     await orderService.markPaymentAttempt(order.orderId, 'PENDING');
+    await orderService.recordPaymentAttemptResult(order.orderId, { txnid, status: 'pending', mode: result.mode || body.mode });
   }
   // 'not_found' or an API error: leave it as awaiting_payment — the
   // confirmation page's poll (or the next callback) will resolve it.
