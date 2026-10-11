@@ -393,6 +393,9 @@ async function adminUpdateStatus(req, res) {
   }
 
   await orderService.updateStatus(req.params.id, status);
+  if (status === 'Delivered') {
+    await orderService.ensureInvoiceGenerated(req.params.id);
+  }
   ok(res, { updated: true, status });
 }
 

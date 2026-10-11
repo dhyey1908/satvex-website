@@ -549,6 +549,27 @@ function mapShiprocketStatus(rawStatus) {
 // different thing from never having shipped). Left as an explicit open
 // design question for Step 4 (returns), not guessed here.
 //
+// Safety net: invoice generation is normally attempted right after the
+// label step (shipmentService), but that's a best-effort call that can
+// fail silently — a customer should never be stuck on "Delivered" with no
+// invoice just because that one attempt happened to fail earlier. Also
+// called from adminUpdateStatus when an admin manually marks an order
+// Delivered, not just from the real webhook path — same reasoning applies
+// either way, as long as a real shipment (shiprocketOrderId) actually
+// exists. If it doesn't, there's genuinely nothing to generate an invoice
+// from — correctly a no-op, not an error.
+async function ensureInvoiceGenerated(orderId) {
+  const current = await findById(orderId);
+  if (current && !current.invoiceUrl && current.shiprocketOrderId) {
+    try {
+      const invoiceUrl = await shiprocketService.generateInvoice({ shiprocketOrderId: current.shiprocketOrderId });
+      await recordInvoiceGenerated(orderId, { invoiceUrl });
+    } catch (err) {
+      logger.error('invoice generation failed (non-fatal)', { orderId, message: err.message });
+    }
+  }
+}
+
 // trackingEvents is an append-only timeline (DynamoDB list_append, atomic —
 // no read-before-write needed) for the customer-facing tracking UI; it is
 // not capped since a real order's event count (a handful of webhook
@@ -587,20 +608,7 @@ async function recordShipmentTracking(orderId, { shipmentStatus, courierName, cu
   // unconditionally.
   if (isDelivered) {
     await advanceStatusIfEligible(orderId, 'Delivered', ['Pending', 'Confirmed', 'Processing', 'Shipped']);
-
-    // Safety net: invoice generation is normally attempted right after the
-    // label step (shipmentService), but that's a best-effort call that can
-    // fail silently — a customer should never be stuck on "Delivered" with
-    // no invoice just because that one attempt happened to fail earlier.
-    const current = await findById(orderId);
-    if (current && !current.invoiceUrl && current.shiprocketOrderId) {
-      try {
-        const invoiceUrl = await shiprocketService.generateInvoice({ shiprocketOrderId: current.shiprocketOrderId });
-        await recordInvoiceGenerated(orderId, { invoiceUrl });
-      } catch (err) {
-        logger.error('invoice generation on delivery failed (non-fatal)', { orderId, message: err.message });
-      }
-    }
+    await ensureInvoiceGenerated(orderId);
   } else {
     // Real courier movement — safe to advance to "Shipped". Checked against
     // the raw Shiprocket string, not the mapped label, so it stays exact
@@ -633,5 +641,6 @@ module.exports = {
   recordPickupScheduled,
   recordLabelGenerated,
   recordInvoiceGenerated,
+  ensureInvoiceGenerated,
   recordShipmentTracking,
 };
