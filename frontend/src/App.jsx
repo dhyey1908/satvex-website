@@ -40,6 +40,7 @@ import { AdminContacts } from './pages/admin/AdminContacts';
 import { AdminCoupons } from './pages/admin/AdminCoupons';
 import { AdminReviews } from './pages/admin/AdminReviews';
 import { AdminBanners } from './pages/admin/AdminBanners';
+import { AdminAnnouncements } from './pages/admin/AdminAnnouncements';
 import { AdminSettings } from './pages/admin/AdminSettings';
 
 export default function App() {
@@ -108,6 +109,7 @@ export default function App() {
           <Route path="coupons" element={<AdminCoupons />} />
           <Route path="reviews" element={<AdminReviews />} />
           <Route path="banners" element={<AdminBanners />} />
+          <Route path="announcements" element={<AdminAnnouncements />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>
       </Route>

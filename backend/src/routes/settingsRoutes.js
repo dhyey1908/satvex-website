@@ -21,8 +21,9 @@ router.get(
     const paymentsOnlineAvailable = Boolean(
       onlineEnabled || (req.user && (onlineTestUserIds || []).includes(req.user.id))
     );
+    const activeAnnouncements = await settingsService.getActiveAnnouncements(settings.announcements);
     const { payments, ...publicSettings } = settings;
-    ok(res, { settings: { ...publicSettings, paymentsOnlineAvailable } });
+    ok(res, { settings: { ...publicSettings, paymentsOnlineAvailable, announcements: activeAnnouncements } });
   })
 );
 

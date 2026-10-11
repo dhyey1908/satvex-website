@@ -1,6 +1,7 @@
 const { GetCommand, PutCommand } = require('@aws-sdk/lib-dynamodb');
 const { docClient } = require('../config/dynamo');
 const env = require('../config/env');
+const couponService = require('./couponService');
 
 const TABLE = env.tables.settings;
 const SETTINGS_ID = 'global';
@@ -13,6 +14,7 @@ const DEFAULT_SETTINGS = {
   brandName: 'Satvex',
   logoUrl: '',
   heroBanners: [],
+  announcements: [],
   authImage: '',
   aboutImage: '',
   tax: { enabled: true, percent: 18 },
@@ -66,4 +68,37 @@ async function updateSettings(partial) {
   return updated;
 }
 
-module.exports = { getSettings, updateSettings };
+// A coupon referenced by an announcement must actually be live right now —
+// an announcement is never allowed to imply a discount exists just because
+// an admin typed a code into it (see settingsValidators.js's
+// announcementSchema comment). Mirrors the same fields pricingService's
+// real checkout-time coupon validation looks at (isActive/expiresAt/
+// usageLimit vs usageCount), but only as a display-time yes/no — the actual
+// discount math still only ever happens for real at checkout.
+async function isAnnouncementCouponValid(code) {
+  if (!code) return true; // no coupon referenced — nothing to check
+  const coupon = await couponService.findByCode(code);
+  if (!coupon || !coupon.isActive) return false;
+  if (coupon.expiresAt && new Date(coupon.expiresAt).getTime() < Date.now()) return false;
+  if (coupon.usageLimit && (coupon.usageCount || 0) >= coupon.usageLimit) return false;
+  return true;
+}
+
+// Filters the admin's full announcements list down to what the public site
+// should actually show: active, within its configured date schedule (if
+// any), and — if it references a coupon — that coupon currently valid.
+async function getActiveAnnouncements(announcements) {
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD, matches schema
+  const candidates = (announcements || []).filter((a) => {
+    if (!a.isActive) return false;
+    if (a.startDate && today < a.startDate) return false;
+    if (a.endDate && today > a.endDate) return false;
+    return true;
+  });
+  const checked = await Promise.all(
+    candidates.map(async (a) => ((await isAnnouncementCouponValid(a.couponCode)) ? a : null))
+  );
+  return checked.filter(Boolean);
+}
+
+module.exports = { getSettings, updateSettings, getActiveAnnouncements, isAnnouncementCouponValid };

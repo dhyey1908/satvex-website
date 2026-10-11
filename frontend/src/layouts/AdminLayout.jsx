@@ -11,6 +11,7 @@ import {
   Tag,
   Star,
   Image as ImageIcon,
+  Megaphone,
   Mail,
   Settings,
 } from 'lucide-react';
@@ -24,6 +25,7 @@ const LINKS = [
   { to: '/admin/coupons', label: 'Coupons', icon: Tag },
   { to: '/admin/reviews', label: 'Reviews', icon: Star },
   { to: '/admin/banners', label: 'Banners', icon: ImageIcon },
+  { to: '/admin/announcements', label: 'Announcements', icon: Megaphone },
   { to: '/admin/contacts', label: 'Contacts', icon: Mail },
   { to: '/admin/settings', label: 'Settings', icon: Settings },
 ];

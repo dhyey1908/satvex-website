@@ -8,6 +8,23 @@ const heroBannerSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
+// Dates are plain YYYY-MM-DD (schedule is day-granularity, not time-of-day)
+// — compared against the current date in settingsRoutes.js's public filter.
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const announcementSchema = z.object({
+  id: z.string().trim().min(1),
+  message: z.string().trim().min(1).max(140),
+  link: z.string().trim().max(300).optional().or(z.literal('')),
+  // Shown as plain text alongside the message (e.g. "Use Code SATVEX10") —
+  // never auto-applied. Whether it actually implies a valid discount is
+  // checked server-side against the real coupon at read time (see
+  // settingsRoutes.js), not assumed just because this field is set.
+  couponCode: z.string().trim().max(30).optional().or(z.literal('')),
+  startDate: z.string().trim().regex(DATE_RE).optional().or(z.literal('')),
+  endDate: z.string().trim().regex(DATE_RE).optional().or(z.literal('')),
+  isActive: z.boolean().default(true),
+});
+
 const pillarSchema = z.object({
   title: z.string().trim().min(1).max(40),
   description: z.string().trim().min(1).max(200),
@@ -100,6 +117,7 @@ const updateSettingsSchema = z.object({
   brandName: z.string().trim().max(60).optional(),
   logoUrl: z.string().trim().url().optional().or(z.literal('')),
   heroBanners: z.array(heroBannerSchema).max(10).optional(),
+  announcements: z.array(announcementSchema).max(5, 'Up to 5 announcements only.').optional(),
   authImage: z.string().trim().url().optional().or(z.literal('')),
   aboutImage: z.string().trim().url().optional().or(z.literal('')),
   whyPillars: z.array(pillarSchema).length(4).optional(),

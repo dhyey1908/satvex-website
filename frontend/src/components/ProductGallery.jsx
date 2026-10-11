@@ -15,10 +15,10 @@ const SWIPE_THRESHOLD = 40;
 export function ProductGallery({ images, activeImage, videoUrl, alt }) {
   const gallery = images && images.length > 0 ? images : [];
   const [index, setIndex] = useState(0);
-  // When a product has a video, it's the default view (plays automatically,
-  // muted — the only autoplay browsers reliably allow). Selecting any image
-  // thumbnail switches to images, same as before; nothing about the image
-  // gallery itself changes.
+  // When a product has a video, it's the default view — shown as a static
+  // poster frame with standard play/pause/mute/fullscreen controls, never
+  // autoplaying. Selecting any image thumbnail switches to images, same as
+  // before; nothing about the image gallery itself changes.
   const [showVideo, setShowVideo] = useState(Boolean(videoUrl));
   const [zoomOpen, setZoomOpen] = useState(false);
   const [magnified, setMagnified] = useState(false);
@@ -90,14 +90,19 @@ export function ProductGallery({ images, activeImage, videoUrl, alt }) {
         // should intercept taps meant for those controls. Same gallery-main
         // box/aspect-ratio as the image view, so switching between video and
         // images never shifts layout.
+        //
+        // No autoPlay/loop — a product video that starts playing itself and
+        // repeats reads as an ad banner, not a product video. poster shows
+        // the first product image until the customer taps play; after the
+        // video ends, the browser's native behavior (no loop) leaves the
+        // last frame on screen instead of restarting.
         <div className="gallery-main gallery-main-video">
           <video
             key={videoUrl}
             src={videoUrl}
             controls
             playsInline
-            autoPlay
-            muted
+            poster={gallery[0] || undefined}
             aria-label={`${alt} — product video`}
           />
         </div>
