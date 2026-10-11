@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { authService } from '../services/authService';
+import { setAuthToken } from '../services/apiClient';
 
 const AuthContext = createContext(null);
 
@@ -23,19 +24,22 @@ export function AuthProvider({ children }) {
   }, [loadUser]);
 
   const login = useCallback(async (credentials) => {
-    const { user: loggedInUser } = await authService.login(credentials);
+    const { user: loggedInUser, token } = await authService.login(credentials);
+    setAuthToken(token);
     setUser(loggedInUser);
     return loggedInUser;
   }, []);
 
   const register = useCallback(async (data) => {
-    const { user: newUser } = await authService.register(data);
+    const { user: newUser, token } = await authService.register(data);
+    setAuthToken(token);
     setUser(newUser);
     return newUser;
   }, []);
 
   const logout = useCallback(async () => {
     await authService.logout();
+    setAuthToken(null);
     setUser(null);
   }, []);
 
