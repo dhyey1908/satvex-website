@@ -418,6 +418,33 @@ async function findByShiprocketOrderId(shiprocketOrderId) {
   return result.Items?.[0] || null;
 }
 
+// Advances the customer-facing order.status forward only — never
+// backward, and never if the order is Cancelled or already past
+// targetStatus — by conditioning the write on the order's CURRENT status
+// being one of eligibleFromStatuses. A failed condition means someone else
+// already moved it further (or cancelled it) and is a normal, expected
+// no-op, not an error.
+async function advanceStatusIfEligible(orderId, targetStatus, eligibleFromStatuses) {
+  try {
+    await docClient.send(
+      new UpdateCommand({
+        TableName: TABLE,
+        Key: { orderId },
+        UpdateExpression: 'SET #status = :target, updatedAt = :now',
+        ConditionExpression: '#status IN (' + eligibleFromStatuses.map((_, i) => `:s${i}`).join(',') + ')',
+        ExpressionAttributeNames: { '#status': 'status' },
+        ExpressionAttributeValues: {
+          ':target': targetStatus,
+          ':now': new Date().toISOString(),
+          ...eligibleFromStatuses.reduce((acc, s, i) => ({ ...acc, [`:s${i}`]: s }), {}),
+        },
+      })
+    );
+  } catch (err) {
+    if (err.name !== 'ConditionalCheckFailedException') throw err;
+  }
+}
+
 async function recordAwbAssigned(orderId, { awbCode, courierName, shiprocketShipmentId }) {
   await docClient.send(
     new UpdateCommand({
@@ -434,6 +461,10 @@ async function recordAwbAssigned(orderId, { awbCode, courierName, shiprocketShip
       },
     })
   );
+  // A real AWB means Shiprocket has genuinely booked the shipment — safe to
+  // call this "Processing" (being packed/awaiting courier pickup) without
+  // overriding a manual admin status or a cancellation.
+  await advanceStatusIfEligible(orderId, 'Processing', ['Pending', 'Confirmed']);
 }
 
 async function recordPickupScheduled(orderId) {
@@ -517,8 +548,7 @@ async function recordShipmentTracking(orderId, { shipmentStatus, courierName, cu
       Key: { orderId },
       UpdateExpression: `SET shipmentStatus = :shipmentStatus, courierName = :courier, lastTrackingStatus = :mappedStatus, lastWebhookPayload = :raw, lastWebhookAt = :now, updatedAt = :now, trackingEvents = list_append(if_not_exists(trackingEvents, :empty), :newEvent)${
         estimatedDeliveryDate ? ', estimatedDeliveryDate = :etd' : ''
-      }${isDelivered ? ', #status = :delivered, deliveredAt = :now' : ''}`,
-      ExpressionAttributeNames: isDelivered ? { '#status': 'status' } : undefined,
+      }${isDelivered ? ', deliveredAt = :now' : ''}`,
       ExpressionAttributeValues: {
         ':shipmentStatus': shipmentStatus || null,
         ':courier': courierName || null,
@@ -530,10 +560,25 @@ async function recordShipmentTracking(orderId, { shipmentStatus, courierName, cu
         ':empty': [],
         ':newEvent': [event],
         ...(estimatedDeliveryDate ? { ':etd': estimatedDeliveryDate } : {}),
-        ...(isDelivered ? { ':delivered': 'Delivered' } : {}),
       },
     })
   );
+
+  // Both status transitions below are conditioned on the order's CURRENT
+  // status, never overriding a manual admin status or a cancellation (see
+  // advanceStatusIfEligible) — including Delivered, which previously set
+  // unconditionally.
+  if (isDelivered) {
+    await advanceStatusIfEligible(orderId, 'Delivered', ['Pending', 'Confirmed', 'Processing', 'Shipped']);
+  } else {
+    // Real courier movement — safe to advance to "Shipped". Checked against
+    // the raw Shiprocket string, not the mapped label, so it stays exact
+    // even if the mapping table's wording changes later.
+    const SHIPPED_TRIGGERS = new Set(['PICKED UP', 'IN TRANSIT', 'OUT FOR DELIVERY']);
+    if (currentStatus && SHIPPED_TRIGGERS.has(String(currentStatus).toUpperCase())) {
+      await advanceStatusIfEligible(orderId, 'Shipped', ['Pending', 'Confirmed', 'Processing']);
+    }
+  }
 }
 
 module.exports = {
