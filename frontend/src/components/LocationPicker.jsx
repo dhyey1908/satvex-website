@@ -112,10 +112,21 @@ export function LocationPicker({ open, onClose, onConfirm }) {
     if (!open || !mapRef.current || mapInstanceRef.current) return undefined;
 
     const map = L.map(mapRef.current, { center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM, zoomControl: true });
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors',
-      maxZoom: 19,
-    }).addTo(map);
+    // LocationIQ's own "streets" tiles have noticeably more detail/labels
+    // than plain OpenStreetMap's default style — falls back to OSM tiles if
+    // no key is configured.
+    if (LOCATIONIQ_KEY) {
+      L.tileLayer(`https://{s}-tiles.locationiq.com/v3/streets/r/{z}/{x}/{y}.png?key=${LOCATIONIQ_KEY}`, {
+        attribution: '&copy; OpenStreetMap contributors, &copy; LocationIQ',
+        subdomains: 'abc',
+        maxZoom: 19,
+      }).addTo(map);
+    } else {
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19,
+      }).addTo(map);
+    }
 
     const marker = L.marker(DEFAULT_CENTER, { icon: pinIcon, draggable: true }).addTo(map);
     marker.on('dragend', () => {
