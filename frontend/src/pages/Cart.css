@@ -120,7 +120,6 @@
     flex-shrink: 0;
   }
   .cart-mobile-bar-amount {
-    font-family: var(--font-display);
     font-weight: 600;
     font-size: 1.2rem;
     color: var(--color-text);

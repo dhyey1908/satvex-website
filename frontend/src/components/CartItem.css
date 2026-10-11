@@ -102,7 +102,7 @@
 }
 .qty-stepper-value span { position: absolute; }
 
-.cart-item-price { font-family: var(--font-display); font-weight: 600; font-size: 1.2rem; white-space: nowrap; }
+.cart-item-price { font-weight: 600; font-size: 1rem; white-space: nowrap; }
 
 .cart-item-remove { color: var(--color-error); }
 .cart-item .btn-ghost.cart-item-remove:hover { color: #fff; background: var(--color-error); }

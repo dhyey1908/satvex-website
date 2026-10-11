@@ -9,7 +9,6 @@
   gap: var(--sp-sm);
 }
 .order-summary h3 {
-  font-family: var(--font-display);
   font-weight: 500;
   font-size: 1.4rem;
   margin-bottom: var(--sp-xs);
@@ -39,10 +38,9 @@
 .order-summary-shipping { display: inline-flex; align-items: center; gap: 5px; color: var(--color-success); font-weight: 600; }
 
 .order-summary-total {
-  font-family: var(--font-display);
   font-weight: 600;
   color: var(--color-text);
-  font-size: 1.45rem;
+  font-size: 1.2rem;
   border-top: 1px solid var(--color-border);
   padding-top: var(--sp-md);
   margin-top: 6px;
