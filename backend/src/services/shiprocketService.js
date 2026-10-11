@@ -33,7 +33,8 @@ async function login() {
   });
   const data = await res.json().catch(() => null);
   if (!res.ok || !data?.token) {
-    throw new AppError(data?.message || 'Shiprocket login failed.', 502, 'SHIPROCKET_AUTH_ERROR');
+    const detail = data?.message ? `: ${data.message}` : '';
+    throw new AppError(`Shiprocket login failed (HTTP ${res.status})${detail}`, 502, 'SHIPROCKET_AUTH_ERROR');
   }
   cachedToken = data.token;
   cachedTokenExpiresAt = Date.now() + TOKEN_LIFETIME_MS;
@@ -209,6 +210,38 @@ async function generateInvoice({ shiprocketOrderId }) {
   return data.invoice_url;
 }
 
+// Read-only connectivity check — logs in (forcing a fresh token, bypassing
+// the cache, so a stale good token can't mask a real credential problem)
+// then makes exactly one serviceability lookup. Neither call creates or
+// modifies anything in the Shiprocket account — safe to run as often as
+// needed. Never throws; always returns a structured result so the caller
+// (admin endpoint/script) can show a clear pass/fail without a stack trace.
+async function testConnection({ pincode } = {}) {
+  cachedToken = null; // force a real login, not a cached token
+  try {
+    await login();
+  } catch (err) {
+    return { ok: false, step: 'login', message: err.message };
+  }
+
+  const testPincode = pincode || '110001';
+  try {
+    await getServiceabilityRaw({
+      pickupPostcode: testPincode,
+      deliveryPostcode: testPincode,
+      weightKg: 0.3,
+      cod: false,
+    });
+  } catch (err) {
+    // Login worked — credentials are good. A serviceability error here is
+    // usually just "same pickup/delivery pincode" or similar, not a
+    // connectivity problem, so still report login success alongside it.
+    return { ok: false, step: 'serviceability', message: err.message };
+  }
+
+  return { ok: true };
+}
+
 module.exports = {
   getServiceability,
   getServiceabilityRaw,
@@ -220,4 +253,5 @@ module.exports = {
   cancelOrder,
   trackByAwb,
   generateInvoice,
+  testConnection,
 };

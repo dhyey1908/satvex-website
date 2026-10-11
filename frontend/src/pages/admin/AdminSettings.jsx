@@ -22,8 +22,23 @@ export function AdminSettings() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [saving, setSaving] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [connectionResult, setConnectionResult] = useState(null);
   const { showToast } = useToast();
   const { refresh: refreshSettings } = useSettings();
+
+  async function handleTestConnection() {
+    setTestingConnection(true);
+    setConnectionResult(null);
+    try {
+      const result = await adminService.testShiprocketConnection();
+      setConnectionResult(result);
+    } catch (err) {
+      setConnectionResult({ ok: false, step: 'request', message: err.message });
+    } finally {
+      setTestingConnection(false);
+    }
+  }
 
   useEffect(() => {
     adminService.getSettings().then((data) => setForm(data.settings));
@@ -269,6 +284,28 @@ export function AdminSettings() {
             only for rate quotes. Keep the toggle off until both are confirmed — shipping still works while off,
             using the flat fallback charge below, and no shipment is ever booked.
           </p>
+          <div style={{ marginTop: 12 }}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={handleTestConnection} disabled={testingConnection}>
+              {testingConnection ? 'Testing…' : 'Test Shiprocket Connection'}
+            </button>
+            {connectionResult && (
+              <p
+                style={{
+                  fontSize: '0.85rem',
+                  marginTop: 6,
+                  color: connectionResult.ok ? 'var(--color-success, green)' : 'var(--color-danger, crimson)',
+                }}
+              >
+                {connectionResult.ok
+                  ? '✓ Connected — login and serviceability lookup both succeeded.'
+                  : `✗ Failed at ${connectionResult.step}: ${connectionResult.message}`}
+              </p>
+            )}
+            <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
+              Logs in and runs one read-only rate lookup — never creates or modifies anything in your Shiprocket
+              account.
+            </p>
+          </div>
 
           <p style={{ fontSize: '0.85rem', margin: '12px 0 4px' }}>Default Package (every order ships under 500g)</p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>

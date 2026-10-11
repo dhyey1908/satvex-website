@@ -475,6 +475,10 @@ async function refreshTracking(req, res) {
   ok(res, { order: updated });
 }
 
+// On failure, the order itself is never mutated into a bad state — only a
+// retry job is queued/reset, exactly as the background sweep would do. Safe
+// to call repeatedly; attemptShipmentCreation resumes from whichever step
+// last succeeded rather than re-doing completed steps.
 async function adminRetryShipment(req, res) {
   const order = await orderService.findById(req.params.id);
   if (!order) {
@@ -490,8 +494,17 @@ async function adminRetryShipment(req, res) {
     const existingJob = await shipmentJobService.findByOrderId(order.orderId);
     if (existingJob) await shipmentJobService.resetForManualRetry(order.orderId);
     else await shipmentJobService.createJob(order.orderId);
-    throw new AppError(err.message || 'Shipment retry failed.', 502, 'SHIPMENT_RETRY_FAILED');
+    throw new AppError(`Shipment retry failed: ${err.message}`, 502, 'SHIPMENT_RETRY_FAILED');
   }
+}
+
+// Read-only — logs in and makes one serviceability lookup, nothing else.
+// See shiprocketService.testConnection for exactly what that does and why
+// it's safe to run any time.
+async function adminTestShiprocketConnection(req, res) {
+  const settings = await settingsService.getSettings();
+  const result = await shiprocketService.testConnection({ pincode: settings.shiprocket?.pickupPincode });
+  ok(res, result);
 }
 
 module.exports = {
@@ -509,5 +522,6 @@ module.exports = {
   adminUpdateStatus,
   adminRefund,
   adminRetryShipment,
+  adminTestShiprocketConnection,
   finalizeExpiry,
 };

@@ -8,6 +8,7 @@ export const adminService = {
   updateOrderStatus: (id, status) => api.put(`/admin/orders/${encodeURIComponent(id)}/status`, { status }),
   refundOrder: (id, note) => api.post(`/admin/orders/${encodeURIComponent(id)}/refund`, note ? { note } : {}),
   retryShipment: (id) => api.post(`/admin/orders/${encodeURIComponent(id)}/retry-shipment`, {}),
+  testShiprocketConnection: () => api.post('/admin/shiprocket/test-connection', {}),
   contacts: () => api.get('/admin/contacts'),
   getSettings: () => api.get('/admin/settings'),
   updateSettings: (data) => api.put('/admin/settings', data),
