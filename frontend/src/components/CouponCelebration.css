@@ -1,0 +1,50 @@
+.coupon-celebration {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.coupon-celebration-particle {
+  position: absolute;
+  top: 0;
+  border-radius: 2px;
+}
+
+.coupon-celebration-particle.is-sparkle {
+  border-radius: 50%;
+  box-shadow: 0 0 6px 2px currentColor;
+}
+
+.coupon-celebration-message {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 14px 26px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-dark);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+  box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.4);
+}
+
+.coupon-celebration-icon {
+  color: var(--color-accent-gold);
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .coupon-celebration-message {
+    font-size: 0.82rem;
+    padding: 11px 20px;
+    max-width: 85vw;
+    text-align: center;
+  }
+}

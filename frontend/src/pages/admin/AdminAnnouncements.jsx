@@ -69,7 +69,10 @@ export function AdminAnnouncements() {
       <p style={{ color: 'var(--color-text-muted)', marginBottom: 'var(--sp-lg)', maxWidth: '48rem' }}>
         Manage the rotating announcement strip shown above the header on every public page. Up to {MAX_ANNOUNCEMENTS}{' '}
         messages, reorder them, and toggle which are live. A coupon code attached to a message only ever shows once
-        that coupon is actually active and valid — it's never implied otherwise. Changes go live once you click Save.
+        that coupon is actually active and valid — it's never implied otherwise. It appears as its own "Copy Code"
+        button at the end of the bar, so mention the offer in your message text if you want (e.g. "Use code
+        SATVEX10"), but you don't need to — the code itself is never inserted into your message automatically.
+        Changes go live once you click Save.
       </p>
 
       <div className="admin-form-section">

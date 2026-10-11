@@ -17,6 +17,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 10px;
   min-height: 1.2em;
 }
 
@@ -38,13 +39,50 @@
   text-decoration: underline;
 }
 
+.announcement-bar-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: var(--radius-pill, 999px);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.announcement-bar-copy:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.7);
+}
+.announcement-bar-code {
+  letter-spacing: 0.04em;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+
 @media (max-width: 480px) {
   .announcement-bar {
     padding: 7px 12px;
     font-size: 0.72rem;
   }
+  .announcement-bar-inner {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
   .announcement-bar-text {
     white-space: normal;
     overflow-wrap: break-word;
+  }
+  .announcement-bar-copy {
+    font-size: 0.68rem;
+    padding: 2px 8px;
+  }
+  .announcement-bar-copy-label {
+    display: none;
   }
 }

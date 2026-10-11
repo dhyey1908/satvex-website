@@ -11,6 +11,8 @@ import { redirectToPayuCheckout } from '../utils/payu';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { EmptyState } from '../components/EmptyState';
+import { CouponInput } from '../components/CouponInput';
+import { CouponCelebration } from '../components/CouponCelebration';
 import { OrderSummary } from '../components/OrderSummary';
 import { FreeShippingBanner } from '../components/FreeShippingBanner';
 import { AddressCard } from '../components/AddressCard';
@@ -35,7 +37,7 @@ const CHECKOUT_SERVER_FIELD_MAP = {
 export function Checkout() {
   useDocumentMeta({ title: 'Checkout', path: '/checkout' });
 
-  const { items, total, refresh, appliedCoupon, clearCoupon } = useCart();
+  const { items, total, refresh, appliedCoupon, applyCoupon, clearCoupon } = useCart();
   const { user, refreshUser } = useAuth();
   const { settings, refresh: refreshSettings } = useSettings();
   const { showToast } = useToast();
@@ -56,6 +58,11 @@ export function Checkout() {
   const [paymentMethod, setPaymentMethod] = useState('COD');
   const [quote, setQuote] = useState(null);
   const [step, setStep] = useState('address');
+  // Increments only once the backend has actually confirmed a coupon
+  // applied — never for an invalid code, a repeated click, or a failed
+  // request (CouponInput only calls onApply when it's showing the "not yet
+  // applied" form, and only resolves without throwing on success).
+  const [couponCelebrationTrigger, setCouponCelebrationTrigger] = useState(0);
   const paymentMethodAutoSet = useRef(false);
   const STEPS = [
     { key: 'address', label: 'Address' },
@@ -250,6 +257,12 @@ export function Checkout() {
   function goToStep(key) {
     setStep(key);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function handleApplyCoupon(code) {
+    const result = await applyCoupon(code);
+    setCouponCelebrationTrigger((n) => n + 1);
+    return result;
   }
 
   async function handleSubmit(e) {
@@ -517,6 +530,11 @@ export function Checkout() {
               </button>
 
               <div className="checkout-section card">
+                <h3 className="checkout-section-title">Have a Coupon?</h3>
+                <CouponInput appliedCoupon={appliedCoupon} onApply={handleApplyCoupon} onClear={clearCoupon} />
+              </div>
+
+              <div className="checkout-section card">
                 <h3 className="checkout-section-title">Payment Method</h3>
                 <div className="payment-method-options">
                   <label className={`payment-method-option ${paymentMethod === 'COD' ? 'selected' : ''}`}>
@@ -527,12 +545,12 @@ export function Checkout() {
                       checked={paymentMethod === 'COD'}
                       onChange={() => setPaymentMethod('COD')}
                     />
-                    <Banknote size={18} />
+                    <Banknote size={16} />
                     <div>
                       <p className="payment-method-name">Cash on Delivery</p>
                       <p className="payment-method-meta">
-                        Pay when your order arrives.
-                        {quote?.codCharge > 0 && ` An extra ₹${quote.codCharge.toFixed(2)} COD charge applies.`}
+                        Pay on delivery.
+                        {quote?.codCharge > 0 && ` +₹${quote.codCharge.toFixed(2)} COD charge.`}
                       </p>
                     </div>
                   </label>
@@ -545,10 +563,10 @@ export function Checkout() {
                         checked={paymentMethod === 'Online'}
                         onChange={() => setPaymentMethod('Online')}
                       />
-                      <Wallet size={18} />
+                      <Wallet size={16} />
                       <div>
                         <p className="payment-method-name">Online Payment</p>
-                        <p className="payment-method-meta">UPI / Card — no extra charge.</p>
+                        <p className="payment-method-meta">UPI / Cards · no extra charge.</p>
                       </div>
                     </label>
                   )}
@@ -603,6 +621,8 @@ export function Checkout() {
           </button>
         )}
       </div>
+
+      <CouponCelebration trigger={couponCelebrationTrigger} />
     </div>
   );
 }

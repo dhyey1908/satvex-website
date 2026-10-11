@@ -10,7 +10,12 @@ export function CouponInput({ appliedCoupon, onApply, onClear }) {
   const [submitting, setSubmitting] = useState(false);
 
   async function handleApply(e) {
-    e.preventDefault();
+    // Called from a plain button click and from Enter-in-the-input, never
+    // from an actual form submit — this must never be a real <form> (see
+    // below), since it's used inside Checkout's own single outer <form>,
+    // and a nested <form>'s submit event would bubble up and also trigger
+    // the outer form's onSubmit (order placement).
+    e?.preventDefault?.();
     if (!code.trim()) return;
     setError(null);
     setSubmitting(true);
@@ -42,10 +47,9 @@ export function CouponInput({ appliedCoupon, onApply, onClear }) {
           </button>
         </motion.div>
       ) : (
-        <motion.form
+        <motion.div
           key="form"
           className="coupon-input"
-          onSubmit={handleApply}
           initial={fade.initial}
           animate={fade.animate}
           exit={fade.exit}
@@ -57,13 +61,16 @@ export function CouponInput({ appliedCoupon, onApply, onClear }) {
               placeholder="Enter coupon code"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleApply(e);
+              }}
             />
           </div>
-          <button type="submit" className="btn btn-outline btn-sm" disabled={submitting || !code.trim()}>
+          <button type="button" className="btn btn-outline btn-sm" onClick={handleApply} disabled={submitting || !code.trim()}>
             {submitting ? <Loader2 size={14} className="btn-spinner" /> : 'Apply'}
           </button>
           {error && <p className="field-error coupon-error">{error}</p>}
-        </motion.form>
+        </motion.div>
       )}
     </AnimatePresence>
   );

@@ -9,7 +9,6 @@ import { addressService } from '../services/addressService';
 import { CartItem } from '../components/CartItem';
 import { OrderSummary } from '../components/OrderSummary';
 import { FreeShippingBanner } from '../components/FreeShippingBanner';
-import { CouponInput } from '../components/CouponInput';
 import { EmptyState } from '../components/EmptyState';
 import { PageHeader } from '../components/PageHeader';
 import { Loader } from '../components/Loader';
@@ -20,8 +19,7 @@ import './Cart.css';
 export function Cart() {
   useDocumentMeta({ title: 'Cart', path: '/cart' });
 
-  const { items, savedItems, total, loading, updateItem, removeItem, setSavedForLater, appliedCoupon, applyCoupon, clearCoupon } =
-    useCart();
+  const { items, savedItems, total, loading, updateItem, removeItem, setSavedForLater, appliedCoupon } = useCart();
   const { showToast } = useToast();
   const confirm = useConfirm();
 
@@ -202,7 +200,6 @@ export function Cart() {
               total={grandTotal}
               savingsAmount={savingsAmount}
             >
-              <CouponInput appliedCoupon={appliedCoupon} onApply={applyCoupon} onClear={clearCoupon} />
               <Link to="/checkout" className="btn btn-primary btn-block">
                 Checkout
               </Link>
