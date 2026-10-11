@@ -45,9 +45,22 @@ function issueSession(res, user) {
 async function register(req, res) {
   const { name, email, phone, password } = registerSchema.parse(req.body);
 
-  const existing = await userService.findByEmail(email);
-  if (existing) {
-    throw new AppError('An account with this email already exists.', 409, 'EMAIL_IN_USE');
+  if (email) {
+    const existingByEmail = await userService.findByEmail(email);
+    if (existingByEmail) {
+      throw new AppError('An account with this email already exists.', 409, 'EMAIL_IN_USE');
+    }
+  }
+  // Only a VERIFIED phone blocks a new registration — an unverified phone
+  // typed by someone else isn't actually "in use" by them (they never
+  // proved ownership of it), and registerSchema's phone here is never
+  // itself OTP-verified at signup time (that only happens via phoneRoutes,
+  // e.g. at checkout) — see userService.findByVerifiedPhone's comment.
+  if (phone) {
+    const existingByPhone = await userService.findByVerifiedPhone(phone);
+    if (existingByPhone) {
+      throw new AppError('An account with this mobile number already exists.', 409, 'PHONE_IN_USE');
+    }
   }
 
   const passwordHash = await hashPassword(password);
@@ -58,16 +71,22 @@ async function register(req, res) {
 }
 
 async function login(req, res) {
-  const { email, password } = loginSchema.parse(req.body);
+  const { identifier, password } = loginSchema.parse(req.body);
 
-  const user = await userService.findByEmail(email);
+  // Simple, unambiguous split: an email always contains '@'; a bare phone
+  // number never does. Phone login only ever resolves a VERIFIED phone.
+  const isEmail = identifier.includes('@');
+  const user = isEmail
+    ? await userService.findByEmail(identifier)
+    : await userService.findByVerifiedPhone(identifier.replace(/\D/g, ''));
+
   if (!user) {
-    throw new AppError('Invalid email or password.', 401, 'INVALID_CREDENTIALS');
+    throw new AppError('Invalid credentials.', 401, 'INVALID_CREDENTIALS');
   }
 
   const validPassword = await verifyPassword(password, user.passwordHash);
   if (!validPassword) {
-    throw new AppError('Invalid email or password.', 401, 'INVALID_CREDENTIALS');
+    throw new AppError('Invalid credentials.', 401, 'INVALID_CREDENTIALS');
   }
 
   const token = issueSession(res, user);

@@ -36,4 +36,13 @@ const uploadUrlLimiter = makeLimiter({
   message: 'Too many upload requests. Please try again later.',
 });
 
-module.exports = { authLimiter, passwordResetLimiter, contactLimiter, uploadUrlLimiter };
+// SMS costs real money per send, on top of the per-phone cooldown enforced
+// in otpService itself — this is the per-IP ceiling against someone
+// hammering the endpoint with many different numbers.
+const otpLimiter = makeLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: 'Too many verification code requests. Please try again later.',
+});
+
+module.exports = { authLimiter, passwordResetLimiter, contactLimiter, uploadUrlLimiter, otpLimiter };

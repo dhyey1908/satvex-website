@@ -15,6 +15,7 @@ import { OrderSummary } from '../components/OrderSummary';
 import { FreeShippingBanner } from '../components/FreeShippingBanner';
 import { AddressCard } from '../components/AddressCard';
 import { AddressFormFields, ADDRESS_FORM_EMPTY, addressFormToPayload, validateAddressForm } from '../components/AddressFormFields';
+import { PhoneVerification } from '../components/PhoneVerification';
 import { PageHeader } from '../components/PageHeader';
 import { Truck, Loader2, Plus, Check, ChevronLeft } from 'lucide-react';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
@@ -44,6 +45,13 @@ export function Checkout() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ ...ADDRESS_FORM_EMPTY });
   const [email, setEmail] = useState('');
+  // The exact phone number this session has OTP-verified (server-confirmed
+  // via PhoneVerification's onVerified). Starts from the account's existing
+  // verifiedPhone (still valid per the 30-day window checked server-side at
+  // submit) so a returning customer with an unchanged number isn't asked to
+  // re-verify every single checkout.
+  const [verifiedPhone, setVerifiedPhone] = useState(null);
+  const isPhoneVerified = Boolean(form.phone) && form.phone === verifiedPhone;
   const [fieldErrors, setFieldErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [error, setError] = useState(null);
@@ -84,6 +92,7 @@ export function Checkout() {
   useEffect(() => {
     if (!user) return;
     if (user.email) setEmail((prev) => prev || user.email);
+    if (user.verifiedPhone) setVerifiedPhone((prev) => prev || user.verifiedPhone);
     if (!selectedAddressId) {
       setForm((prev) => ({
         ...prev,
@@ -156,13 +165,19 @@ export function Checkout() {
     setTouched((prev) => ({ ...prev, [key]: true }));
   }
 
+  // Email is only truly mandatory for Online payment (Cashfree requires
+  // it) — mirrors checkoutSchema's refine on the backend exactly.
+  function emailCheck() {
+    return validateEmail(email, { optional: paymentMethod !== 'Online' });
+  }
+
   function validate(addressRequired) {
     if (!addressRequired) {
-      return runValidators({ email: () => validateEmail(email) });
+      return runValidators({ email: emailCheck });
     }
     return {
       ...validateAddressForm(form, { required, minLength, phone: validatePhone, pincode: validatePincode }),
-      email: validateEmail(email),
+      email: emailCheck(),
     };
   }
 
@@ -255,6 +270,10 @@ export function Checkout() {
         : { email: true }
     );
     if (hasErrors(errors)) return;
+    if (!isPhoneVerified) {
+      showToast('Please verify your mobile number before continuing.', 'warning');
+      return;
+    }
     setStep('confirm');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -276,6 +295,11 @@ export function Checkout() {
         : { email: true }
     );
     if (hasErrors(errors)) {
+      setStep('address');
+      return;
+    }
+    if (!isPhoneVerified) {
+      showToast('Please verify your mobile number before placing the order.', 'warning');
       setStep('address');
       return;
     }
@@ -322,6 +346,18 @@ export function Checkout() {
       showToast('Order placed!', 'success');
       navigate(`/order-confirmation/${response.order.orderId}`);
     } catch (err) {
+      // The client-side isPhoneVerified check above is only as fresh as the
+      // last known verifiedPhone/expiry — the backend re-checks the real
+      // 30-day window authoritatively at submit time. If it rejects a
+      // number this page still thought was verified (expired in the
+      // meantime), clear that stale state so the UI asks to re-verify
+      // instead of just showing a confusing error.
+      if (err.code === 'PHONE_NOT_VERIFIED') {
+        setVerifiedPhone(null);
+        setStep('address');
+        showToast('Your mobile number needs to be re-verified. Please verify it again.', 'warning');
+        return;
+      }
       const serverErrors = mapServerFieldErrors(err, CHECKOUT_SERVER_FIELD_MAP);
       if (serverErrors) {
         setFieldErrors((prev) => ({ ...prev, ...serverErrors }));
@@ -436,11 +472,12 @@ export function Checkout() {
                       pincodeLookupState={pincodeLookupState}
                     />
                     <div className={`field ${touched.email && fieldErrors.email ? 'invalid' : ''}`}>
-                      <label htmlFor="email">Email (for order confirmation)</label>
+                      <label htmlFor="email">
+                        Email {paymentMethod === 'Online' ? '(required for online payment)' : '(optional, for order confirmation)'}
+                      </label>
                       <input
                         id="email"
                         type="email"
-                        required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         onBlur={() => markTouched('email')}
@@ -465,15 +502,34 @@ export function Checkout() {
                 )}
               </div>
 
+              {/^[0-9]{10}$/.test(form.phone) && (
+                <div className="checkout-section card">
+                  <h3 className="checkout-section-title">Mobile Verification</h3>
+                  <p className="field-hint" style={{ marginBottom: 0 }}>
+                    Required before placing your order — we'll text a 6-digit code to {form.phone}.
+                  </p>
+                  <PhoneVerification
+                    key={form.phone}
+                    phone={form.phone}
+                    verified={isPhoneVerified}
+                    onVerified={() => {
+                      setVerifiedPhone(form.phone);
+                      refreshUser();
+                    }}
+                  />
+                </div>
+              )}
+
               {selectedAddress && !showNewAddressForm && (
                 <div className="checkout-section card">
                   <h3 className="checkout-section-title">Contact Email</h3>
                   <div className={`field ${touched.email && fieldErrors.email ? 'invalid' : ''}`} style={{ marginBottom: 0 }}>
-                    <label htmlFor="email-existing">Email (for order confirmation)</label>
+                    <label htmlFor="email-existing">
+                      Email {paymentMethod === 'Online' ? '(required for online payment)' : '(optional, for order confirmation)'}
+                    </label>
                     <input
                       id="email-existing"
                       type="email"
-                      required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       onBlur={() => markTouched('email')}

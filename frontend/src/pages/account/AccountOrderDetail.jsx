@@ -241,7 +241,7 @@ export function AccountOrderDetail() {
           {order.address.city}, {order.address.state} {order.address.pincode}
         </p>
         <p style={{ margin: 0 }}>{order.address.country}</p>
-        <p style={{ marginTop: 8 }}>{order.customer.phone} · {order.customer.email}</p>
+        <p style={{ marginTop: 8 }}>{order.customer.phone}{order.customer.email ? ` · ${order.customer.email}` : ''}</p>
       </div>
 
       <div style={{ display: 'flex', gap: 12 }}>

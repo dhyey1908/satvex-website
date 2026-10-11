@@ -74,6 +74,15 @@ Parameters:
   ShiprocketServiceabilityBaseUrl:
     Type: String
     Default: 'https://serviceability.shiprocket.in'
+  SnsSenderId:
+    Type: String
+    Default: ''
+    Description: >
+      DLT-approved alphanumeric Sender ID for SMS to Indian numbers (e.g.
+      Settings > SMS preferences in the SNS console, or whatever your DLT
+      platform issued). SMS to Indian numbers will not deliver without a
+      registered DLT Principal Entity ID + approved template on the AWS
+      account, regardless of this value — see otpService.js for details.
 
 Globals:
   Function:
@@ -94,6 +103,8 @@ Resources:
           AttributeType: S
         - AttributeName: email
           AttributeType: S
+        - AttributeName: verifiedPhone
+          AttributeType: S
       KeySchema:
         - AttributeName: userId
           KeyType: HASH
@@ -104,6 +115,31 @@ Resources:
               KeyType: HASH
           Projection:
             ProjectionType: ALL
+        # Sparse index: only users with a verified phone appear here, which
+        # is exactly what phone-based login/lookup needs — an unverified
+        # phone number must never be usable to look up/log into an account
+        # (see authController.register/login).
+        - IndexName: verifiedPhone-index
+          KeySchema:
+            - AttributeName: verifiedPhone
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  OtpCodesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub satvex_otp_codes_${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: phone
+          AttributeType: S
+      KeySchema:
+        - AttributeName: phone
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
 
   ProductsTable:
     Type: AWS::DynamoDB::Table
@@ -376,6 +412,8 @@ Resources:
           TABLE_COUPONS: !Ref CouponsTable
           TABLE_REVIEWS: !Ref ReviewsTable
           TABLE_COUPON_REDEMPTIONS: !Ref CouponRedemptionsTable
+          TABLE_OTP_CODES: !Ref OtpCodesTable
+          SNS_SENDER_ID: !Ref SnsSenderId
           S3_MEDIA_BUCKET: !Ref MediaBucket
           CLOUDFRONT_MEDIA_URL: !Sub https://${MediaDistribution.DomainName}
           JWT_SECRET: !Ref JwtSecret
@@ -417,10 +455,19 @@ Resources:
             TableName: !Ref CouponRedemptionsTable
         - DynamoDBCrudPolicy:
             TableName: !Ref ShipmentJobsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OtpCodesTable
         - S3CrudPolicy:
             BucketName: !Ref MediaBucket
         - SESCrudPolicy:
             IdentityName: !Ref SesSenderEmail
+        # SNS SMS publish is account-wide (no per-topic resource — SNS
+        # direct-to-phone-number publish has no ARN to scope a resource
+        # policy to), per AWS's own documented pattern for this API.
+        - Statement:
+            - Effect: Allow
+              Action: sns:Publish
+              Resource: '*'
       Events:
         ProxyAll:
           Type: HttpApi

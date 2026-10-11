@@ -10,9 +10,15 @@ import { mapServerFieldErrors } from '../utils/formErrors';
 import './Auth.css';
 
 function validate(values) {
+  // Email is no longer mandatory — but the account needs at least one way
+  // to be identified/logged into, mirroring backend registerSchema's
+  // refine. The "missing both" error surfaces on the email field, same as
+  // the backend's error path, so it lands next to where the choice is made.
+  const hasIdentifier = Boolean(values.email?.trim()) || Boolean(values.phone?.trim());
   return runValidators({
     name: () => minLength(values.name, 2, 'Full name'),
-    email: () => validateEmail(values.email),
+    email: () =>
+      !hasIdentifier ? 'Provide an email address or a mobile number.' : validateEmail(values.email, { optional: true }),
     phone: () => validatePhone(values.phone, { optional: true }),
     password: () => validatePassword(values.password),
   });
@@ -83,11 +89,10 @@ export function Signup() {
             {touched.name && fieldErrors.name && <p className="field-error">{fieldErrors.name}</p>}
           </div>
           <div className={`field ${touched.email && fieldErrors.email ? 'invalid' : ''}`}>
-            <label htmlFor="email">Email</label>
+            <label htmlFor="email">Email (optional if you provide a mobile number)</label>
             <input
               id="email"
               type="email"
-              required
               value={form.email}
               onChange={(e) => setField('email', e.target.value)}
               onBlur={() => markTouched('email')}

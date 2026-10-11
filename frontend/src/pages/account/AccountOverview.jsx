@@ -41,7 +41,7 @@ export function AccountOverview() {
         </div>
         <div>
           <p className="account-profile-label">Email</p>
-          <p className="account-profile-value">{user?.email}</p>
+          <p className="account-profile-value">{user?.email || '—'}</p>
         </div>
         <div>
           <p className="account-profile-label">Phone</p>

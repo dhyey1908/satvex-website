@@ -83,7 +83,7 @@ export function AccountProfile() {
         </div>
         <div className="field">
           <label>Email</label>
-          <input value={user?.email} disabled />
+          <input value={user?.email || 'Not set'} disabled />
         </div>
         <button type="submit" className="btn btn-primary" disabled={saving}>
           {saving ? 'Saving…' : 'Save Changes'}

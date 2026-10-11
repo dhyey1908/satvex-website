@@ -12,10 +12,12 @@ const couponRoutes = require('./couponRoutes');
 const reviewRoutes = require('./reviewRoutes');
 const paymentRoutes = require('./paymentRoutes');
 const shiprocketRoutes = require('./shiprocketRoutes');
+const phoneRoutes = require('./phoneRoutes');
 
 const router = express.Router();
 
 router.use('/auth', authRoutes);
+router.use('/phone', phoneRoutes);
 router.use('/products', productRoutes);
 router.use('/cart', cartRoutes);
 router.use('/wishlist', wishlistRoutes);

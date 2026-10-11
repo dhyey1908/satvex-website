@@ -155,7 +155,7 @@ export function AdminOrderDetail() {
       <div className="admin-form-section">
         <h3>Customer</h3>
         <p>{order.customer.name}</p>
-        <p>{order.customer.email} · {order.customer.phone}</p>
+        <p>{order.customer.email ? `${order.customer.email} · ` : ''}{order.customer.phone}</p>
         <p>
           Payment Method: <strong>{order.paymentMethod === 'COD' ? 'Cash on Delivery' : 'Online Payment'}</strong>
         </p>

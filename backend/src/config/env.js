@@ -28,6 +28,15 @@ const env = {
     reviews: required('TABLE_REVIEWS', 'satvex_reviews'),
     couponRedemptions: required('TABLE_COUPON_REDEMPTIONS', 'satvex_coupon_redemptions'),
     shipmentJobs: required('TABLE_SHIPMENT_JOBS', 'satvex_shipment_jobs'),
+    otpCodes: required('TABLE_OTP_CODES', 'satvex_otp_codes'),
+  },
+
+  sns: {
+    // DLT-approved alphanumeric Sender ID — required for SMS to actually
+    // deliver to Indian numbers (TRAI/DLT regulation), separate from AWS
+    // IAM permissions. Left blank, SNS uses its default sender behavior,
+    // which Indian carriers will typically reject.
+    senderId: process.env.SNS_SENDER_ID || '',
   },
 
   s3: {

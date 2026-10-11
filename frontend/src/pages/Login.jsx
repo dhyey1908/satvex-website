@@ -4,7 +4,7 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { AuthLayout } from '../components/AuthLayout';
-import { required, email as validateEmail, runValidators, hasErrors } from '../utils/validators';
+import { required, runValidators, hasErrors } from '../utils/validators';
 import { mapServerFieldErrors } from '../utils/formErrors';
 import './Auth.css';
 
@@ -13,7 +13,7 @@ export function Login() {
   const { showToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
-  const [form, setForm] = useState({ email: '', password: '' });
+  const [form, setForm] = useState({ identifier: '', password: '' });
   const [fieldErrors, setFieldErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [error, setError] = useState(null);
@@ -21,7 +21,7 @@ export function Login() {
 
   function validate(values) {
     return runValidators({
-      email: () => validateEmail(values.email),
+      identifier: () => required(values.identifier, 'Email or mobile number'),
       password: () => required(values.password, 'Password'),
     });
   }
@@ -40,7 +40,7 @@ export function Login() {
     setError(null);
     const errors = validate(form);
     setFieldErrors(errors);
-    setTouched({ email: true, password: true });
+    setTouched({ identifier: true, password: true });
     if (hasErrors(errors)) return;
 
     setSubmitting(true);
@@ -70,17 +70,16 @@ export function Login() {
         <p className="auth-subcopy">Sign in to view your orders, wishlist, and saved addresses.</p>
 
         <form onSubmit={handleSubmit} noValidate>
-          <div className={`field ${touched.email && fieldErrors.email ? 'invalid' : ''}`}>
-            <label htmlFor="email">Email</label>
+          <div className={`field ${touched.identifier && fieldErrors.identifier ? 'invalid' : ''}`}>
+            <label htmlFor="identifier">Email or Mobile Number</label>
             <input
-              id="email"
-              type="email"
+              id="identifier"
               required
-              value={form.email}
-              onChange={(e) => setField('email', e.target.value)}
-              onBlur={() => handleBlur('email')}
+              value={form.identifier}
+              onChange={(e) => setField('identifier', e.target.value)}
+              onBlur={() => handleBlur('identifier')}
             />
-            {touched.email && fieldErrors.email && <p className="field-error">{fieldErrors.email}</p>}
+            {touched.identifier && fieldErrors.identifier && <p className="field-error">{fieldErrors.identifier}</p>}
           </div>
           <div className={`field ${touched.password && fieldErrors.password ? 'invalid' : ''}`}>
             <div className="field-label-row">
