@@ -18,14 +18,13 @@ import { AddressFormFields, ADDRESS_FORM_EMPTY, addressFormToPayload, validateAd
 import { PageHeader } from '../components/PageHeader';
 import { Truck, Loader2, Plus, Check, ChevronLeft } from 'lucide-react';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
-import { required, minLength, email as validateEmail, phone as validatePhone, pincode as validatePincode, runValidators, hasErrors } from '../utils/validators';
+import { required, minLength, phone as validatePhone, pincode as validatePincode, hasErrors } from '../utils/validators';
 import { mapServerFieldErrors } from '../utils/formErrors';
 import './Checkout.css';
 
 const CHECKOUT_SERVER_FIELD_MAP = {
   'customer.name': 'fullName',
   'customer.phone': 'phone',
-  'customer.email': 'email',
   'address.line1': 'houseFlat',
   'address.city': 'city',
   'address.state': 'state',
@@ -43,7 +42,6 @@ export function Checkout() {
   const confirm = useConfirm();
   const navigate = useNavigate();
   const [form, setForm] = useState({ ...ADDRESS_FORM_EMPTY });
-  const [email, setEmail] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [error, setError] = useState(null);
@@ -73,17 +71,12 @@ export function Checkout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Stop asking logged-in customers to retype what we already know. Email
-  // isn't part of a saved address record at all (addresses have no email
-  // field), so this is the only place it ever gets prefilled — applies
-  // regardless of whether a saved address is selected. Name/phone only
-  // prefill from the account when there's no saved address to prefill them
-  // from instead (a saved address's own name/phone is the more specific,
-  // likely more accurate choice for that address). Never clobbers
-  // something the customer already typed.
+  // Name/phone prefill from the account when there's no saved address to
+  // prefill them from instead (a saved address's own name/phone is the
+  // more specific, likely more accurate choice for that address). Never
+  // clobbers something the customer already typed.
   useEffect(() => {
     if (!user) return;
-    if (user.email) setEmail((prev) => prev || user.email);
     if (!selectedAddressId) {
       setForm((prev) => ({
         ...prev,
@@ -156,17 +149,9 @@ export function Checkout() {
     setTouched((prev) => ({ ...prev, [key]: true }));
   }
 
-  // Confirmed against Cashfree's own API reference: customer_details only
-  // requires customer_id + customer_phone, not customer_email — so email is
-  // optional here regardless of payment method.
   function validate(addressRequired) {
-    if (!addressRequired) {
-      return runValidators({ email: () => validateEmail(email, { optional: true }) });
-    }
-    return {
-      ...validateAddressForm(form, { required, minLength, phone: validatePhone, pincode: validatePincode }),
-      email: validateEmail(email, { optional: true }),
-    };
+    if (!addressRequired) return {};
+    return validateAddressForm(form, { required, minLength, phone: validatePhone, pincode: validatePincode });
   }
 
   useEffect(() => {
@@ -254,8 +239,8 @@ export function Checkout() {
     setFieldErrors(errors);
     setTouched(
       addressRequired
-        ? { fullName: true, phone: true, email: true, houseFlat: true, areaStreet: true, city: true, state: true, pincode: true, country: true }
-        : { email: true }
+        ? { fullName: true, phone: true, houseFlat: true, areaStreet: true, city: true, state: true, pincode: true, country: true }
+        : {}
     );
     if (hasErrors(errors)) return;
     setStep('confirm');
@@ -275,8 +260,8 @@ export function Checkout() {
     setFieldErrors(errors);
     setTouched(
       addressRequired
-        ? { fullName: true, phone: true, email: true, houseFlat: true, areaStreet: true, city: true, state: true, pincode: true, country: true }
-        : { email: true }
+        ? { fullName: true, phone: true, houseFlat: true, areaStreet: true, city: true, state: true, pincode: true, country: true }
+        : {}
     );
     if (hasErrors(errors)) {
       setStep('address');
@@ -287,7 +272,7 @@ export function Checkout() {
     try {
       const addressPayload = addressFormToPayload(form);
       const response = await orderService.checkout({
-        customer: { name: form.fullName, phone: form.phone, email },
+        customer: { name: form.fullName, phone: form.phone },
         address: {
           line1: addressPayload.line1,
           landmark: addressPayload.landmark,
@@ -328,7 +313,7 @@ export function Checkout() {
       const serverErrors = mapServerFieldErrors(err, CHECKOUT_SERVER_FIELD_MAP);
       if (serverErrors) {
         setFieldErrors((prev) => ({ ...prev, ...serverErrors }));
-        if (!showNewAddressForm && Object.keys(serverErrors).some((k) => k !== 'email')) {
+        if (!showNewAddressForm && Object.keys(serverErrors).length > 0) {
           setShowNewAddressForm(true);
         }
         setStep('address');
@@ -438,17 +423,6 @@ export function Checkout() {
                       fieldErrors={fieldErrors}
                       pincodeLookupState={pincodeLookupState}
                     />
-                    <div className={`field ${touched.email && fieldErrors.email ? 'invalid' : ''}`}>
-                      <label htmlFor="email">Email (optional, for order confirmation)</label>
-                      <input
-                        id="email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        onBlur={() => markTouched('email')}
-                      />
-                      {touched.email && fieldErrors.email && <p className="field-error">{fieldErrors.email}</p>}
-                    </div>
                     <label className="checkbox-field">
                       <input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} />
                       Save this address for future orders
@@ -466,23 +440,6 @@ export function Checkout() {
                   </>
                 )}
               </div>
-
-              {selectedAddress && !showNewAddressForm && (
-                <div className="checkout-section card">
-                  <h3 className="checkout-section-title">Contact Email</h3>
-                  <div className={`field ${touched.email && fieldErrors.email ? 'invalid' : ''}`} style={{ marginBottom: 0 }}>
-                    <label htmlFor="email-existing">Email (optional, for order confirmation)</label>
-                    <input
-                      id="email-existing"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      onBlur={() => markTouched('email')}
-                    />
-                    {touched.email && fieldErrors.email && <p className="field-error">{fieldErrors.email}</p>}
-                  </div>
-                </div>
-              )}
 
               <button type="button" className="btn btn-primary btn-block checkout-step-continue" onClick={handleContinueFromAddress}>
                 Continue
