@@ -48,6 +48,11 @@ const DEFAULT_SETTINGS = {
     pickupLocation: '',
     defaultPackage: { lengthCm: 10, breadthCm: 10, heightCm: 5, weightKg: 0.3 },
   },
+  // Off by default — see deliveryEligibilityService.js. While disabled,
+  // every pincode is deliverable (current behavior, unchanged). Once an
+  // admin turns it on, only states in enabledStates are deliverable; a
+  // state not yet added is disabled by default.
+  delivery: { enabled: false, enabledStates: [] },
   whyPillars: [
     { title: 'Flexible', description: 'Moves comfortably with your everyday needs.' },
     { title: 'Comfortable', description: 'Lightweight designs created for effortless everyday use.' },

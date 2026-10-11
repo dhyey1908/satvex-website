@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { MapPin, CheckCircle2, XCircle, Loader2, Truck } from 'lucide-react';
+import { deliveryService } from '../services/deliveryService';
 import './PincodeCheck.css';
 
 // Standard estimate window shown once a pincode is verified — matches the
@@ -22,13 +23,17 @@ function formatEstimate() {
  * Self-contained "check delivery to your area" widget for the PDP — a
  * display-only convenience, separate from Checkout's own address form.
  * Reuses the exact same free postal-lookup API/pattern Checkout.jsx uses
- * (api.postalpincode.in) rather than inventing new delivery/serviceability
- * rules; this only tells the shopper the pincode is valid and shows the
- * area name, it doesn't feed into cart/order state at all.
+ * (api.postalpincode.in) for the district/state display text, but the
+ * deliverable/not-deliverable verdict itself comes from the backend
+ * (deliveryService.checkPincode -> deliveryEligibilityService.js), which
+ * independently re-resolves the pincode's state server-side rather than
+ * trusting anything computed here. This still doesn't feed into cart/order
+ * state at all — it's informational only; the real enforcement happens
+ * again at checkout regardless of what this widget shows.
  */
 export function PincodeCheck() {
   const [pincode, setPincode] = useState('');
-  const [state, setState] = useState('idle'); // idle | loading | found | not-found
+  const [state, setState] = useState('idle'); // idle | loading | found | not-deliverable | not-found
   const [area, setArea] = useState(null);
 
   function handleChange(e) {
@@ -45,12 +50,13 @@ export function PincodeCheck() {
       const res = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
       const data = await res.json();
       const office = data?.[0]?.PostOffice?.[0];
-      if (data?.[0]?.Status === 'Success' && office) {
-        setArea(`${office.District}, ${office.State}`);
-        setState('found');
-      } else {
+      if (data?.[0]?.Status !== 'Success' || !office) {
         setState('not-found');
+        return;
       }
+      setArea(`${office.District}, ${office.State}`);
+      const { deliverable } = await deliveryService.checkPincode(pincode);
+      setState(deliverable ? 'found' : 'not-deliverable');
     } catch {
       setState('not-found');
     }
@@ -85,6 +91,11 @@ export function PincodeCheck() {
             <Truck size={14} /> Estimated delivery: {formatEstimate()}
           </p>
         </>
+      )}
+      {state === 'not-deliverable' && (
+        <p className="pincode-check-result error">
+          <XCircle size={14} /> Sorry, we don&apos;t currently deliver to {area}.
+        </p>
       )}
       {state === 'not-found' && (
         <p className="pincode-check-result error">

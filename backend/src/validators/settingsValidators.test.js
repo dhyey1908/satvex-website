@@ -33,3 +33,17 @@ test('announcements: startDate/endDate must be YYYY-MM-DD when given', () => {
   const result = updateSettingsSchema.parse({ announcements: [baseAnnouncement({ startDate: '2026-10-11', endDate: '2026-12-31' })] });
   assert.equal(result.announcements[0].startDate, '2026-10-11');
 });
+
+test('delivery: defaults to disabled with an empty allowlist when omitted', () => {
+  const result = updateSettingsSchema.parse({});
+  assert.equal(result.delivery, undefined, 'the field itself is optional at the top level — settingsService supplies its own default');
+});
+
+test('delivery: accepts known state names from the canonical list', () => {
+  const result = updateSettingsSchema.parse({ delivery: { enabled: true, enabledStates: ['Gujarat', 'Kerala'] } });
+  assert.deepEqual(result.delivery.enabledStates, ['Gujarat', 'Kerala']);
+});
+
+test('delivery: rejects a state name not in the canonical list (prevents a silent typo that would never match a real lookup)', () => {
+  assert.throws(() => updateSettingsSchema.parse({ delivery: { enabled: true, enabledStates: ['Gujrat'] } }));
+});

@@ -2,10 +2,12 @@ const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
 const settingsService = require('./settingsService');
 const couponService = require('./couponService');
+const deliveryEligibilityService = require('./deliveryEligibilityService');
 const { calculateTotals } = require('./pricingService');
 
 const originalGetSettings = settingsService.getSettings;
 const originalFindByCode = couponService.findByCode;
+const originalAssertDeliverable = deliveryEligibilityService.assertDeliverable;
 
 // Shiprocket disabled -> shippingRateService always returns the flat
 // fallback charge (already covered in depth by shippingRateService.test.js)
@@ -28,6 +30,7 @@ function stubSettings(overrides = {}) {
 after(() => {
   settingsService.getSettings = originalGetSettings;
   couponService.findByCode = originalFindByCode;
+  deliveryEligibilityService.assertDeliverable = originalAssertDeliverable;
 });
 
 // One combo's subtotal, chosen so subtotal * 1.18 (default GST) matches the
@@ -136,6 +139,36 @@ test('rounding mode is honored when a real Shiprocket quote is used (nearest 5)'
   assert.equal(totals.shipping, 55);
   assert.equal(totals.shippingSource, 'shiprocket');
   shiprocketService.getServiceability = original;
+});
+
+test('a delivery pincode is checked against deliveryEligibilityService before any shipping-rate call, and blocks the whole quote on rejection', async () => {
+  stubSettings();
+  let checkedPincode = null;
+  deliveryEligibilityService.assertDeliverable = async (pincode) => {
+    checkedPincode = pincode;
+    const AppError = require('../utils/AppError');
+    throw new AppError("Sorry, we don't currently deliver to Kerala.", 400, 'PINCODE_NOT_SERVICEABLE');
+  };
+  await assert.rejects(
+    () => calculateTotals({ items: comboItems(1), paymentMethod: 'COD', deliveryPincode: '682001' }),
+    (err) => {
+      assert.equal(err.code, 'PINCODE_NOT_SERVICEABLE');
+      return true;
+    }
+  );
+  assert.equal(checkedPincode, '682001');
+  deliveryEligibilityService.assertDeliverable = originalAssertDeliverable;
+});
+
+test('no deliveryPincode (e.g. cart-page preview before an address is chosen) never triggers a delivery-eligibility check', async () => {
+  stubSettings();
+  let called = false;
+  deliveryEligibilityService.assertDeliverable = async () => {
+    called = true;
+  };
+  await calculateTotals({ items: comboItems(1), paymentMethod: 'COD' });
+  assert.equal(called, false);
+  deliveryEligibilityService.assertDeliverable = originalAssertDeliverable;
 });
 
 test('optional prepaid discount reduces the total only on Online payment, never on COD', async () => {

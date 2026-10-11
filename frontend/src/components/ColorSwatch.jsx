@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import './ColorSwatch.css';
 
-export function ColorSwatch({ colorCode, colorName, selected, disabled, outOfStock, count, onClick }) {
+export function ColorSwatch({ colorCode, colorName, selected, disabled, outOfStock, count, onClick, showLabel }) {
   const isDisabled = disabled || outOfStock;
   return (
     <span className="color-swatch-item">
@@ -25,6 +25,7 @@ export function ColorSwatch({ colorCode, colorName, selected, disabled, outOfSto
       {/* Always-visible, not hover-only — a tooltip alone would be invisible
           on touch devices, and the spec calls for immediate recognition. */}
       {outOfStock && <span className="color-swatch-oos-label">Out of stock</span>}
+      {showLabel && !outOfStock && <span className="color-swatch-name">{colorName}</span>}
     </span>
   );
 }

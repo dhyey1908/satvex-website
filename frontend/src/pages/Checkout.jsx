@@ -57,6 +57,7 @@ export function Checkout() {
   const [pincodeLookupState, setPincodeLookupState] = useState('idle');
   const [paymentMethod, setPaymentMethod] = useState('COD');
   const [quote, setQuote] = useState(null);
+  const [quoteError, setQuoteError] = useState(null);
   const [step, setStep] = useState('address');
   // Increments only once the backend has actually confirmed a coupon
   // applied — never for an invalid code, a repeated click, or a failed
@@ -140,8 +141,19 @@ export function Checkout() {
     let cancelled = false;
     orderService
       .quote({ couponCode: appliedCoupon?.code, paymentMethod, pincode: deliveryPincode })
-      .then((data) => !cancelled && setQuote(data))
-      .catch(() => !cancelled && setQuote(null));
+      .then((data) => {
+        if (cancelled) return;
+        setQuote(data);
+        setQuoteError(null);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setQuote(null);
+        // Surfaced prominently (e.g. a disabled-state pincode) rather than
+        // silently dropped — the customer needs to know why the total
+        // disappeared and can't just guess.
+        setQuoteError(deliveryPincode ? err.message : null);
+      });
     return () => {
       cancelled = true;
     };
@@ -453,6 +465,8 @@ export function Checkout() {
                   </>
                 )}
               </div>
+
+              {quoteError && <p className="field-error checkout-delivery-error">{quoteError}</p>}
 
               <button type="button" className="btn btn-primary btn-block checkout-step-continue" onClick={handleContinueFromAddress}>
                 Continue

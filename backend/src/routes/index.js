@@ -13,6 +13,7 @@ const reviewRoutes = require('./reviewRoutes');
 const paymentRoutes = require('./paymentRoutes');
 const shiprocketRoutes = require('./shiprocketRoutes');
 const phoneRoutes = require('./phoneRoutes');
+const deliveryRoutes = require('./deliveryRoutes');
 
 const router = express.Router();
 
@@ -30,5 +31,6 @@ router.use('/coupons', couponRoutes);
 router.use('/reviews', reviewRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/shiprocket', shiprocketRoutes);
+router.use('/delivery', deliveryRoutes);
 
 module.exports = router;

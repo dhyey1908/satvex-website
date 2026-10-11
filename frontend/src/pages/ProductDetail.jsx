@@ -46,6 +46,10 @@ export function ProductDetail() {
   const [error, setError] = useState(null);
   const [sellingOptionId, setSellingOptionId] = useState(null);
   const [selectedColors, setSelectedColors] = useState([]);
+  // For combos, which of the selected colors the main image currently
+  // shows. Single-color options don't need this — there's only ever one
+  // selected color, so the image just follows it directly.
+  const [previewColorId, setPreviewColorId] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [buyingNow, setBuyingNow] = useState(false);
@@ -109,14 +113,32 @@ export function ProductDetail() {
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [product, location.hash]);
 
+  // Keeps the main-image preview target in sync with selectedColors,
+  // covering every way selectedColors can change (combo swatch pick,
+  // removing a chip, switching selling option, loading a different
+  // product/cart item) without needing a reset at each call site. Newly
+  // adding a color previews that one immediately; removing the previewed
+  // one falls back to whichever selection is now last.
+  useEffect(() => {
+    if (selectedColors.length === 0) {
+      setPreviewColorId(null);
+      return;
+    }
+    if (!selectedColors.includes(previewColorId)) {
+      setPreviewColorId(selectedColors[selectedColors.length - 1]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedColors]);
+
   if (error) return <ErrorState message={error} />;
   if (!product) return <Loader label="Loading product…" />;
 
   const sellingOption = product.sellingOptions.find((o) => o.id === sellingOptionId);
-  const activeVariant =
-    sellingOption?.quantity === 1 && selectedColors.length === 1
-      ? product.variants.find((v) => v.id === selectedColors[0])
-      : null;
+  // Single-color options: selectedColors[0] is the only possible choice.
+  // Combos: previewColorId (kept in sync above) picks which of the several
+  // selected colors the main image currently shows.
+  const previewVariantId = sellingOption?.quantity === 1 ? selectedColors[0] : previewColorId;
+  const activeVariant = previewVariantId ? product.variants.find((v) => v.id === previewVariantId) : null;
 
   const activeOptions = product.sellingOptions.filter((o) => o.isActive);
   const activeVariants = product.variants.filter((v) => v.isActive);
@@ -224,10 +246,7 @@ export function ProductDetail() {
   }
 
   const highlights = settings?.whyPillars || DEFAULT_HIGHLIGHTS;
-  const selectedShadeName =
-    sellingOption?.quantity === 1
-      ? product.variants.find((v) => v.id === selectedColors[0])?.colorName
-      : null;
+  const selectedShadeName = activeVariant?.colorName ?? null;
 
   return (
     <>
@@ -318,7 +337,12 @@ export function ProductDetail() {
             <div className="product-detail-section pdp-color-section">
               <h3>
                 {sellingOption.quantity === 1 ? 'Select a Color' : `Select ${sellingOption.quantity} Colors`}
-                {selectedShadeName && <span className="pdp-selected-shade"> — {selectedShadeName}</span>}
+                {selectedShadeName && (
+                  <span className="pdp-selected-shade">
+                    {' '}
+                    — {sellingOption.quantity === 1 ? selectedShadeName : `Previewing ${selectedShadeName}`}
+                  </span>
+                )}
               </h3>
               <ComboColorSelector
                 variants={product.variants}
@@ -326,6 +350,8 @@ export function ProductDetail() {
                 allowDuplicateColors={sellingOption.allowDuplicateColors}
                 selectedIds={selectedColors}
                 onChange={setSelectedColors}
+                previewId={previewColorId}
+                onPreview={setPreviewColorId}
               />
             </div>
           )}

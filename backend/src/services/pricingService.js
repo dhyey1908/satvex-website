@@ -3,6 +3,7 @@ const couponService = require('./couponService');
 const couponRedemptionService = require('./couponRedemptionService');
 const settingsService = require('./settingsService');
 const shippingRateService = require('./shippingRateService');
+const deliveryEligibilityService = require('./deliveryEligibilityService');
 const AppError = require('../utils/AppError');
 
 /**
@@ -118,9 +119,18 @@ async function validateCoupon(code, subtotal, userId) {
  *
  * deliveryPincode is optional (e.g. the cart-page quote preview before an
  * address is chosen) — without it, shipping always uses the flat fallback
- * charge, same as when Shiprocket isn't connected.
+ * charge, same as when Shiprocket isn't connected. When it IS given, it's
+ * checked against the admin-managed delivery-state allowlist (see
+ * deliveryEligibilityService.js) before any shipping-rate call is made —
+ * this is the single enforcement point both the quote preview and the real
+ * checkout share, so a disabled state is rejected identically either way,
+ * and before Shiprocket is ever asked for a rate on it.
  */
 async function calculateTotals({ items, couponCode, paymentMethod, userId, deliveryPincode }) {
+  if (deliveryPincode) {
+    await deliveryEligibilityService.assertDeliverable(deliveryPincode);
+  }
+
   const subtotal = Number(items.reduce((sum, item) => sum + item.subtotal, 0).toFixed(2));
 
   let couponResult = null;

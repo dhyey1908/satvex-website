@@ -1,4 +1,5 @@
 const { z } = require('zod');
+const { INDIAN_STATES } = require('../constants/indianStates');
 
 const heroBannerSchema = z.object({
   id: z.string().trim().min(1),
@@ -105,6 +106,15 @@ const shiprocketSettingsSchema = z.object({
   defaultPackage: shiprocketDefaultPackageSchema.default({}),
 });
 
+// See deliveryEligibilityService.js. enabledStates is restricted to the
+// known-exact state names api.postalpincode.in returns (indianStates.js) —
+// not a free-text field — so an admin can't silently mistype a state name
+// into something that will never match a real pincode lookup.
+const deliverySettingsSchema = z.object({
+  enabled: z.boolean().default(false),
+  enabledStates: z.array(z.enum(INDIAN_STATES)).max(INDIAN_STATES.length).default([]),
+});
+
 const paymentsSettingsSchema = z.object({
   onlineEnabled: z.boolean().default(false),
   onlineTestUserIds: z.array(z.string().trim().min(1)).max(50).default([]),
@@ -126,6 +136,7 @@ const updateSettingsSchema = z.object({
   cod: codSettingsSchema.optional(),
   payments: paymentsSettingsSchema.optional(),
   shiprocket: shiprocketSettingsSchema.optional(),
+  delivery: deliverySettingsSchema.optional(),
 });
 
 module.exports = { updateSettingsSchema };

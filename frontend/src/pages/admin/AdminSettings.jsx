@@ -6,6 +6,7 @@ import { ImageUploader } from '../../components/ImageUploader';
 import { Loader } from '../../components/Loader';
 import { email as validateEmail, url as validateUrl, maxLength, runValidators, hasErrors } from '../../utils/validators';
 import { mapServerFieldErrors } from '../../utils/formErrors';
+import { INDIAN_STATES } from '../../constants/indianStates';
 import './Admin.css';
 
 function validate(values) {
@@ -62,6 +63,14 @@ export function AdminSettings() {
 
   function setNestedField(group, key, value) {
     setForm((prev) => ({ ...prev, [group]: { ...prev[group], [key]: value } }));
+  }
+
+  function toggleDeliveryState(state) {
+    setForm((prev) => {
+      const current = prev.delivery?.enabledStates || [];
+      const next = current.includes(state) ? current.filter((s) => s !== state) : [...current, state];
+      return { ...prev, delivery: { ...prev.delivery, enabledStates: next } };
+    });
   }
 
   function setShiprocketPackageField(key, value) {
@@ -548,6 +557,39 @@ export function AdminSettings() {
               use this to test the real PayU test flow without exposing it publicly.
             </p>
           </div>
+        </div>
+
+        <div className="admin-form-section">
+          <h3>Delivery Eligibility</h3>
+          <label className="checkbox-field">
+            <input
+              type="checkbox"
+              checked={form.delivery?.enabled ?? false}
+              onChange={(e) => setNestedField('delivery', 'enabled', e.target.checked)}
+            />
+            Restrict delivery to selected states only
+          </label>
+          <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', margin: '4px 0 12px' }}>
+            Off by default — every pincode is deliverable, same as today. Turn this on to allow
+            orders only to the states checked below; a state left unchecked is not deliverable,
+            even if the customer enters a valid pincode for it. The pincode's state is always
+            resolved independently on the backend, never trusted from the address form itself, and
+            is re-checked again right before an order is placed.
+          </p>
+          {form.delivery?.enabled && (
+            <div className="admin-form-grid">
+              {INDIAN_STATES.map((state) => (
+                <label key={state} className="checkbox-field" style={{ marginBottom: 0 }}>
+                  <input
+                    type="checkbox"
+                    checked={(form.delivery?.enabledStates || []).includes(state)}
+                    onChange={() => toggleDeliveryState(state)}
+                  />
+                  {state}
+                </label>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="admin-form-sticky-actions">
