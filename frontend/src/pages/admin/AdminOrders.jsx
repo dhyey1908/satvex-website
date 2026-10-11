@@ -276,12 +276,6 @@ export function AdminOrders() {
                       <span className={`pill ${o.awbCode ? 'pill-active' : 'pill-inactive'}`}>
                         {SHIPMENT_STATUS_LABELS[o.shipmentStatus] || o.shipmentStatus || 'Not Created'}
                       </span>
-                      {o.awbCode && (
-                        <div className="text-label-sm" style={{ marginTop: 2 }}>
-                          {o.courierName ? `${o.courierName} · ` : ''}
-                          {o.awbCode}
-                        </div>
-                      )}
                     </td>
                     <td>{formatDate(o.createdAt)}</td>
                     <td>

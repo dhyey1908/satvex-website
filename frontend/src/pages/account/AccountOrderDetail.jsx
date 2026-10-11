@@ -152,14 +152,6 @@ export function AccountOrderDetail() {
               Estimated Delivery: <strong>{order.estimatedDeliveryDate}</strong>
             </p>
           )}
-          {order.invoiceUrl && (
-            <p style={{ margin: '8px 0 0' }}>
-              <a href={order.invoiceUrl} target="_blank" rel="noreferrer">
-                Download Invoice
-              </a>
-            </p>
-          )}
-
           {order.trackingEvents && order.trackingEvents.length > 0 && (
             <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
               {order.trackingEvents
@@ -173,6 +165,17 @@ export function AccountOrderDetail() {
                 ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Shown independent of the tracking block above (which needs a real
+          AWB) so an invoice is never hidden from a customer just because
+          some other shipment field happens to be missing. */}
+      {order.invoiceUrl && (
+        <div className="account-form" style={{ maxWidth: '100%', marginBottom: 20 }}>
+          <a href={order.invoiceUrl} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">
+            Download Invoice
+          </a>
         </div>
       )}
 

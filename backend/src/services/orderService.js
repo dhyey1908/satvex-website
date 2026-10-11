@@ -2,6 +2,8 @@ const { PutCommand, GetCommand, QueryCommand, ScanCommand, UpdateCommand } = req
 const { v4: uuid } = require('uuid');
 const { docClient } = require('../config/dynamo');
 const env = require('../config/env');
+const shiprocketService = require('./shiprocketService');
+const logger = require('../utils/logger');
 
 const TABLE = env.tables.orders;
 const USER_INDEX = 'userId-createdAt-index';
@@ -585,6 +587,20 @@ async function recordShipmentTracking(orderId, { shipmentStatus, courierName, cu
   // unconditionally.
   if (isDelivered) {
     await advanceStatusIfEligible(orderId, 'Delivered', ['Pending', 'Confirmed', 'Processing', 'Shipped']);
+
+    // Safety net: invoice generation is normally attempted right after the
+    // label step (shipmentService), but that's a best-effort call that can
+    // fail silently — a customer should never be stuck on "Delivered" with
+    // no invoice just because that one attempt happened to fail earlier.
+    const current = await findById(orderId);
+    if (current && !current.invoiceUrl && current.shiprocketOrderId) {
+      try {
+        const invoiceUrl = await shiprocketService.generateInvoice({ shiprocketOrderId: current.shiprocketOrderId });
+        await recordInvoiceGenerated(orderId, { invoiceUrl });
+      } catch (err) {
+        logger.error('invoice generation on delivery failed (non-fatal)', { orderId, message: err.message });
+      }
+    }
   } else {
     // Real courier movement — safe to advance to "Shipped". Checked against
     // the raw Shiprocket string, not the mapped label, so it stays exact
