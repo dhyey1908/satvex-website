@@ -1,10 +1,11 @@
 # SATVEX — Checkout and Orders
 
 ## Payment
-v1 shipped COD-only, no gateway. v2 (in progress, see
-`18-payment-gateway.md`) adds a real Cashfree Hosted Checkout integration
-(UPI + Cards) behind the existing "Cash on Delivery / Online Payment"
-checkout toggle. COD remains fully supported and unaffected either way.
+v1 shipped COD-only, no gateway. v2 added a real PayU Hosted Checkout
+integration (UPI + Cards) behind the existing "Cash on Delivery / Online
+Payment" checkout toggle — see `20-payu-migration.md` (supersedes the
+original Cashfree plan in `18-payment-gateway.md`). COD remains fully
+supported and unaffected either way.
 
 ## Checkout
 Authenticated users can access checkout.

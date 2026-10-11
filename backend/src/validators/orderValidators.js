@@ -4,9 +4,10 @@ const checkoutSchema = z.object({
   customer: z.object({
     name: z.string().trim().min(2).max(100),
     phone: z.string().trim().regex(/^[0-9]{10}$/, 'Enter a valid 10-digit mobile number.'),
-    // Fully optional, for both COD and Online — confirmed directly against
-    // Cashfree's Create Order API reference: customer_details only requires
-    // customer_id + customer_phone, customer_email is optional there too.
+    // Fully optional, for both COD and Online. The email field was removed
+    // from checkout UI entirely; PayU requires a non-empty email on its
+    // payment form, so the controller falls back to a placeholder address
+    // when none is on file rather than requiring it here.
     email: z.string().trim().email('Invalid email address').optional().or(z.literal('')),
   }),
   address: z.object({

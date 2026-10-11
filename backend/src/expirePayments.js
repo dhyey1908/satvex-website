@@ -2,15 +2,17 @@
 // stale awaiting_payment orders and releases their coupons. Runs
 // independently of the API Lambda/Express app.
 //
-// Safety rules (see 18-payment-gateway.md §8):
-// - Never expires an order on a Cashfree API error, or if Cashfree still
-//   reports ACTIVE — only ever on an explicit, confirmed non-PAID result.
-// - Reconciles with Cashfree first: if Cashfree reports PAID, the order is
-//   marked paid instead of expired (a webhook was missed, not a failure).
-// - Batch-capped and paced between orders to stay well under Cashfree's
-//   rate limits, rather than firing every call concurrently.
+// Safety rules:
+// - Never expires an order on a PayU API error, or an inconclusive
+//   ('pending'/'not_found') result — only ever on an explicit, confirmed
+//   non-success result.
+// - Reconciles with PayU first: if verify_payment reports success, the
+//   order is marked paid instead of expired (a callback was missed, not a
+//   failure).
+// - Batch-capped and paced between orders to stay well under PayU's rate
+//   limits, rather than firing every call concurrently.
 const orderService = require('./services/orderService');
-const paymentService = require('./services/paymentService');
+const payuService = require('./services/payuService');
 const couponService = require('./services/couponService');
 const couponRedemptionService = require('./services/couponRedemptionService');
 const shipmentService = require('./services/shipmentService');
@@ -31,30 +33,28 @@ async function finalizeExpiry(order) {
 }
 
 async function processOrder(order) {
-  let cfStatus;
+  let result;
   try {
-    cfStatus = await paymentService.fetchOrderStatus(order.orderId);
+    result = await payuService.verifyPayment(order.orderId);
   } catch {
     // API error — skip this order, retry next hourly run. Never expire on
     // an inconclusive result.
     return 'skipped-error';
   }
 
-  if (cfStatus.orderStatus === 'PAID') {
-    const payments = await paymentService.fetchOrderPayments(order.orderId).catch(() => []);
-    const success = payments.find((p) => p.payment_status === 'SUCCESS');
-    await orderService.markPaid(order.orderId, { cfPaymentId: success?.cf_payment_id, paidAt: new Date().toISOString() });
+  if (result.status === 'success') {
+    await orderService.markPaid(order.orderId, { payuMihpayid: result.mihpayid, paidAt: new Date().toISOString() });
     await shipmentService.triggerShipmentIfNeeded(order.orderId);
     return 'reconciled-paid';
   }
 
-  if (cfStatus.orderStatus === 'EXPIRED' || cfStatus.orderStatus === 'TERMINATED') {
+  if (result.status === 'failure') {
     await finalizeExpiry(order);
     return 'expired';
   }
 
-  // ACTIVE (or anything else inconclusive) — not due yet on Cashfree's
-  // side despite our own deadline passing; skip and retry next run.
+  // 'pending' or 'not_found' — not due yet despite our own deadline
+  // passing (e.g. the customer is mid-payment); skip and retry next run.
   return 'skipped-active';
 }
 

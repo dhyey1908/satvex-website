@@ -25,23 +25,23 @@ Parameters:
   ResetTokenExpiresMin:
     Type: Number
     Default: 30
-  CashfreeAppId:
+  PayuMerchantKey:
     Type: String
     NoEcho: true
-    Description: Cashfree x-client-id — sandbox key for dev, live key after cutover
-  CashfreeSecretKey:
+    Default: ''
+    Description: PayU merchant key — test key for dev, live key after cutover
+  PayuMerchantSalt:
     Type: String
     NoEcho: true
+    Default: ''
     Description: >
-      Cashfree x-client-secret — also used to verify webhook signatures
-      (Cashfree has no separate webhook-signing secret)
-  CashfreeEnv:
+      PayU merchant salt — used both for the payment-request hash and to
+      verify the surl/furl response hash (PayU has no separate
+      webhook-signing secret).
+  PayuEnv:
     Type: String
-    Default: sandbox
-    AllowedValues: [sandbox, production]
-  CashfreeApiVersion:
-    Type: String
-    Default: '2023-08-01'
+    Default: test
+    AllowedValues: [test, production]
   ShiprocketEmail:
     Type: String
     NoEcho: true
@@ -420,10 +420,9 @@ Resources:
           JWT_EXPIRES_IN: 7d
           RESET_TOKEN_EXPIRES_MIN: !Ref ResetTokenExpiresMin
           SES_SENDER_EMAIL: !Ref SesSenderEmail
-          CASHFREE_APP_ID: !Ref CashfreeAppId
-          CASHFREE_SECRET_KEY: !Ref CashfreeSecretKey
-          CASHFREE_ENV: !Ref CashfreeEnv
-          CASHFREE_API_VERSION: !Ref CashfreeApiVersion
+          PAYU_MERCHANT_KEY: !Ref PayuMerchantKey
+          PAYU_MERCHANT_SALT: !Ref PayuMerchantSalt
+          PAYU_ENV: !Ref PayuEnv
           SHIPROCKET_EMAIL: !Ref ShiprocketEmail
           SHIPROCKET_PASSWORD: !Ref ShiprocketPassword
           SHIPROCKET_WEBHOOK_TOKEN: !Ref ShiprocketWebhookToken
@@ -498,10 +497,9 @@ Resources:
           TABLE_ORDERS: !Ref OrdersTable
           TABLE_COUPONS: !Ref CouponsTable
           TABLE_COUPON_REDEMPTIONS: !Ref CouponRedemptionsTable
-          CASHFREE_APP_ID: !Ref CashfreeAppId
-          CASHFREE_SECRET_KEY: !Ref CashfreeSecretKey
-          CASHFREE_ENV: !Ref CashfreeEnv
-          CASHFREE_API_VERSION: !Ref CashfreeApiVersion
+          PAYU_MERCHANT_KEY: !Ref PayuMerchantKey
+          PAYU_MERCHANT_SALT: !Ref PayuMerchantSalt
+          PAYU_ENV: !Ref PayuEnv
           # Needed transitively: a reconciled-paid order now calls
           # shipmentService.triggerShipmentIfNeeded, which reads settings
           # and (if Shiprocket is enabled) writes a shipment retry job.

@@ -36,8 +36,8 @@ const DEFAULT_SETTINGS = {
   cod: { enabled: true, charge: 59, prepaidDiscountType: 'none', prepaidDiscountValue: 0 },
   // Sandbox keys must never be reachable by real customers — onlineEnabled
   // stays false until the live-cutover checklist is complete.
-  // onlineTestUserIds lets specific accounts exercise the real Cashfree
-  // sandbox flow while it's invisible to everyone else.
+  // onlineTestUserIds lets specific accounts exercise the real PayU test
+  // flow while it's invisible to everyone else.
   payments: { onlineEnabled: false, onlineTestUserIds: [] },
   // Stays disabled (no real Shiprocket calls — neither rate quotes nor
   // shipment booking) until pickupPincode/pickupLocation are set and

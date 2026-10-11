@@ -1,5 +1,11 @@
 # SATVEX — Online Payment Gateway (Cashfree)
 
+**⚠ Superseded 2026-10-11.** Cashfree caused ongoing technical issues and
+was replaced with **PayU** — see `20-payu-migration.md` for the current
+gateway, decisions, and lifecycle. This document is kept for historical
+reference only; none of the Cashfree-specific details below (webhook
+format, API calls, env vars) reflect the code anymore.
+
 ## Status
 v1 shipped COD-only. Checkout already has a "Cash on Delivery / Online
 Payment" toggle and a settings-driven pricing engine

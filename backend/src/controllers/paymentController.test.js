@@ -1,45 +1,32 @@
-// Covers Task 1's webhook cases: each of Cashfree's three payment webhook
-// types (per the confirmed docs: PAYMENT_SUCCESS_WEBHOOK/
-// PAYMENT_FAILED_WEBHOOK/PAYMENT_USER_DROPPED_WEBHOOK), signature
-// verification, and a duplicate/repeated delivery of the same event. The
-// true duplicate-confirmation guard is orderService.markPaid's own
-// DynamoDB conditional write (ConditionExpression: paymentStatus =
-// :awaiting) — not re-tested here with a real DynamoDB, consistent with
-// how the rest of this codebase tests controllers (monkey-patched
-// dependencies) vs. services (their own conditional-write logic is the
-// safety net, documented inline where it's implemented). This test
-// confirms the controller calls markPaid safely on every delivery,
-// including a repeat.
+// Covers the PayU surl/furl callback: hash verification, the authoritative
+// verify_payment re-check (never trusting the posted status alone), the
+// amount-mismatch case, duplicate delivery, and an order we don't
+// recognize. Mocked dependencies, same lightweight monkey-patching pattern
+// used throughout this codebase. res.redirect is captured instead of
+// res.json/res.status, since PayU's callback is a browser redirect (PRG),
+// not a JSON response like Cashfree's server-to-server webhook was.
 const { test, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const orderService = require('../services/orderService');
-const paymentService = require('../services/paymentService');
+const payuService = require('../services/payuService');
 const paymentController = require('./paymentController');
 
 const originalOrderService = { ...orderService };
-const originalPaymentService = { ...paymentService };
+const originalPayuService = { ...payuService };
 
 after(() => {
   Object.assign(orderService, originalOrderService);
-  Object.assign(paymentService, originalPaymentService);
+  Object.assign(payuService, originalPayuService);
 });
 
 function fakeRes() {
-  const res = { statusCode: 200, body: null };
-  res.status = (code) => {
-    res.statusCode = code;
-    return res;
-  };
-  res.json = (payload) => {
-    res.body = payload;
+  const res = { redirectedTo: null, redirectStatus: null };
+  res.redirect = (status, url) => {
+    res.redirectStatus = status;
+    res.redirectedTo = url;
     return res;
   };
   return res;
-}
-
-function webhookReq(payload) {
-  const rawBody = JSON.stringify(payload);
-  return { headers: { 'x-webhook-signature': 'sig', 'x-webhook-timestamp': 'ts' }, rawBody };
 }
 
 let orders;
@@ -51,10 +38,10 @@ beforeEach(() => {
   markPaidCalls = [];
   markPaymentAttemptCalls = [];
 
-  paymentService.verifyWebhookSignature = () => true;
-  // The webhook never trusts a reported SUCCESS alone — it always re-
-  // confirms server-to-server via fetchOrderStatus before calling markPaid.
-  paymentService.fetchOrderStatus = async () => ({ orderStatus: 'PAID' });
+  payuService.verifyResponseHash = () => true;
+  // The callback never trusts a posted SUCCESS alone — it always re-confirms
+  // server-to-server via verifyPayment before calling markPaid.
+  payuService.verifyPayment = async () => ({ status: 'success', mihpayid: 'MIHPAY1', amount: 500 });
   orderService.findById = async (orderId) => orders[orderId] || null;
   orderService.markPaid = async (orderId, data) => {
     markPaidCalls.push({ orderId, data });
@@ -66,121 +53,77 @@ beforeEach(() => {
   orderService.flagForReview = async () => {};
 });
 
-test('invalid signature -> throws (asyncHandler turns this into a 401 in production), no order lookup at all', async () => {
-  paymentService.verifyWebhookSignature = () => false;
+test('invalid hash -> redirects anyway but never looks up or acts on the order', async () => {
+  payuService.verifyResponseHash = () => false;
   let lookedUp = false;
   orderService.findById = async () => {
     lookedUp = true;
     return null;
   };
   const res = fakeRes();
-  await assert.rejects(
-    () =>
-      paymentController.webhook(
-        webhookReq({ type: 'PAYMENT_SUCCESS_WEBHOOK', data: { order: { order_id: 'ORDER-1' }, payment: { payment_status: 'SUCCESS' } } }),
-        res
-      ),
-    (err) => err.code === 'INVALID_SIGNATURE' && err.statusCode === 401
-  );
+  await paymentController.callback({ body: { txnid: 'ORDER-1', status: 'success' } }, res);
   assert.equal(lookedUp, false);
+  assert.equal(res.redirectStatus, 302);
+  assert.ok(res.redirectedTo.includes('/order-confirmation/ORDER-1'));
 });
 
-test('PAYMENT_SUCCESS_WEBHOOK: marks paid', async () => {
-  const req = webhookReq({
-    type: 'PAYMENT_SUCCESS_WEBHOOK',
-    data: {
-      order: { order_id: 'ORDER-1', order_currency: 'INR' },
-      payment: { payment_status: 'SUCCESS', payment_amount: 500, cf_payment_id: 'CF1', payment_time: '2026-01-01T00:00:00Z' },
-    },
-  });
-  req.body = JSON.parse(req.rawBody);
+test('success: verified via verifyPayment -> marks paid, redirects to confirmation', async () => {
   const res = fakeRes();
-  await paymentController.webhook(req, res);
+  await paymentController.callback({ body: { txnid: 'ORDER-1', status: 'success' } }, res);
   assert.equal(markPaidCalls.length, 1);
-  assert.equal(res.body.data.received, true);
+  assert.equal(markPaidCalls[0].data.payuMihpayid, 'MIHPAY1');
+  assert.ok(res.redirectedTo.includes('/order-confirmation/ORDER-1'));
 });
 
-test('PAYMENT_FAILED_WEBHOOK: records the attempt, never marks paid', async () => {
-  const req = webhookReq({
-    type: 'PAYMENT_FAILED_WEBHOOK',
-    data: { order: { order_id: 'ORDER-1', order_currency: 'INR' }, payment: { payment_status: 'FAILED' } },
-  });
-  req.body = JSON.parse(req.rawBody);
+test('failure: posted status is failure AND verifyPayment confirms failure -> records the attempt, never marks paid', async () => {
+  payuService.verifyPayment = async () => ({ status: 'failure', mihpayid: null, amount: null });
   const res = fakeRes();
-  await paymentController.webhook(req, res);
+  await paymentController.callback({ body: { txnid: 'ORDER-1', status: 'failure' } }, res);
   assert.equal(markPaidCalls.length, 0);
   assert.equal(markPaymentAttemptCalls.length, 1);
   assert.equal(markPaymentAttemptCalls[0].status, 'FAILED');
 });
 
-test('PAYMENT_USER_DROPPED_WEBHOOK: records the attempt, never marks paid', async () => {
-  const req = webhookReq({
-    type: 'PAYMENT_USER_DROPPED_WEBHOOK',
-    data: { order: { order_id: 'ORDER-1', order_currency: 'INR' }, payment: { payment_status: 'USER_DROPPED' } },
-  });
-  req.body = JSON.parse(req.rawBody);
+test('a posted SUCCESS is ignored if verifyPayment disagrees (pending) -- never trusts the redirect alone', async () => {
+  payuService.verifyPayment = async () => ({ status: 'pending', mihpayid: null, amount: null });
   const res = fakeRes();
-  await paymentController.webhook(req, res);
+  await paymentController.callback({ body: { txnid: 'ORDER-1', status: 'success' } }, res);
   assert.equal(markPaidCalls.length, 0);
-  assert.equal(markPaymentAttemptCalls[0].status, 'USER_DROPPED');
+  assert.equal(markPaymentAttemptCalls[0].status, 'PENDING');
 });
 
-test('an order_currency other than INR is ignored, never processed', async () => {
-  const req = webhookReq({
-    type: 'PAYMENT_SUCCESS_WEBHOOK',
-    data: { order: { order_id: 'ORDER-1', order_currency: 'USD' }, payment: { payment_status: 'SUCCESS' } },
-  });
-  req.body = JSON.parse(req.rawBody);
-  const res = fakeRes();
-  await paymentController.webhook(req, res);
-  assert.equal(markPaidCalls.length, 0);
-});
-
-test('repeated/duplicate webhook delivery of the exact same SUCCESS event is handled safely both times', async () => {
-  const payload = {
-    type: 'PAYMENT_SUCCESS_WEBHOOK',
-    data: {
-      order: { order_id: 'ORDER-1', order_currency: 'INR' },
-      payment: { payment_status: 'SUCCESS', payment_amount: 500, cf_payment_id: 'CF1', payment_time: '2026-01-01T00:00:00Z' },
-    },
-  };
-  const req1 = webhookReq(payload);
-  req1.body = JSON.parse(req1.rawBody);
-  const req2 = webhookReq(payload);
-  req2.body = JSON.parse(req2.rawBody);
-
+test('repeated/duplicate callback delivery of the same success is handled safely both times', async () => {
+  const req = { body: { txnid: 'ORDER-1', status: 'success' } };
   const res1 = fakeRes();
+  await paymentController.callback(req, res1);
   const res2 = fakeRes();
-  await paymentController.webhook(req1, res1);
-  await paymentController.webhook(req2, res2);
+  await paymentController.callback(req, res2);
 
-  assert.equal(res1.body.data.received, true);
-  assert.equal(res2.body.data.received, true);
-  assert.equal(markPaidCalls.length, 2, 'the controller calls markPaid both times — markPaid\'s own conditional write (paymentStatus = :awaiting) is what prevents an actual duplicate confirmation, not this layer');
+  assert.equal(res1.redirectStatus, 302);
+  assert.equal(res2.redirectStatus, 302);
+  // Second call sees paymentStatus already 'paid' (from the mock's own state
+  // mutation) and short-circuits before calling markPaid again.
+  assert.equal(markPaidCalls.length, 1, 'markPaid is called once -- the second callback short-circuits on paymentStatus !== awaiting_payment');
 });
 
 test('an order amount mismatch flags for review instead of marking paid', async () => {
   orders['ORDER-1'].total = 999;
-  const req = webhookReq({
-    type: 'PAYMENT_SUCCESS_WEBHOOK',
-    data: {
-      order: { order_id: 'ORDER-1', order_currency: 'INR' },
-      payment: { payment_status: 'SUCCESS', payment_amount: 500, payment_time: '2026-01-01T00:00:00Z' },
-    },
-  });
-  req.body = JSON.parse(req.rawBody);
+  payuService.verifyPayment = async () => ({ status: 'success', mihpayid: 'MIHPAY1', amount: 500 });
   const res = fakeRes();
-  await paymentController.webhook(req, res);
+  await paymentController.callback({ body: { txnid: 'ORDER-1', status: 'success' } }, res);
   assert.equal(markPaidCalls.length, 0);
 });
 
-test('a webhook for an order we do not recognize is acked and dropped, never errors', async () => {
-  const req = webhookReq({
-    type: 'PAYMENT_SUCCESS_WEBHOOK',
-    data: { order: { order_id: 'UNKNOWN-ORDER', order_currency: 'INR' }, payment: { payment_status: 'SUCCESS' } },
-  });
-  req.body = JSON.parse(req.rawBody);
+test('a callback for an order we do not recognize redirects harmlessly, never errors', async () => {
   const res = fakeRes();
-  await paymentController.webhook(req, res);
-  assert.equal(res.body.data.received, true);
+  await paymentController.callback({ body: { txnid: 'UNKNOWN-ORDER', status: 'success' } }, res);
+  assert.equal(res.redirectStatus, 302);
+  assert.ok(res.redirectedTo.includes('/order-confirmation/UNKNOWN-ORDER'));
+});
+
+test('a callback with no txnid at all redirects to the frontend origin instead of crashing', async () => {
+  const res = fakeRes();
+  await paymentController.callback({ body: {} }, res);
+  assert.equal(res.redirectStatus, 302);
+  assert.ok(res.redirectedTo);
 });

@@ -7,7 +7,7 @@ import { orderService } from '../services/orderService';
 import { Banknote, Wallet } from 'lucide-react';
 import { addressService } from '../services/addressService';
 import { authService } from '../services/authService';
-import { redirectToCashfreeCheckout } from '../utils/cashfree';
+import { redirectToPayuCheckout } from '../utils/payu';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { EmptyState } from '../components/EmptyState';
@@ -299,11 +299,11 @@ export function Checkout() {
       clearCoupon();
       await refresh();
 
-      if (paymentMethod === 'Online' && response.paymentSessionId) {
-        // Redirects the whole browser to Cashfree's hosted payment page —
+      if (paymentMethod === 'Online' && response.payuParams) {
+        // Redirects the whole browser to PayU's hosted payment page —
         // nothing after this line runs until the customer is redirected
-        // back to the return_url set at order creation.
-        await redirectToCashfreeCheckout(response.paymentSessionId);
+        // back via the backend's surl/furl callback.
+        await redirectToPayuCheckout(response.payuParams);
         return;
       }
 

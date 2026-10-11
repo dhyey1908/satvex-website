@@ -181,8 +181,8 @@ existing motion setup — verified, not re-implemented.
 ## 9. What's explicitly unaffected
 
 Every item the brief lists as "do not break": auth, product/variant data
-and out-of-stock handling, cart, wishlist, checkout (COD + the Cashfree
-Online flow just shipped), coupons, GST, COD/shipping charges, discount
+and out-of-stock handling, cart, wishlist, checkout (COD + the PayU
+Online flow), coupons, GST, COD/shipping charges, discount
 pricing, orders (including the new payment lifecycle/auto-confirm work),
 addresses, reviews, admin configuration, and all backend APIs. This is a
 `tokens.css` + component-styling + layout-markup pass — no service,

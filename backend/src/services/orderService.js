@@ -243,19 +243,23 @@ async function bumpStatusToConfirmedIfPending(orderId) {
 // duplicate webhook for an already-paid order no-ops safely. `paid` is
 // never a FROM state for any transition here, so it can never be
 // downgraded.
-async function markPaid(orderId, { cfPaymentId, paidAt }) {
+// payuMihpayid (PayU's own transaction id) is a NEW attribute name,
+// deliberately not reusing the old cfPaymentId attribute — historical
+// Cashfree orders keep their cfPaymentId untouched/unread by this new code;
+// nothing is migrated or renamed on existing records.
+async function markPaid(orderId, { payuMihpayid, paidAt }) {
   const now = new Date().toISOString();
   try {
     await docClient.send(
       new UpdateCommand({
         TableName: TABLE,
         Key: { orderId },
-        UpdateExpression: 'SET paymentStatus = :paid, cfPaymentId = :cfPaymentId, paidAt = :paidAt, updatedAt = :now',
+        UpdateExpression: 'SET paymentStatus = :paid, payuMihpayid = :payuMihpayid, paidAt = :paidAt, updatedAt = :now',
         ConditionExpression: 'paymentStatus = :awaiting',
         ExpressionAttributeValues: {
           ':paid': 'paid',
           ':awaiting': 'awaiting_payment',
-          ':cfPaymentId': cfPaymentId,
+          ':payuMihpayid': payuMihpayid,
           ':paidAt': paidAt,
           ':now': now,
         },
@@ -273,12 +277,12 @@ async function markPaid(orderId, { cfPaymentId, paidAt }) {
         TableName: TABLE,
         Key: { orderId },
         UpdateExpression:
-          'SET paymentStatus = :paid, cfPaymentId = :cfPaymentId, paidAt = :paidAt, needsReview = :true, needsReviewReason = :reason, updatedAt = :now',
+          'SET paymentStatus = :paid, payuMihpayid = :payuMihpayid, paidAt = :paidAt, needsReview = :true, needsReviewReason = :reason, updatedAt = :now',
         ConditionExpression: 'paymentStatus = :expired',
         ExpressionAttributeValues: {
           ':paid': 'paid',
           ':expired': 'expired',
-          ':cfPaymentId': cfPaymentId,
+          ':payuMihpayid': payuMihpayid,
           ':paidAt': paidAt,
           ':true': true,
           ':reason': 'Payment confirmed after order expiry — coupon was already released; order honored at the price paid.',
@@ -309,9 +313,10 @@ async function flagForReview(orderId, reason) {
   );
 }
 
-// 24h expiry, only ever called after the caller has already confirmed with
-// Cashfree that the order is NOT paid (never on an API error or an ACTIVE
-// response — see the expiry sweep). couponReleased is flipped in the same
+// 24h expiry, only ever called after the caller has already confirmed the
+// order is NOT paid (either our own deadline check or a confirmed PayU
+// verify_payment result — never on an API error/inconclusive result, see
+// the expiry sweep). couponReleased is flipped in the same
 // conditional write as the status change, guaranteeing release-exactly-once
 // even if this races another trigger — returns whether THIS call is the
 // one that won the race, so the caller knows whether it's responsible for
@@ -335,10 +340,10 @@ async function markExpired(orderId) {
   }
 }
 
-// Refund idempotency guard: written BEFORE calling Cashfree, conditioned on
-// the order not already having a refund in flight or completed. A
-// double-click or a retried request both hit the same condition; the
-// second one no-ops instead of firing a second Cashfree refund call.
+// Refund idempotency guard: written BEFORE calling PayU, conditioned on the
+// order not already having a refund in flight or completed. A double-click
+// or a retried request both hit the same condition; the second one no-ops
+// instead of firing a second PayU refund call.
 async function recordRefundPending(orderId, { refundId, adminId }) {
   const now = new Date().toISOString();
   try {
@@ -374,10 +379,10 @@ async function recordRefundPending(orderId, { refundId, adminId }) {
 // already-fetched order (the caller read it to route the webhook/poll
 // anyway) so the refundAttempts array can be updated in the same write
 // without a second read.
-async function recordRefundResult(order, { refundId, status, cfRefundId }) {
+async function recordRefundResult(order, { refundId, status, payuRefundId }) {
   const now = new Date().toISOString();
   const attempts = (order.refundAttempts || []).map((a) =>
-    a.refundId === refundId ? { ...a, status, cfRefundId, processedAt: now } : a
+    a.refundId === refundId ? { ...a, status, payuRefundId, processedAt: now } : a
   );
   try {
     await docClient.send(
@@ -385,11 +390,11 @@ async function recordRefundResult(order, { refundId, status, cfRefundId }) {
         TableName: TABLE,
         Key: { orderId: order.orderId },
         UpdateExpression:
-          'SET refundStatus = :status, cfRefundId = :cfRefundId, refundProcessedAt = :now, refundAttempts = :attempts, updatedAt = :now',
+          'SET refundStatus = :status, payuRefundId = :payuRefundId, refundProcessedAt = :now, refundAttempts = :attempts, updatedAt = :now',
         ConditionExpression: 'refundId = :refundId AND refundStatus = :pending',
         ExpressionAttributeValues: {
           ':status': status,
-          ':cfRefundId': cfRefundId || null,
+          ':payuRefundId': payuRefundId || null,
           ':now': now,
           ':attempts': attempts,
           ':refundId': refundId,

@@ -12,6 +12,14 @@ const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT || 4000),
   frontendOrigin: required('FRONTEND_ORIGIN', 'http://localhost:5173'),
+  // Manual override for this Lambda's own public URL, used to build PayU's
+  // surl/furl (PayU's hosted checkout POSTs the payment result straight
+  // back to a backend URL we give it, not the frontend). Normally unset —
+  // orderController derives this from the incoming request's own Host
+  // instead, which also works for local dev and avoids a circular
+  // CloudFormation dependency (see resolveApiBaseUrl). Only set this if a
+  // proxy/tunnel in front of the API rewrites the Host header.
+  apiBaseUrl: process.env.API_BASE_URL || '',
 
   awsRegion: required('AWS_REGION', 'ap-south-1'),
 
@@ -44,12 +52,14 @@ const env = {
     cloudFrontMediaUrl: process.env.CLOUDFRONT_MEDIA_URL,
   },
 
-  cashfree: {
-    appId: process.env.CASHFREE_APP_ID,
-    secretKey: process.env.CASHFREE_SECRET_KEY,
-    // 'sandbox' | 'production' — controls which Cashfree base URL is used.
-    env: process.env.CASHFREE_ENV || 'sandbox',
-    apiVersion: process.env.CASHFREE_API_VERSION || '2023-08-01',
+  // PayU India (replaces Cashfree). No session/order-create API call — the
+  // hosted checkout is a classic hashed HTML form POST (see payuService.js).
+  // 'test' | 'production' — controls which PayU host is used, both for the
+  // payment form action and the verify/refund post-service calls.
+  payu: {
+    key: process.env.PAYU_MERCHANT_KEY,
+    salt: process.env.PAYU_MERCHANT_SALT,
+    env: process.env.PAYU_ENV || 'test',
   },
 
   // Real Shiprocket account — no sandbox/live split on Shiprocket's own

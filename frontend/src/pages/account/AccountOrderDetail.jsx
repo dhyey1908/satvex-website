@@ -13,7 +13,7 @@ import { OrderSummary } from '../../components/OrderSummary';
 import { Loader } from '../../components/Loader';
 import { ErrorState } from '../../components/ErrorState';
 import { useDocumentMeta } from '../../hooks/useDocumentMeta';
-import { redirectToCashfreeCheckout } from '../../utils/cashfree';
+import { redirectToPayuCheckout } from '../../utils/payu';
 import { canRetryPayment } from '../../utils/paymentStatus';
 import { formatDateTime } from '../../utils/date';
 import './Account.css';
@@ -78,13 +78,13 @@ export function AccountOrderDetail() {
   async function handleRetryPayment() {
     setRetrying(true);
     try {
-      const { paymentSessionId, alreadyPaid } = await orderService.retryPayment(id);
+      const { payuParams, alreadyPaid } = await orderService.retryPayment(id);
       if (alreadyPaid) {
         showToast('Good news — this order is already paid.', 'success');
         load();
         return;
       }
-      await redirectToCashfreeCheckout(paymentSessionId);
+      await redirectToPayuCheckout(payuParams);
     } catch (err) {
       showToast(err.message, 'error');
     } finally {

@@ -4,7 +4,7 @@ const orderService = require('../services/orderService');
 const couponService = require('../services/couponService');
 const couponRedemptionService = require('../services/couponRedemptionService');
 const pricingService = require('../services/pricingService');
-const paymentService = require('../services/paymentService');
+const payuService = require('../services/payuService');
 const settingsService = require('../services/settingsService');
 const shipmentService = require('../services/shipmentService');
 const shipmentJobService = require('../services/shipmentJobService');
@@ -12,19 +12,16 @@ const shiprocketService = require('../services/shiprocketService');
 const { checkoutSchema, quoteSchema, updateOrderStatusSchema, refundSchema } = require('../validators/orderValidators');
 const AppError = require('../utils/AppError');
 const { ok, created } = require('../utils/response');
+const env = require('../config/env');
 
 const CANCELLABLE_STATUSES = new Set(['Pending', 'Confirmed']);
 const PAYMENT_WINDOW_MS = 24 * 60 * 60 * 1000;
-// Cashfree's own order_expiry_time is set a few minutes ahead of ours, so
-// their side closes an order before our expiry sweep looks at it — avoids
-// racing an ACTIVE order (plan §8).
-const CASHFREE_EXPIRY_LEAD_MS = 10 * 60 * 1000;
 
-// Cashfree needs a plain 10-digit Indian mobile number. Our checkout
-// validator allows spaces/parens/+, so this strips down to digits and
-// removes a leading country code or trunk zero. Throws a normal checkout
-// error rather than sending something malformed to Cashfree.
-function normalizePhoneForCashfree(phone) {
+// PayU needs a plain 10-digit Indian mobile number. Our checkout validator
+// allows spaces/parens/+, so this strips down to digits and removes a
+// leading country code or trunk zero. Throws a normal checkout error rather
+// than sending something malformed to PayU.
+function normalizePhoneForPayu(phone) {
   let digits = phone.replace(/\D/g, '');
   if (digits.length === 12 && digits.startsWith('91')) digits = digits.slice(2);
   else if (digits.length === 11 && digits.startsWith('0')) digits = digits.slice(1);
@@ -32,6 +29,16 @@ function normalizePhoneForCashfree(phone) {
     throw new AppError('Enter a valid 10-digit mobile number for online payment.', 400, 'INVALID_PHONE');
   }
   return digits;
+}
+
+// PayU's surl/furl must be a backend URL (see payuService). Deriving it
+// from the incoming request's own Host, instead of baking it into
+// CloudFormation, avoids a circular dependency: the HTTP API needs this
+// Lambda's ARN for its integration, so this Lambda can't also depend on
+// the HTTP API's id. env.apiBaseUrl is only a manual override for cases
+// where the Host header isn't trustworthy (e.g. certain tunnels).
+function resolveApiBaseUrl(req) {
+  return env.apiBaseUrl || `${req.protocol}://${req.get('host')}`;
 }
 
 async function isOnlinePaymentsAvailable(userId) {
@@ -81,8 +88,8 @@ async function checkout(req, res) {
   const { customer, address, couponCode, paymentMethod } = checkoutSchema.parse(req.body);
 
   // Step 3: reject up front if Online isn't enabled for this user — before
-  // any Cashfree call, coupon commit, or DB write. The API must not trust
-  // the frontend to have hidden the option, since it can be called directly.
+  // any coupon commit or DB write. The API must not trust the frontend to
+  // have hidden the option, since it can be called directly.
   if (paymentMethod === 'Online' && !(await isOnlinePaymentsAvailable(req.user.id))) {
     throw new AppError('Online payment is not available right now. Please use Cash on Delivery.', 400, 'ONLINE_PAYMENTS_DISABLED');
   }
@@ -97,30 +104,34 @@ async function checkout(req, res) {
     deliveryPincode: address.pincode,
   });
 
-  // Step 2: mint the order id up front — also used as Cashfree's order_id,
-  // so no separate id is ever needed to reconcile a webhook back to us.
+  // Step 2: mint the order id up front — also used as PayU's txnid for this
+  // order's entire lifetime (including any retry — PayU allows re-posting
+  // the same txnid as long as it never had a successful transaction, and
+  // our own paymentStatus check already blocks a retry once paid, so no
+  // separate "latest txnid" tracking is needed).
   const orderId = uuid();
 
-  let paymentSessionId = null;
+  let payuParams = null;
   let paymentExpiresAt = null;
 
   if (paymentMethod === 'Online') {
-    // Step 4: call Cashfree FIRST, before touching the coupon or our DB.
-    // Failure here needs no rollback — nothing has been committed yet.
-    const normalizedPhone = normalizePhoneForCashfree(customer.phone);
-    const expiresAtMs = Date.now() + PAYMENT_WINDOW_MS;
-    paymentExpiresAt = new Date(expiresAtMs).toISOString();
-    const cashfreeExpiry = new Date(expiresAtMs - CASHFREE_EXPIRY_LEAD_MS).toISOString();
+    // No gateway API call here — PayU's hosted checkout is a hashed HTML
+    // form POST, not a create-order API (unlike Cashfree), so this is pure
+    // local computation and can't itself fail/need rollback.
+    const normalizedPhone = normalizePhoneForPayu(customer.phone);
+    paymentExpiresAt = new Date(Date.now() + PAYMENT_WINDOW_MS).toISOString();
 
-    const returnUrl = `${req.headers.origin || ''}/order-confirmation/${orderId}`;
-    const cfOrder = await paymentService.createOrder({
-      orderId,
+    const callbackUrl = `${resolveApiBaseUrl(req)}/api/payments/payu/callback`;
+    payuParams = payuService.buildPaymentParams({
+      txnid: orderId,
       amount: totals.total,
-      customer: { userId: req.user.id, name: customer.name, email: customer.email, phone: normalizedPhone },
-      returnUrl,
-      expiresAt: cashfreeExpiry,
+      productinfo: 'Satvex Order',
+      firstname: customer.name,
+      email: customer.email || 'customer@satvex.com', // PayU requires a non-empty email even though our checkout no longer collects one
+      phone: normalizedPhone,
+      surl: callbackUrl,
+      furl: callbackUrl,
     });
-    paymentSessionId = cfOrder.paymentSessionId;
   }
 
   // Step 5: commit the coupon (redemption record + incrementUsage) — same
@@ -145,9 +156,9 @@ async function checkout(req, res) {
         await couponRedemptionService.remove(coupon.code, req.user.id).catch(() => {});
       }
       throw err;
-      // If a Cashfree order was already created above, it's harmless and
-      // self-cleaning — it simply expires on Cashfree's side with no money
-      // ever collected. No extra cleanup code needed for this edge case.
+      // payuParams built above were never POSTed to PayU (that only happens
+      // once the frontend auto-submits the returned form) — nothing to
+      // clean up on PayU's side for this edge case.
     }
   }
 
@@ -194,7 +205,7 @@ async function checkout(req, res) {
   }
 
   // Step 8: return.
-  created(res, { order, paymentSessionId });
+  created(res, { order, payuParams });
 }
 
 async function listMyOrders(req, res) {
@@ -229,9 +240,9 @@ async function cancelMyOrder(req, res) {
 }
 
 // Server-to-server reconciliation, used both as the confirmation-page
-// polling target and as a fallback if a webhook is ever missed. Never
-// trusts client-side redirect params — only ever a prior webhook or this
-// direct Cashfree call.
+// polling target and as a fallback if the surl/furl callback is ever
+// missed. Never trusts client-side redirect params — only ever a prior
+// callback or this direct PayU verify_payment call.
 async function getPaymentStatus(req, res) {
   const order = await orderService.findById(req.params.id);
   if (!order || order.userId !== req.user.id) {
@@ -246,37 +257,40 @@ async function getPaymentStatus(req, res) {
     });
   }
 
-  const cfStatus = await paymentService.fetchOrderStatus(order.orderId).catch(() => null);
-  if (cfStatus?.orderStatus === 'PAID') {
-    const payments = await paymentService.fetchOrderPayments(order.orderId).catch(() => []);
-    const success = payments.find((p) => p.payment_status === 'SUCCESS');
-    if (success && Number(success.payment_amount) !== Number(order.total)) {
+  // PayU has no server-side "order" that expires on its own (unlike
+  // Cashfree's order_expiry_time) — expiry is purely our own deadline.
+  // Check it before even calling PayU: if we've already decided an order is
+  // expired, there's nothing useful verify_payment could tell us that
+  // changes that (a late success still routes through the separate "late
+  // payment" path in markPaid, triggered by a delayed callback/poll that
+  // arrives after this point, not by this check).
+  if (order.paymentExpiresAt && new Date(order.paymentExpiresAt).getTime() < Date.now()) {
+    await finalizeExpiry(order);
+    const fresh = await orderService.findById(req.params.id);
+    return ok(res, {
+      paymentStatus: fresh.paymentStatus,
+      lastPaymentAttemptStatus: fresh.lastPaymentAttemptStatus || null,
+      needsReview: fresh.needsReview || false,
+    });
+  }
+
+  const result = await payuService.verifyPayment(order.orderId).catch(() => null);
+
+  if (result?.status === 'success') {
+    if (result.amount != null && result.amount !== Number(order.total)) {
       await orderService.flagForReview(order.orderId, 'Payment amount mismatch on reconciliation.');
     } else {
-      await orderService.markPaid(order.orderId, { cfPaymentId: success?.cf_payment_id, paidAt: new Date().toISOString() });
+      await orderService.markPaid(order.orderId, { payuMihpayid: result.mihpayid, paidAt: new Date().toISOString() });
       await shipmentService.triggerShipmentIfNeeded(order.orderId);
     }
-  } else if (cfStatus?.orderStatus === 'EXPIRED') {
-    await finalizeExpiry(order);
-  } else if (cfStatus?.orderStatus === 'ACTIVE') {
-    // The Cashfree ORDER hasn't closed, but a specific payment ATTEMPT may
-    // already have a definitive outcome (FAILED/USER_DROPPED/etc) before
-    // the webhook arrives — surface that immediately via
-    // lastPaymentAttemptStatus rather than making the customer wait for a
-    // webhook or the poll timeout to find out their card was declined.
-    // Per Cashfree's docs (api-reference/payments/enums), payment_status is
-    // one of SUCCESS/FAILED/NOT_ATTEMPTED/PENDING/FLAGGED/CANCELLED/VOID/
-    // USER_DROPPED. Ordering of the payments list isn't documented, so this
-    // sorts by payment_time itself rather than assuming index order.
-    const payments = await paymentService.fetchOrderPayments(order.orderId).catch(() => []);
-    const latest = [...payments].sort((a, b) => new Date(b.payment_time) - new Date(a.payment_time))[0];
-    if (latest?.payment_status && latest.payment_status !== 'NOT_ATTEMPTED') {
-      await orderService.markPaymentAttempt(order.orderId, latest.payment_status);
-    }
+  } else if (result?.status === 'failure') {
+    await orderService.markPaymentAttempt(order.orderId, 'FAILED');
+  } else if (result?.status === 'pending') {
+    await orderService.markPaymentAttempt(order.orderId, 'PENDING');
   }
-  // On a Cashfree API error: leave the order as awaiting_payment, exactly as
-  // the expiry sweep does — never expire or mark paid on an inconclusive
-  // result.
+  // 'not_found' or an API error: leave the order as awaiting_payment,
+  // exactly as the expiry sweep does — never expire or mark paid on an
+  // inconclusive result.
 
   const fresh = await orderService.findById(req.params.id);
   ok(res, {
@@ -298,10 +312,11 @@ async function finalizeExpiry(order) {
   return result;
 }
 
-// Regenerates access to Cashfree's hosted checkout for an order that's
-// still awaiting payment and hasn't expired yet. Cashfree's
-// payment_session_id stays valid for the order's whole ACTIVE lifetime, so
-// this re-fetches the existing session rather than creating a new order.
+// Regenerates PayU payment params for an order that's still awaiting
+// payment and hasn't expired yet. Unlike Cashfree's reusable
+// payment_session_id, PayU has nothing to "re-fetch" — this just rebuilds a
+// fresh hashed form POST against the SAME txnid (order.orderId), after
+// first confirming with PayU that txnid genuinely hasn't already succeeded.
 async function retryPayment(req, res) {
   const order = await orderService.findById(req.params.id);
   if (!order || order.userId !== req.user.id) {
@@ -314,16 +329,26 @@ async function retryPayment(req, res) {
     throw new AppError('This order has expired. Please place a new order.', 400, 'PAYMENT_EXPIRED');
   }
 
-  const cfStatus = await paymentService.fetchOrderStatus(order.orderId);
-  if (cfStatus.orderStatus === 'PAID') {
-    await orderService.markPaid(order.orderId, { paidAt: new Date().toISOString() });
+  const result = await payuService.verifyPayment(order.orderId).catch(() => null);
+  if (result?.status === 'success') {
+    await orderService.markPaid(order.orderId, { payuMihpayid: result.mihpayid, paidAt: new Date().toISOString() });
     await shipmentService.triggerShipmentIfNeeded(order.orderId);
-    return ok(res, { paymentSessionId: null, alreadyPaid: true });
+    return ok(res, { payuParams: null, alreadyPaid: true });
   }
-  if (cfStatus.orderStatus !== 'ACTIVE' || !cfStatus.paymentSessionId) {
-    throw new AppError('This payment session is no longer available. Please place a new order.', 400, 'SESSION_UNAVAILABLE');
-  }
-  ok(res, { paymentSessionId: cfStatus.paymentSessionId });
+
+  const normalizedPhone = normalizePhoneForPayu(order.customer.phone);
+  const callbackUrl = `${resolveApiBaseUrl(req)}/api/payments/payu/callback`;
+  const payuParams = payuService.buildPaymentParams({
+    txnid: order.orderId,
+    amount: order.total,
+    productinfo: 'Satvex Order',
+    firstname: order.customer.name,
+    email: order.customer.email || 'customer@satvex.com',
+    phone: normalizedPhone,
+    surl: callbackUrl,
+    furl: callbackUrl,
+  });
+  ok(res, { payuParams });
 }
 
 async function reorder(req, res) {
@@ -401,8 +426,16 @@ async function adminUpdateStatus(req, res) {
 
 // Full-refund-only (Decision 4) — the amount is always the order's own
 // stored total, never taken from the client. Idempotent: refundStatus is
-// written 'pending' BEFORE calling Cashfree, so a double-click or a retry
-// after a network blip both hit the same guard and the second one no-ops.
+// written 'pending' BEFORE calling PayU, so a double-click or a retry after
+// a network blip both hit the same guard and the second one no-ops.
+//
+// Unlike Cashfree, PayU's refund docs don't give a confirmed
+// status-check command for resolving an ambiguous failure (did PayU
+// receive the request or not?) — see payuService.initiateRefund's
+// TODO(confirm). On any failure here the refund is recorded 'failed'
+// outright rather than guessed as possibly-succeeded; an admin must
+// check PayU's dashboard directly and, if it actually went through,
+// reconcile manually. This is a real, documented gap, not an oversight.
 async function adminRefund(req, res) {
   const { note } = refundSchema.parse(req.body || {});
   const order = await orderService.findById(req.params.id);
@@ -412,6 +445,9 @@ async function adminRefund(req, res) {
   if (order.paymentMethod !== 'Online' || order.paymentStatus !== 'paid') {
     throw new AppError('Only paid online orders can be refunded.', 400, 'NOT_REFUNDABLE');
   }
+  if (!order.payuMihpayid) {
+    throw new AppError('No PayU transaction ID is recorded for this order — cannot refund.', 400, 'NOT_REFUNDABLE');
+  }
 
   const refundId = uuid();
   const guard = await orderService.recordRefundPending(order.orderId, { refundId, adminId: req.user.id });
@@ -420,25 +456,16 @@ async function adminRefund(req, res) {
   }
 
   try {
-    const result = await paymentService.createRefund({ orderId: order.orderId, refundId, amount: order.total, note });
+    await payuService.initiateRefund({ mihpayid: order.payuMihpayid, refundId, amount: order.total, note });
     const fresh = await orderService.findById(order.orderId);
-    await orderService.recordRefundResult(fresh, {
-      refundId,
-      status: result.refundStatus === 'SUCCESS' ? 'success' : 'pending',
-      cfRefundId: result.cfRefundId,
-    });
+    // 'pending', not 'success' — PayU refunds settle asynchronously and
+    // this command only confirms PayU accepted the request, per
+    // initiateRefund's own TODO(confirm) comment.
+    await orderService.recordRefundResult(fresh, { refundId, status: 'pending', payuRefundId: refundId });
   } catch (err) {
-    // Ambiguous failure — did Cashfree receive the request or not? Don't
-    // blindly retry (risks a duplicate refund); resolve via a status check
-    // against the SAME refundId instead.
-    const status = await paymentService.fetchRefundStatus(order.orderId, refundId).catch(() => null);
     const fresh = await orderService.findById(order.orderId);
-    await orderService.recordRefundResult(fresh, {
-      refundId,
-      status: status?.refundStatus === 'SUCCESS' ? 'success' : status ? 'pending' : 'failed',
-      cfRefundId: status?.cfRefundId,
-    });
-    if (!status) throw err;
+    await orderService.recordRefundResult(fresh, { refundId, status: 'failed', payuRefundId: null });
+    throw err;
   }
 
   const finalOrder = await orderService.findById(order.orderId);

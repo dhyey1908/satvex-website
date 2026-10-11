@@ -514,7 +514,7 @@ export function AdminSettings() {
         </div>
 
         <div className="admin-form-section">
-          <h3>Online Payments (Cashfree)</h3>
+          <h3>Online Payments (PayU)</h3>
           <label className="checkbox-field">
             <input
               type="checkbox"
@@ -524,7 +524,7 @@ export function AdminSettings() {
             Show Online Payment to all customers
           </label>
           <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', margin: '4px 0 12px' }}>
-            Keep this off while testing with Cashfree sandbox keys — it must never be reachable by
+            Keep this off while testing with PayU test keys — it must never be reachable by
             real customers until real payments are confirmed working end to end (see the
             live-cutover checklist in 18-payment-gateway.md).
           </p>
@@ -545,7 +545,7 @@ export function AdminSettings() {
             />
             <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
               These accounts see and can use Online Payment even while the toggle above is off —
-              use this to test the real Cashfree sandbox flow without exposing it publicly.
+              use this to test the real PayU test flow without exposing it publicly.
             </p>
           </div>
         </div>

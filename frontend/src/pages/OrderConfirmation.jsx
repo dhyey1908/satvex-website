@@ -6,7 +6,7 @@ import { OrderSummary } from '../components/OrderSummary';
 import { Loader } from '../components/Loader';
 import { ErrorState } from '../components/ErrorState';
 import { useToast } from '../context/ToastContext';
-import { redirectToCashfreeCheckout } from '../utils/cashfree';
+import { redirectToPayuCheckout } from '../utils/payu';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import './OrderConfirmation.css';
 
@@ -92,14 +92,14 @@ export function OrderConfirmation() {
   async function handleRetry() {
     setRetrying(true);
     try {
-      const { paymentSessionId, alreadyPaid } = await orderService.retryPayment(id);
+      const { payuParams, alreadyPaid } = await orderService.retryPayment(id);
       if (alreadyPaid) {
         const { order: o } = await orderService.getById(id);
         setOrder(o);
         showToast('Good news — this order is already paid.', 'success');
         return;
       }
-      await redirectToCashfreeCheckout(paymentSessionId);
+      await redirectToPayuCheckout(payuParams);
     } catch (err) {
       showToast(err.message, 'error');
     } finally {

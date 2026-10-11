@@ -22,8 +22,8 @@ test('checkoutSchema: COD does not require an email', () => {
   assert.equal(result.customer.email, undefined);
 });
 
-// Confirmed against Cashfree's Create Order API reference: customer_details
-// only requires customer_id + customer_phone, not customer_email.
+// The email field was removed from checkout UI entirely; the gateway-side
+// fallback for PayU's mandatory email lives in the controller, not here.
 test('checkoutSchema: Online does not require an email either', () => {
   const result = checkoutSchema.parse(baseCheckout({ paymentMethod: 'Online' }));
   assert.equal(result.customer.email, undefined);

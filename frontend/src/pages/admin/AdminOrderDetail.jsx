@@ -67,7 +67,7 @@ export function AdminOrderDetail() {
   async function handleRefund() {
     const ok = await confirm({
       title: 'Refund this order?',
-      message: `This issues a full refund of ₹${order.total.toFixed(2)} via Cashfree. This cannot be undone.`,
+      message: `This issues a full refund of ₹${order.total.toFixed(2)} via PayU. This cannot be undone.`,
       confirmLabel: 'Refund',
       danger: true,
     });

@@ -1,10 +1,10 @@
 // Single source of truth for "what actually happened with this order's
 // payment", used by every page that shows order status (admin list/detail,
 // customer account list/detail). order.paymentStatus itself only ever
-// holds not_required/awaiting_payment/paid/expired — a FAILED/USER_DROPPED/
-// PENDING payment ATTEMPT doesn't close the order (Cashfree's own
-// semantics — the customer can still retry), so that detail lives in
-// lastPaymentAttemptStatus instead and has to be layered on top here.
+// holds not_required/awaiting_payment/paid/expired — a FAILED/PENDING
+// payment ATTEMPT doesn't close the order on its own (the customer can
+// still retry), so that detail lives in lastPaymentAttemptStatus instead
+// and has to be layered on top here.
 // Each page maps the returned key to its own label text/styling.
 export function effectivePaymentStatus(order) {
   if (order.paymentMethod === 'COD') return 'not_required';
