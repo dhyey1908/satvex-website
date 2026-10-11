@@ -85,8 +85,12 @@ async function attemptShipmentCreation(orderId) {
       // items can share a productId when the same product was added with
       // different variants/colors as separate cart lines, so the line's
       // index is appended to guarantee uniqueness regardless.
+      // Include the selling option (e.g. "Combo of 2") in the name sent to
+      // Shiprocket — otherwise the label/invoice they generate shows only
+      // the bare product name, which is ambiguous when a product has
+      // multiple pack-size/variant options.
       orderItems: (order.items || []).map((item, index) => ({
-        name: item.productName,
+        name: item.sellingOptionName ? `${item.productName} - ${item.sellingOptionName}` : item.productName,
         sku: `${item.productId}-${index}`,
         units: item.quantity,
         sellingPrice: item.unitPrice,

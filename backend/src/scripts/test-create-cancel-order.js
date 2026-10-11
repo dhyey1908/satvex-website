@@ -46,7 +46,7 @@ async function main() {
     billingEmail: order.customer?.email,
     billingPhone: Number(order.customer?.phone),
     orderItems: (order.items || []).map((item, index) => ({
-      name: item.productName,
+      name: item.sellingOptionName ? `${item.productName} - ${item.sellingOptionName}` : item.productName,
       sku: `${item.productId}-${index}`,
       units: item.quantity,
       sellingPrice: item.unitPrice,
