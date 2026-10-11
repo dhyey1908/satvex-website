@@ -8,8 +8,10 @@ const AppError = require('../utils/AppError');
 // tested, production code, not a guessed schema. Anything that file itself
 // flags as unconfirmed is marked TODO(confirm) here too.
 
-const BASE_URL = 'https://apiv2.shiprocket.in';
-const SERVICEABILITY_BASE_URL = 'https://serviceability.shiprocket.in';
+// Overridable via SHIPROCKET_BASE_URL / SHIPROCKET_SERVICEABILITY_BASE_URL
+// (see config/env.js) so sandbox testing never requires a code change.
+const BASE_URL = env.shiprocket.baseUrl;
+const SERVICEABILITY_BASE_URL = env.shiprocket.serviceabilityBaseUrl;
 
 // Module-level cache — persists across invocations in the same warm Lambda
 // container (both ApiFunction and ShipmentSweepFunction each keep their own
@@ -191,6 +193,22 @@ async function trackByAwb(awb) {
   return data?.tracking_data || null;
 }
 
+// Per Shiprocket's documented Orders API (print/invoice) — response shape
+// { is_invoice_created, invoice_url }. Not yet exercised against this
+// tenant's account, so treat invoice_url's exact field name as unconfirmed
+// until a real response is seen; surfaced via AppError rather than guessed
+// further if it's absent.
+async function generateInvoice({ shiprocketOrderId }) {
+  const data = await shiprocketFetch(BASE_URL, '/v1/external/orders/print/invoice', {
+    method: 'POST',
+    body: JSON.stringify({ ids: [shiprocketOrderId] }),
+  });
+  if (!data?.invoice_url) {
+    throw new AppError(data?.message || 'Shiprocket did not return an invoice URL.', 502, 'SHIPROCKET_INVOICE_FAILED');
+  }
+  return data.invoice_url;
+}
+
 module.exports = {
   getServiceability,
   getServiceabilityRaw,
@@ -201,4 +219,5 @@ module.exports = {
   generateLabel,
   cancelOrder,
   trackByAwb,
+  generateInvoice,
 };

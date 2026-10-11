@@ -130,6 +130,19 @@ async function attemptShipmentCreation(orderId) {
   if (!order.labelUrl && order.shiprocketShipmentId) {
     const labelUrl = await shiprocketService.generateLabel({ shipmentId: order.shiprocketShipmentId });
     await orderService.recordLabelGenerated(orderId, { labelUrl });
+    order = await orderService.findById(orderId);
+  }
+
+  // Step 5: generate invoice (skip if already done, best-effort — never
+  // blocks shipment creation on an invoice failure, same reasoning as
+  // pickup scheduling above).
+  if (!order.invoiceUrl && order.shiprocketOrderId) {
+    try {
+      const invoiceUrl = await shiprocketService.generateInvoice({ shiprocketOrderId: order.shiprocketOrderId });
+      await orderService.recordInvoiceGenerated(orderId, { invoiceUrl });
+    } catch (err) {
+      logger.error('shiprocket invoice generation failed (non-fatal)', { orderId, message: err.message });
+    }
   }
 
   return orderService.findById(orderId);

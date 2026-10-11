@@ -204,6 +204,13 @@ export function AdminOrderDetail() {
             </a>
           </p>
         )}
+        {order.invoiceUrl && (
+          <p>
+            <a href={order.invoiceUrl} target="_blank" rel="noreferrer">
+              Download Invoice
+            </a>
+          </p>
+        )}
         {order.lastTrackingStatus && (
           <p>
             Last Tracking Update: <strong>{order.lastTrackingStatus}</strong>

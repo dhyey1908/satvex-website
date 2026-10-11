@@ -54,6 +54,11 @@ const env = {
     // Webhooks) — our own choice of value, set in both places. Optional —
     // left blank, the check is skipped (not recommended once this is live).
     webhookToken: process.env.SHIPROCKET_WEBHOOK_TOKEN,
+    // Overridable so the exact same code can be pointed at Shiprocket's
+    // sandbox environment for testing without a code change — defaults to
+    // the real production API.
+    baseUrl: process.env.SHIPROCKET_BASE_URL || 'https://apiv2.shiprocket.in',
+    serviceabilityBaseUrl: process.env.SHIPROCKET_SERVICEABILITY_BASE_URL || 'https://serviceability.shiprocket.in',
   },
 
   jwt: {

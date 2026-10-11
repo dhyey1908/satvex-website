@@ -148,6 +148,13 @@ export function AccountOrderDetail() {
               Estimated Delivery: <strong>{order.estimatedDeliveryDate}</strong>
             </p>
           )}
+          {order.invoiceUrl && (
+            <p style={{ margin: '8px 0 0' }}>
+              <a href={order.invoiceUrl} target="_blank" rel="noreferrer">
+                Download Invoice
+              </a>
+            </p>
+          )}
 
           {order.trackingEvents && order.trackingEvents.length > 0 && (
             <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>

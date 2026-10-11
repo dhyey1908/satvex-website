@@ -458,6 +458,17 @@ async function recordLabelGenerated(orderId, { labelUrl }) {
   );
 }
 
+async function recordInvoiceGenerated(orderId, { invoiceUrl }) {
+  await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE,
+      Key: { orderId },
+      UpdateExpression: 'SET invoiceUrl = :url, updatedAt = :now',
+      ExpressionAttributeValues: { ':url': invoiceUrl, ':now': new Date().toISOString() },
+    })
+  );
+}
+
 // Maps Shiprocket's raw current_status text to the clean customer-facing
 // status list. Only entries actually confirmed (the real webhook sample in
 // shiprocket_integration_notes.md, which shows "IN TRANSIT") plus the few
@@ -545,5 +556,6 @@ module.exports = {
   recordAwbAssigned,
   recordPickupScheduled,
   recordLabelGenerated,
+  recordInvoiceGenerated,
   recordShipmentTracking,
 };

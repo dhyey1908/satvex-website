@@ -65,6 +65,15 @@ Parameters:
       Settings > API > Webhooks panel. Compared against the x-api-key header
       on every webhook call. Optional — leave blank to skip the check
       entirely (not recommended once this is live).
+  ShiprocketBaseUrl:
+    Type: String
+    Default: 'https://apiv2.shiprocket.in'
+    Description: >
+      Override to point at Shiprocket's sandbox environment for testing
+      instead of production — no code change needed.
+  ShiprocketServiceabilityBaseUrl:
+    Type: String
+    Default: 'https://serviceability.shiprocket.in'
 
 Globals:
   Function:
@@ -380,6 +389,8 @@ Resources:
           SHIPROCKET_EMAIL: !Ref ShiprocketEmail
           SHIPROCKET_PASSWORD: !Ref ShiprocketPassword
           SHIPROCKET_WEBHOOK_TOKEN: !Ref ShiprocketWebhookToken
+          SHIPROCKET_BASE_URL: !Ref ShiprocketBaseUrl
+          SHIPROCKET_SERVICEABILITY_BASE_URL: !Ref ShiprocketServiceabilityBaseUrl
           TABLE_SHIPMENT_JOBS: !Ref ShipmentJobsTable
       Policies:
         - DynamoDBCrudPolicy:
@@ -451,6 +462,8 @@ Resources:
           TABLE_SHIPMENT_JOBS: !Ref ShipmentJobsTable
           SHIPROCKET_EMAIL: !Ref ShiprocketEmail
           SHIPROCKET_PASSWORD: !Ref ShiprocketPassword
+          SHIPROCKET_BASE_URL: !Ref ShiprocketBaseUrl
+          SHIPROCKET_SERVICEABILITY_BASE_URL: !Ref ShiprocketServiceabilityBaseUrl
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref OrdersTable
@@ -492,6 +505,8 @@ Resources:
           TABLE_SETTINGS: !Ref SettingsTable
           SHIPROCKET_EMAIL: !Ref ShiprocketEmail
           SHIPROCKET_PASSWORD: !Ref ShiprocketPassword
+          SHIPROCKET_BASE_URL: !Ref ShiprocketBaseUrl
+          SHIPROCKET_SERVICEABILITY_BASE_URL: !Ref ShiprocketServiceabilityBaseUrl
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref OrdersTable
