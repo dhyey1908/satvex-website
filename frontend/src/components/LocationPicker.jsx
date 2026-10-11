@@ -31,47 +31,94 @@ function addressFromComponents(a = {}) {
   };
 }
 
-// LocationIQ (free tier, no card, 5,000 req/day) is the primary provider —
-// noticeably better accuracy for Indian addresses than raw Nominatim. Falls
-// back to OpenStreetMap's Nominatim (free, no key, just rate-limited) if
-// LocationIQ is unreachable/rate-limited/not configured, so address lookup
-// never fully breaks.
-async function geocodeSearch(query) {
-  if (LOCATIONIQ_KEY) {
-    try {
-      const res = await fetch(
-        `https://api.locationiq.com/v1/autocomplete?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(
-          query
-        )}&countrycodes=in&limit=5&format=json`
-      );
-      if (res.ok) {
-        const data = await res.json();
-        return (Array.isArray(data) ? data : []).map((item) => ({
-          label: item.display_name,
-          lat: Number(item.lat),
-          lng: Number(item.lon),
-          address: addressFromComponents(item.address),
-        }));
-      }
-    } catch {
-      // fall through to Nominatim below
-    }
-  }
+// Rough match-quality label from what the result's address actually has —
+// LocationIQ's autocomplete doesn't return an explicit confidence score, so
+// this is a proxy: a result with a house number/road is a real street-level
+// match; one that only resolves to a city/area is approximate.
+function precisionLabel(address) {
+  if (!address) return null;
+  if (address.line1) return 'Exact address';
+  if (address.city || address.pincode) return 'Approximate area';
+  return null;
+}
 
-  const res = await fetch(
-    `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&countrycodes=in&limit=5&q=${encodeURIComponent(
-      query
-    )}`,
-    { headers: { Accept: 'application/json' } }
-  );
-  if (!res.ok) return [];
-  const data = await res.json();
-  return (Array.isArray(data) ? data : []).map((item) => ({
+// LocationIQ's "no match" response is HTTP 200 with {"error": "..."} — NOT
+// an empty array — so a naive res.ok check treats it as "done, zero
+// results" and never tries the fallback provider. This parses the response
+// fully and only treats an actual array as a real result set; anything
+// else (the error shape, a 401 for a bad key, a 429 rate limit) falls
+// through to Nominatim.
+async function fetchLocationIq(url) {
+  const res = await fetch(url);
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !Array.isArray(data)) {
+    const reason =
+      res.status === 401 || res.status === 403
+        ? 'invalid-token'
+        : res.status === 429
+        ? 'rate-limited'
+        : 'no-results';
+    return { ok: false, reason };
+  }
+  return { ok: true, data };
+}
+
+function mapLocationIqResults(data) {
+  return data.map((item) => ({
     label: item.display_name,
     lat: Number(item.lat),
     lng: Number(item.lon),
     address: addressFromComponents(item.address),
   }));
+}
+
+// LocationIQ (free tier, no card, 5,000 req/day) is the primary provider —
+// noticeably better accuracy for Indian addresses than raw Nominatim. Falls
+// back to OpenStreetMap's Nominatim (free, no key, just rate-limited) if
+// LocationIQ is unreachable/rate-limited/not configured/returns no match,
+// so address lookup never fully breaks. Returns { results, error } —
+// error is only set when BOTH providers genuinely failed (not for a
+// legitimate zero-result search), so the UI can tell "no matches" apart
+// from "search is temporarily unavailable."
+async function geocodeSearch(query) {
+  if (LOCATIONIQ_KEY) {
+    try {
+      const result = await fetchLocationIq(
+        `https://api.locationiq.com/v1/autocomplete?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(
+          query
+        )}&countrycodes=in&limit=5&format=json`
+      );
+      if (result.ok) return { results: mapLocationIqResults(result.data), error: null };
+      // 'no-results' falls through to try Nominatim too, in case it has
+      // data LocationIQ doesn't. 'invalid-token'/'rate-limited' also fall
+      // through — the fallback may still work even if LocationIQ itself is
+      // misconfigured or temporarily throttled.
+    } catch {
+      // network error — fall through to Nominatim below
+    }
+  }
+
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&countrycodes=in&limit=5&q=${encodeURIComponent(
+        query
+      )}`,
+      { headers: { Accept: 'application/json' } }
+    );
+    if (!res.ok) return { results: [], error: 'Search is temporarily unavailable. Please try again.' };
+    const data = await res.json();
+    return {
+      results: (Array.isArray(data) ? data : []).map((item) => ({
+        label: item.display_name,
+        lat: Number(item.lat),
+        lng: Number(item.lon),
+        address: addressFromComponents(item.address),
+      })),
+      error: null,
+    };
+  } catch {
+    return { results: [], error: 'Search is temporarily unavailable. Please check your connection and try again.' };
+  }
 }
 
 async function reverseGeocode(lat, lng) {
@@ -80,7 +127,7 @@ async function reverseGeocode(lat, lng) {
       const res = await fetch(`https://api.locationiq.com/v1/reverse?key=${LOCATIONIQ_KEY}&lat=${lat}&lon=${lng}&format=json`);
       if (res.ok) {
         const data = await res.json();
-        return addressFromComponents(data.address);
+        if (data && !data.error) return addressFromComponents(data.address);
       }
     } catch {
       // fall through to Nominatim below
@@ -95,6 +142,28 @@ async function reverseGeocode(lat, lng) {
   return addressFromComponents(data.address);
 }
 
+// Maps the browser's GeolocationPositionError codes to a specific, helpful
+// message instead of one generic "didn't work" string, per the standard
+// error codes: https://developer.mozilla.org/docs/Web/API/GeolocationPositionError
+function geolocationErrorMessage(err) {
+  if (!navigator.geolocation) return 'Your browser does not support location detection.';
+  if (typeof window !== 'undefined' && window.isSecureContext === false) {
+    return 'Location detection requires a secure (https) connection.';
+  }
+  switch (err?.code) {
+    case 1: // PERMISSION_DENIED
+      return 'Location access was denied. Pick your spot on the map manually instead.';
+    case 2: // POSITION_UNAVAILABLE
+      return "Your location couldn't be determined right now. Pick your spot on the map manually instead.";
+    case 3: // TIMEOUT
+      return 'Location detection timed out. Pick your spot on the map manually instead.';
+    default:
+      return 'Location access was not available — pick your spot on the map manually instead.';
+  }
+}
+
+const GEOLOCATION_OPTIONS = { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 };
+
 export function LocationPicker({ open, onClose, onConfirm }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -102,11 +171,13 @@ export function LocationPicker({ open, onClose, onConfirm }) {
   const searchDebounceRef = useRef(null);
   const [locating, setLocating] = useState(false);
   const [resolving, setResolving] = useState(false);
-  const [permissionDenied, setPermissionDenied] = useState(false);
+  const [locationError, setLocationError] = useState(null);
+  const [accuracyMeters, setAccuracyMeters] = useState(null);
   const [position, setPosition] = useState(null);
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState(null);
 
   useEffect(() => {
     if (!open || !mapRef.current || mapInstanceRef.current) return undefined;
@@ -132,10 +203,12 @@ export function LocationPicker({ open, onClose, onConfirm }) {
     marker.on('dragend', () => {
       const { lat, lng } = marker.getLatLng();
       setPosition({ lat, lng });
+      setAccuracyMeters(null); // manually placed — no GPS accuracy figure applies
     });
     map.on('click', (e) => {
       marker.setLatLng(e.latlng);
       setPosition({ lat: e.latlng.lat, lng: e.latlng.lng });
+      setAccuracyMeters(null);
     });
 
     mapInstanceRef.current = map;
@@ -143,23 +216,30 @@ export function LocationPicker({ open, onClose, onConfirm }) {
 
     // Offer the user's real location on open, but never force it — if
     // permission is denied or unavailable, the map just stays at the
-    // default center and the customer picks manually.
+    // default center and the customer picks manually. enableHighAccuracy
+    // asks for GPS-grade positioning rather than a coarse network/WiFi
+    // estimate, and maximumAge: 0 refuses a cached stale position — both
+    // needed so this is the device's actual current location, not an
+    // approximate one silently reused from an earlier page load.
     if (navigator.geolocation) {
       setLocating(true);
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          const { latitude, longitude } = pos.coords;
+          const { latitude, longitude, accuracy } = pos.coords;
           map.setView([latitude, longitude], LOCATED_ZOOM);
           marker.setLatLng([latitude, longitude]);
           setPosition({ lat: latitude, lng: longitude });
+          setAccuracyMeters(accuracy);
           setLocating(false);
         },
-        () => {
-          setPermissionDenied(true);
+        (err) => {
+          setLocationError(geolocationErrorMessage(err));
           setLocating(false);
         },
-        { timeout: 8000 }
+        GEOLOCATION_OPTIONS
       );
+    } else {
+      setLocationError(geolocationErrorMessage());
     }
 
     // Leaflet needs an explicit size recalculation once it's actually
@@ -178,12 +258,17 @@ export function LocationPicker({ open, onClose, onConfirm }) {
     if (!open) {
       setQuery('');
       setSuggestions([]);
+      setSearchError(null);
     }
   }, [open]);
 
   function handleSearchChange(e) {
     const value = e.target.value;
     setQuery(value);
+    // Typing again means whatever was pinned/selected before is stale —
+    // require a fresh explicit selection rather than leaving the old
+    // marker position silently associated with new, unconfirmed text.
+    setSearchError(null);
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
 
     if (value.trim().length < 3) {
@@ -193,20 +278,26 @@ export function LocationPicker({ open, onClose, onConfirm }) {
     searchDebounceRef.current = setTimeout(async () => {
       setSearching(true);
       try {
-        const results = await geocodeSearch(value.trim());
+        const { results, error } = await geocodeSearch(value.trim());
         setSuggestions(results);
+        setSearchError(results.length === 0 ? error : null);
       } catch {
         setSuggestions([]);
+        setSearchError('Search is temporarily unavailable. Please try again.');
       } finally {
         setSearching(false);
       }
     }, SEARCH_DEBOUNCE_MS);
   }
 
+  // Only ever called from an explicit click on a suggestion — search alone
+  // never moves the marker or fills the address, per spec.
   function handleSelectSuggestion(result) {
     setSuggestions([]);
+    setSearchError(null);
     setQuery(result.label);
     setPosition({ lat: result.lat, lng: result.lng });
+    setAccuracyMeters(null); // a searched point has no GPS accuracy figure
     if (mapInstanceRef.current && markerRef.current) {
       mapInstanceRef.current.setView([result.lat, result.lng], LOCATED_ZOOM);
       markerRef.current.setLatLng([result.lat, result.lng]);
@@ -214,22 +305,27 @@ export function LocationPicker({ open, onClose, onConfirm }) {
   }
 
   function handleUseMyLocation() {
-    if (!navigator.geolocation || !mapInstanceRef.current || !markerRef.current) return;
+    if (!mapInstanceRef.current || !markerRef.current) return;
+    if (!navigator.geolocation) {
+      setLocationError(geolocationErrorMessage());
+      return;
+    }
     setLocating(true);
-    setPermissionDenied(false);
+    setLocationError(null);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const { latitude, longitude } = pos.coords;
+        const { latitude, longitude, accuracy } = pos.coords;
         mapInstanceRef.current.setView([latitude, longitude], LOCATED_ZOOM);
         markerRef.current.setLatLng([latitude, longitude]);
         setPosition({ lat: latitude, lng: longitude });
+        setAccuracyMeters(accuracy);
         setLocating(false);
       },
-      () => {
-        setPermissionDenied(true);
+      (err) => {
+        setLocationError(geolocationErrorMessage(err));
         setLocating(false);
       },
-      { timeout: 8000 }
+      GEOLOCATION_OPTIONS
     );
   }
 
@@ -269,11 +365,7 @@ export function LocationPicker({ open, onClose, onConfirm }) {
       <p className="location-picker-hint">
         Search for an address, or tap the map/drag the pin — you can still edit every field yourself afterward.
       </p>
-      {permissionDenied && (
-        <p className="location-picker-hint location-picker-denied">
-          Location access wasn&apos;t available — pick your spot on the map manually instead.
-        </p>
-      )}
+      {locationError && <p className="location-picker-hint location-picker-denied">{locationError}</p>}
 
       <div className="location-picker-search">
         <Search size={16} className="location-picker-search-icon" />
@@ -287,18 +379,28 @@ export function LocationPicker({ open, onClose, onConfirm }) {
         {searching && <Loader2 size={14} className="btn-spinner location-picker-search-spinner" />}
         {suggestions.length > 0 && (
           <ul className="location-picker-suggestions">
-            {suggestions.map((s, i) => (
-              <li key={i}>
-                <button type="button" onClick={() => handleSelectSuggestion(s)}>
-                  {s.label}
-                </button>
-              </li>
-            ))}
+            {suggestions.map((s, i) => {
+              const precision = precisionLabel(s.address);
+              return (
+                <li key={i}>
+                  <button type="button" onClick={() => handleSelectSuggestion(s)}>
+                    <span>{s.label}</span>
+                    {precision && <span className="location-picker-suggestion-precision">{precision}</span>}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
+      {!searching && searchError && <p className="location-picker-hint location-picker-denied">{searchError}</p>}
 
       <div ref={mapRef} className="location-picker-map" />
+      {accuracyMeters != null && (
+        <p className="location-picker-hint" style={{ marginTop: 8, marginBottom: 0 }}>
+          Accuracy: within ~{Math.round(accuracyMeters)}m of this pin
+        </p>
+      )}
     </Modal>
   );
 }

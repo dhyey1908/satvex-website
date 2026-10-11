@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { LocationPicker } from './LocationPicker';
 import { sanitizePhoneInput } from '../utils/validators';
+import { useToast } from '../context/ToastContext';
 
 const ADDRESS_TYPES = ['Home', 'Work', 'Other'];
 
@@ -12,9 +13,19 @@ const ADDRESS_TYPES = ['Home', 'Work', 'Other'];
 // this only renders the fields and the map-pin affordance.
 export function AddressFormFields({ form, setField, touched, markTouched, fieldErrors, pincodeLookupState }) {
   const [mapOpen, setMapOpen] = useState(false);
+  const { showToast } = useToast();
 
   function handleMapConfirm(address) {
     setMapOpen(false);
+    // Geocoding is never a substitute for real delivery serviceability —
+    // the pincode here only drives the shipping-rate lookup elsewhere in
+    // checkout, which is unaffected by this UI-only consistency check.
+    if (address.pincode && form.pincode && address.pincode !== form.pincode) {
+      showToast(
+        `The map-selected location's pincode (${address.pincode}) differs from what you entered (${form.pincode}) — please double-check your address.`,
+        'warning'
+      );
+    }
     if (address.line1) setField('houseFlat', address.line1);
     if (address.city) setField('city', address.city);
     if (address.state) setField('state', address.state);
