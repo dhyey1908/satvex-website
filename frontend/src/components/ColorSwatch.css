@@ -58,15 +58,6 @@
   white-space: nowrap;
 }
 
-.color-swatch-name {
-  font-size: 0.68rem;
-  color: var(--color-text-muted);
-  max-width: 56px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .swatch-count {
   position: absolute;
   bottom: -6px;

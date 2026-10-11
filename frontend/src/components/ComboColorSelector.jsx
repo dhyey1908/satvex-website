@@ -1,121 +1,103 @@
-import { Eye, X } from 'lucide-react';
-import { ColorSwatch } from './ColorSwatch';
+import { useEffect, useRef, useState } from 'react';
+import { Minus, Plus } from 'lucide-react';
 import './ComboColorSelector.css';
 
 /**
- * The single color-selection control for a product's selling option — lets
- * the customer pick exactly `requiredCount` colors from the active
- * variants, by clicking swatches (clicking an already-selected one toggles
- * it off, unless allowDuplicateColors is true, in which case each click
- * adds one more occurrence shown as a count badge). For a combo
- * (requiredCount > 1), the chips below double as a live main-image preview
- * switcher: clicking a chip shows that color on the main product image
- * without changing the selection itself, and `previewId` marks which one
- * is currently showing.
+ * The single color-selection control for a product's selling option — a
+ * compact, scrollable list of rows (swatch + name + minus/qty/plus), one
+ * per active variant. `selectedIds` is a flat array with one entry per
+ * selected unit (e.g. ['var_1','var_1','var_2'] = 2x var_1 + 1x var_2) —
+ * each row's own count is just how many times its id appears in it. A row
+ * can go above 1 only when allowDuplicateColors is true; the running total
+ * across all rows can never exceed requiredCount (the combo limit) or an
+ * out-of-stock variant.
  */
-export function ComboColorSelector({
-  variants,
-  requiredCount,
-  allowDuplicateColors,
-  selectedIds,
-  onChange,
-  previewId,
-  onPreview,
-}) {
+export function ComboColorSelector({ variants, requiredCount, allowDuplicateColors, selectedIds, onChange }) {
   const activeVariants = variants.filter((v) => v.isActive);
   const isCombo = requiredCount > 1;
+  const perRowMax = allowDuplicateColors ? requiredCount : 1;
+  const totalSelected = selectedIds.length;
+  const remaining = requiredCount - totalSelected;
 
-  const countOf = (id) => selectedIds.filter((s) => s === id).length;
-  const isFull = selectedIds.length >= requiredCount;
-  const remaining = requiredCount - selectedIds.length;
+  const listRef = useRef(null);
+  const [canScroll, setCanScroll] = useState(false);
 
-  function handleSwatchClick(variantId) {
-    const variant = activeVariants.find((v) => v.id === variantId);
-    const alreadySelected = countOf(variantId) > 0;
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return undefined;
+    const check = () => setCanScroll(el.scrollHeight > el.clientHeight + 1);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [activeVariants.length]);
 
-    if (alreadySelected && !allowDuplicateColors) {
-      onChange(selectedIds.filter((id) => id !== variantId));
-      return;
-    }
-
-    if (variant?.inStock === false) return;
-    if (isFull) return;
-    onChange([...selectedIds, variantId]);
+  function countOf(id) {
+    return selectedIds.filter((s) => s === id).length;
   }
 
-  function removeAt(index) {
-    onChange(selectedIds.filter((_, i) => i !== index));
+  function increment(variant) {
+    if (variant.inStock === false) return;
+    if (totalSelected >= requiredCount) return;
+    if (countOf(variant.id) >= perRowMax) return;
+    onChange([...selectedIds, variant.id]);
+  }
+
+  function decrement(variant) {
+    const idx = selectedIds.lastIndexOf(variant.id);
+    if (idx === -1) return;
+    const next = [...selectedIds];
+    next.splice(idx, 1);
+    onChange(next);
   }
 
   return (
     <div className="combo-color-selector">
-      <div className="combo-swatches">
+      <div className="combo-list" ref={listRef}>
         {activeVariants.map((variant) => {
           const count = countOf(variant.id);
-          // Toggling off an already-selected color (no-duplicates case) must stay
-          // enabled even when the selection is full, so the user can free a slot.
-          const canToggleOff = !allowDuplicateColors && count > 0;
           const outOfStock = variant.inStock === false;
-          const disabled = !canToggleOff && isFull;
+          const plusDisabled = outOfStock || totalSelected >= requiredCount || count >= perRowMax;
           return (
-            <ColorSwatch
-              key={variant.id}
-              colorCode={variant.colorCode}
-              colorName={variant.colorName}
-              selected={count > 0}
-              count={count}
-              disabled={disabled}
-              outOfStock={outOfStock}
-              showLabel
-              onClick={() => handleSwatchClick(variant.id)}
-            />
+            <div key={variant.id} className={`combo-row ${outOfStock ? 'out-of-stock' : ''}`}>
+              <span className="combo-row-swatch" style={{ '--swatch-color': variant.colorCode }} />
+              <span className="combo-row-name">{variant.colorName}</span>
+              {outOfStock ? (
+                <span className="combo-row-oos">Out of stock</span>
+              ) : (
+                <div className="combo-row-stepper">
+                  <button
+                    type="button"
+                    className="combo-row-step-btn"
+                    onClick={() => decrement(variant)}
+                    disabled={count === 0}
+                    aria-label={`Remove one ${variant.colorName}`}
+                  >
+                    <Minus size={13} />
+                  </button>
+                  <span className="combo-row-qty">{count}</span>
+                  <button
+                    type="button"
+                    className="combo-row-step-btn"
+                    onClick={() => increment(variant)}
+                    disabled={plusDisabled}
+                    aria-label={`Add one ${variant.colorName}`}
+                  >
+                    <Plus size={13} />
+                  </button>
+                </div>
+              )}
+            </div>
           );
         })}
       </div>
+      {canScroll && <p className="combo-scroll-hint">Scroll for more colors ↓</p>}
 
       <div className="combo-selection-summary">
         {isCombo && (
           <span className={`combo-count-badge ${remaining > 0 ? 'incomplete' : 'complete'}`}>
-            {selectedIds.length} / {requiredCount} selected
+            {totalSelected} / {requiredCount} selected
           </span>
-        )}
-
-        {selectedIds.length > 0 && (
-          <div className="combo-selected-chips">
-            {selectedIds.map((id, index) => {
-              const variant = activeVariants.find((v) => v.id === id);
-              const isPreviewing = isCombo && previewId === id;
-              return (
-                <div
-                  key={`${id}-${index}`}
-                  className={`combo-chip ${isPreviewing ? 'previewing' : ''}`}
-                  style={{ '--chip-color': variant?.colorCode }}
-                >
-                  {isCombo ? (
-                    <button
-                      type="button"
-                      className="combo-chip-preview"
-                      onClick={() => onPreview?.(id)}
-                      title={`Preview ${variant?.colorName} on the main image`}
-                    >
-                      {isPreviewing && <Eye size={11} />}
-                      {variant?.colorName}
-                    </button>
-                  ) : (
-                    <span className="combo-chip-preview combo-chip-static">{variant?.colorName}</span>
-                  )}
-                  <button
-                    type="button"
-                    className="combo-chip-remove"
-                    onClick={() => removeAt(index)}
-                    aria-label={`Remove ${variant?.colorName}`}
-                  >
-                    <X size={11} />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
         )}
 
         {isCombo && remaining > 0 && (

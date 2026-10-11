@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Loader2, CheckCircle2, XCircle, ShoppingBag, Zap, ArrowLeft, ChevronDown, BadgeCheck, Share2 } from 'lucide-react';
 import { productService } from '../services/productService';
 import { ProductGallery } from '../components/ProductGallery';
@@ -50,6 +50,12 @@ export function ProductDetail() {
   // shows. Single-color options don't need this — there's only ever one
   // selected color, so the image just follows it directly.
   const [previewColorId, setPreviewColorId] = useState(null);
+  // The URL ProductGallery is actually showing right now, reported back up
+  // via onImageChange. Now that the gallery's own image set is built from
+  // variant photos (see galleryImages below), this is a reliable exact
+  // match back to a variant — covers browsing the gallery's own thumbnails
+  // directly, not just an explicit color pick in the selector.
+  const [displayedImage, setDisplayedImage] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [buyingNow, setBuyingNow] = useState(false);
@@ -144,6 +150,15 @@ export function ProductDetail() {
   const activeVariants = product.variants.filter((v) => v.isActive);
   const outOfStock = !product.isActive || activeOptions.length === 0 || activeVariants.length === 0;
   const sku = deriveSku(product.productId, activeVariant?.id);
+
+  // Whenever this product has its own color photos, the gallery shows only
+  // those (one per color) instead of the separate generic product.images —
+  // so every thumbnail the customer browses is always a real, nameable
+  // color (matched back below via displayedImage), never an unlabeled
+  // "which color is this?" photo. Falls back to product.images untouched
+  // for a product with no variant photos at all.
+  const variantImages = activeVariants.filter((v) => v.image).map((v) => v.image);
+  const galleryImages = variantImages.length > 0 ? variantImages : product.images;
 
   function handleSellingOptionSelect(option) {
     setSellingOptionId(option.id);
@@ -247,6 +262,26 @@ export function ProductDetail() {
 
   const highlights = settings?.whyPillars || DEFAULT_HIGHLIGHTS;
   const selectedShadeName = activeVariant?.colorName ?? null;
+  // Which image is genuinely on screen right now, reported up from
+  // ProductGallery and matched back to a variant by its own image URL. With
+  // the gallery now built from variant photos whenever they exist
+  // (galleryImages above), this match is exact and reliable — it tracks the
+  // real photo through every way it can change, including just browsing the
+  // gallery's own thumbnails (not only an explicit color pick).
+  const displayedVariant = displayedImage ? product.variants.find((v) => v.image && v.image === displayedImage) : null;
+  // activeVariant (an explicit pick/preview from the selector below) takes
+  // priority when one exists — and is hidden outright if THAT variant has
+  // no image of its own, same as the main image's own fallback. This
+  // matters because activeVariant having no image means activeImage is
+  // falsy, so the main image stays on whatever was last browsed and
+  // displayedVariant/onImageChange never fires again — without this
+  // priority, the badge would otherwise keep showing that stale, no-longer-
+  // selected color instead of correctly showing nothing. Only once nothing
+  // is explicitly selected does the badge fall back to plain gallery
+  // browsing.
+  const badgeColorName = activeVariant ? (activeVariant.image ? activeVariant.colorName : null) : displayedVariant?.colorName ?? null;
+  const isComboPreview =
+    Boolean(activeVariant) && (sellingOption?.quantity ?? 1) > 1 && selectedColors.includes(activeVariant.id);
 
   return (
     <>
@@ -277,7 +312,28 @@ export function ProductDetail() {
 
       <div className="product-detail-grid">
         <div className="pdp-gallery-wrap">
-          <ProductGallery images={product.images} activeImage={activeVariant?.image} videoUrl={product.videoUrl} alt={product.name} />
+          <ProductGallery
+            images={galleryImages}
+            activeImage={activeVariant?.image}
+            videoUrl={product.videoUrl}
+            alt={product.name}
+            onImageChange={setDisplayedImage}
+          />
+          <AnimatePresence>
+            {badgeColorName && (
+              <motion.span
+                key={activeVariant?.id ?? displayedVariant?.id ?? badgeColorName}
+                className="pdp-color-badge"
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.18 }}
+              >
+                {isComboPreview && <span className="pdp-color-badge-label">Previewing</span>}
+                {badgeColorName}
+              </motion.span>
+            )}
+          </AnimatePresence>
           <div className="pdp-gallery-actions">
             <button
               type="button"
@@ -350,8 +406,6 @@ export function ProductDetail() {
                 allowDuplicateColors={sellingOption.allowDuplicateColors}
                 selectedIds={selectedColors}
                 onChange={setSelectedColors}
-                previewId={previewColorId}
-                onPreview={setPreviewColorId}
               />
             </div>
           )}

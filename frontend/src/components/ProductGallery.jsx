@@ -12,7 +12,7 @@ import './ProductGallery.css';
 // swipe-to-change-image from fighting over the same gesture.
 const SWIPE_THRESHOLD = 40;
 
-export function ProductGallery({ images, activeImage, videoUrl, alt }) {
+export function ProductGallery({ images, activeImage, videoUrl, alt, onImageChange }) {
   const gallery = images && images.length > 0 ? images : [];
   const [index, setIndex] = useState(0);
   // When a product has a video, it's the default view — shown as a static
@@ -36,6 +36,17 @@ export function ProductGallery({ images, activeImage, videoUrl, alt }) {
     setShowVideo(Boolean(videoUrl));
     setIndex(0);
   }, [videoUrl]);
+
+  // Reports whatever is ACTUALLY on screen as the main image right now —
+  // covers every way it can change (a color selection driving activeImage,
+  // a plain thumbnail click, a swipe), not just an explicit color pick.
+  // Lets a caller (the PDP's color-name badge) stay truthfully in sync with
+  // the real photo. Never reported while the video view is showing instead.
+  useEffect(() => {
+    if (showVideo) return;
+    onImageChange?.(mainImage || null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mainImage, showVideo]);
 
   function handleTouchStart(e) {
     touchStartX.current = e.touches[0].clientX;
