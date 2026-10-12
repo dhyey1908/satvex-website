@@ -9,13 +9,13 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
+  gap: 6px;
   padding: 14px 20px;
   border-radius: var(--radius-md);
   border: 1.5px solid var(--color-border);
   background: var(--color-surface);
   cursor: pointer;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
   min-width: 128px;
 }
 .selling-option:hover { border-color: var(--color-primary); }
@@ -39,8 +39,30 @@
   box-shadow: 0 0 0 2px var(--color-surface);
 }
 
+/* Combo options get the "premium card" treatment — rounder, roomier,
+   blush-tinted border/shadow — so they read as the featured choice next to
+   the plain single-piece option. Selected state still wins over all of
+   this (border/shadow below), same selected rule as the plain option. */
+.selling-option-combo {
+  padding: 18px 22px;
+  border-radius: var(--radius-lg);
+  border-color: var(--color-outline-variant);
+  box-shadow: var(--shadow-sm);
+  min-width: 150px;
+}
+.selling-option-combo:hover {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+.selling-option-combo.selected {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1.5px var(--color-accent), var(--shadow-md);
+  background: var(--color-accent-light);
+}
+.selling-option-combo .selling-option-check { background: var(--color-accent); }
+
 .selling-option-name { font-weight: 700; font-size: 0.92rem; text-transform: uppercase; letter-spacing: 0.03em; }
-.selling-option-price { color: var(--color-text); font-size: 1rem; font-weight: 600; }
 .selling-option-savings {
   font-size: 0.72rem;
   font-weight: 700;

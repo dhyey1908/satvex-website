@@ -89,7 +89,16 @@
     'reviews reviews';
   column-gap: var(--space-7);
   row-gap: 0;
-  align-items: start;
+  /* Deliberately NOT align-items:start. .pdp-gallery-wrap spans two row
+     tracks (gallery sits beside both .pdp-head and .pdp-purchase) — grid's
+     default stretch sizes that spanned box to the full two-row height
+     (matching .pdp-head + .pdp-purchase's combined content), not just the
+     image's own ~560px. That full-height box is what .pdp-gallery-wrap
+     (below) uses as the positioning context for the sticky/pinned-bottom
+     toggle — with align-items:start it would collapse to the image's own
+     height instead, breaking that boundary. Mobile is unaffected: each area
+     there occupies a single, unshared row track, so stretch vs. start sizes
+     it identically either way. */
 }
 
 .pdp-gallery-wrap { grid-area: gallery; }
@@ -97,21 +106,39 @@
 .pdp-purchase { grid-area: purchase; }
 .product-detail-reviews { grid-area: reviews; }
 
-/* Gallery sticks because it has a predictable fixed aspect ratio; the
-   purchase panel (buy actions) sticks so they never scroll out of view
-   while exploring combo/color/description. .pdp-head is short and simply
-   scrolls normally — splitting the old single sticky "info" column into
-   two independently-sticky pieces risks them overlapping mid-scroll, so
-   only the one that actually matters to keep visible (the buy panel)
-   stays sticky. */
-.product-detail-grid .pdp-gallery-wrap,
-.pdp-purchase {
+/* .pdp-gallery-wrap is the full-height (see grid comment above) positioning
+   container; .pdp-gallery-sticky is the actual visible image block inside
+   it. Plain CSS position:sticky only pins an element's TOP edge — once
+   there's no longer room to keep it pinned without overflowing its
+   container, it reverts straight to static flow rather than smoothly
+   tracking the container's bottom edge. For a short sticky item (the
+   ~560px image) inside a much taller shared container (.pdp-head +
+   .pdp-purchase's combined height), that means it detaches early and
+   leaves a tall dead gap below it before Reviews — sticky alone can't keep
+   a shorter sidebar visually "stuck" for the full scroll duration of a
+   taller sibling with zero dead space; that needs a measured switch to
+   position:absolute, which ProductDetail.jsx does via the
+   .pdp-gallery-pinned-bottom class (toggled on scroll/resize): while there's
+   room below the sticky line, it stays position:sticky (pinned under the
+   header); once the remaining room is less than the image's own height, it
+   switches to position:absolute; bottom:0 — anchored flush to this
+   container's bottom edge (i.e. exactly where .pdp-purchase's content
+   ends), so it scrolls away with the page from exactly that point with no
+   gap, and can never overlap Reviews below. */
+.pdp-gallery-wrap {
+  position: relative;
+}
+
+.pdp-gallery-sticky {
   position: sticky;
   top: calc(var(--header-height) + var(--space-5));
 }
-
-.pdp-gallery-wrap {
-  position: relative;
+.pdp-gallery-sticky.pdp-gallery-pinned-bottom {
+  position: absolute;
+  top: auto;
+  bottom: 0;
+  left: 0;
+  right: 0;
 }
 
 .pdp-gallery-actions {
@@ -229,7 +256,7 @@
   font-size: 0.78rem;
   color: var(--color-text-muted);
   margin-bottom: var(--space-4);
-  padding-bottom: var(--space-4);
+  /* padding-bottom: var(--space-4); */
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -268,11 +295,23 @@
 .pdp-wishlist-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
 .pdp-wishlist-btn.active { border-color: var(--color-accent); color: var(--color-accent); background: var(--color-accent-light); }
 
-.pdp-selected-shade {
+/* "Select N Colors" and "N / N selected" share a row, label left / count
+   right — .product-detail-section h3's own margin-bottom (see its rule
+   below) would otherwise be duplicated by this wrapper too, so it's zeroed
+   on the h3 here and moved onto the row itself instead. */
+.pdp-color-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.pdp-color-section-header h3 { margin-bottom: 0; }
+.pdp-color-count {
+  font-size: 0.78rem;
   font-weight: 600;
-  text-transform: none;
-  letter-spacing: normal;
-  color: var(--color-text);
+  color: var(--color-text-muted);
+  white-space: nowrap;
 }
 
 .pdp-highlights {
@@ -362,28 +401,24 @@
       'head'
       'purchase'
       'reviews';
-    row-gap: var(--space-5);
+    /* row-gap: var(--space-5); */
   }
-  /* Stays `relative` here (not `static`) — this is the positioning context
-     for the absolutely-positioned Share/Wishlist buttons
-     (.pdp-gallery-actions) and the color-name badge (.pdp-color-badge).
-     Dropping it to `static` on mobile removes that context entirely, so
-     those elements fall back to the viewport as their containing block and
-     render pinned near the top of the whole page — overlapping the sticky
-     mobile header/announcement bar above — instead of staying anchored to
-     the gallery image. Only the desktop `sticky` behavior needs dropping
-     here. (This exact rule reverted once already mid-project — if it comes
-     back as a combined selector covering .pdp-gallery-wrap again, that's
-     the bug; keep it its own rule.) */
+  /* .pdp-gallery-wrap itself is already position:relative on desktop too
+     (it's just the positioning context for the Share/Wishlist buttons and
+     color-name badge, and for .pdp-gallery-sticky's absolute/pinned-bottom
+     mode) — nothing to reset here. .pdp-gallery-sticky is the one that
+     needs resetting: desktop makes it position:sticky (or absolute, via the
+     JS-toggled .pdp-gallery-pinned-bottom class — see ProductDetail.jsx).
+     Dropping both to `static` here removes any positioning context from
+     .pdp-gallery-sticky, so if the pinned-bottom class happens to still be
+     set from a previous desktop-width render (e.g. resizing the window
+     down), its `bottom`/`left`/`right` offsets are simply ignored rather
+     than pinning it somewhere wrong. */
   .product-detail-grid .pdp-gallery-wrap {
-    position: relative;
-    /* The base (desktop) rule above sets `top: calc(var(--header-height) +
-       var(--space-5))` alongside `position: sticky` — unlike `static`,
-       `relative` DOES honor `top`, so without resetting it here that
-       leftover desktop offset shoves the whole gallery down, leaving a
-       large blank gap above it on mobile. */
-    top: auto;
     min-width: 0;
+  }
+  .pdp-gallery-sticky {
+    position: static;
   }
   .pdp-head,
   .pdp-purchase {
@@ -400,6 +435,11 @@
      longer sit inside one visually-bordered box giving its own separation. */
   .product-detail-section { margin-bottom: var(--space-5); }
   .product-detail-section h3 { margin-bottom: var(--space-3); }
+  /* Same specificity as the rule just above (one class + one tag each) —
+     without repeating the override here, source order inside this same
+     media query would let that rule win on mobile and reintroduce the
+     double spacing .pdp-color-section-header h3 zeroes out elsewhere. */
+  .pdp-color-section-header h3 { margin-bottom: 0; }
 
   /* The desktop rule's margin-top compensates for the grid's row-gap being
      0 there (see .pdp-head/.pdp-purchase's seamless-panel border trick) —
@@ -419,10 +459,44 @@
      actually lost by hiding this whole row. */
   .product-detail-actions { display: none; }
 
-  /* Selling-option buttons get a touch less padding so two combo options
-     have a real chance to sit on one row even on narrow phones; they still
-     wrap to their own line rather than overflow when they don't fit. */
-  .selling-option { padding: 12px 16px; min-width: 0; }
+  /* Grid (not flex) so columns stay equal-width and at least 3 options fit
+     per row even on a 320px phone — auto-fit + a low minmax floor means 2
+     options still stretch to fill the row evenly, but adding a 3rd narrows
+     all of them instead of wrapping to a new row. */
+  .selling-option-selector {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+    gap: 6px;
+  }
+  /* .selling-option-combo (used on every multi-piece option) sets its own
+     min-width/padding at a higher specificity (two classes vs. one) than a
+     plain `.selling-option` rule here — so both the base class AND the
+     compound `.selling-option.selling-option-combo` need resetting, or the
+     combo cards silently keep their desktop min-width and never actually
+     shrink to fit 3 per row. (Exact same class of bug as the
+     .product-detail.section padding-bottom cascade issue elsewhere in this
+     file — see that comment for the general pattern.) */
+  .selling-option,
+  .selling-option.selling-option-combo {
+    width: 100%;
+    min-width: 0;
+    padding: 8px 4px;
+    border-radius: var(--radius-sm);
+    align-items: center;
+    text-align: center;
+    gap: 2px;
+  }
+  .selling-option .selling-option-name { font-size: 0.62rem; }
+  .selling-option .selling-option-savings { font-size: 0.56rem; }
+  /* PriceDisplay has no "sm" size variant to pass in here — these scoped,
+     extra-specific selectors (3 classes) shrink it just inside a selling-
+     option card instead, without touching its size anywhere else it's
+     used. */
+  .selling-option .price-display { gap: 3px; }
+  .selling-option .price-display .price-current { font-size: 0.74rem; }
+  .selling-option .price-display .price-compare { font-size: 0.58rem; }
+  .selling-option .price-display .price-discount-badge { font-size: 0.54rem; padding: 1px 5px; }
+  .selling-option-check { width: 14px; height: 14px; top: -5px; right: -5px; }
 
   .pdp-mobile-bar {
     display: flex;

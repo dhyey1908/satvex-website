@@ -1,6 +1,71 @@
 .product-reviews { margin-top: var(--space-4); }
 .product-reviews-empty { color: var(--color-text-muted); }
 
+/* Summary card — big score, star-distribution bars, and the "Write a
+   Review" CTA. Always rendered (even with zero reviews, where the score
+   just reads "—" and every bar sits at 0%) so the CTA is always reachable. */
+.product-reviews-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-container);
+  border: 1px solid var(--color-outline-variant);
+}
+.product-reviews-summary-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  min-width: 108px;
+}
+.product-reviews-summary-number {
+  font-family: var(--font-display);
+  font-size: 2.6rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  line-height: 1;
+}
+.product-reviews-summary-stars { color: var(--color-accent-gold); font-size: 1rem; letter-spacing: 1px; }
+.product-reviews-summary-count { color: var(--color-text-muted); font-size: 0.8rem; }
+
+.product-reviews-summary-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 180px;
+}
+.product-reviews-bar-row { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; }
+.product-reviews-bar-label { width: 26px; flex-shrink: 0; color: var(--color-text-muted); font-weight: 600; }
+.product-reviews-bar-track {
+  flex: 1;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-container-high);
+  overflow: hidden;
+}
+.product-reviews-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-gold);
+  transition: width var(--transition-base);
+}
+.product-reviews-bar-pct { width: 34px; flex-shrink: 0; text-align: right; color: var(--color-text-muted); }
+
+.product-reviews-write-btn { flex-shrink: 0; }
+
+@media (max-width: 640px) {
+  .product-reviews-summary { flex-direction: column; align-items: stretch; gap: var(--space-4); }
+  .product-reviews-summary-score { flex-direction: row; justify-content: center; gap: var(--space-3); }
+  .product-reviews-write-btn { width: 100%; }
+}
+
 .product-reviews-list {
   display: flex;
   flex-direction: column;
@@ -48,16 +113,6 @@
 .review-star-input button:hover { color: var(--color-accent-gold); }
 
 .product-review-form-actions { display: flex; align-items: center; gap: var(--space-3); }
-
-.product-review-mine {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--color-border);
-  color: var(--color-text-muted);
-}
 
 /* Photos attached to a published review — responsive thumbnail row, wraps
    rather than scrolling (at most 3, always fits). */

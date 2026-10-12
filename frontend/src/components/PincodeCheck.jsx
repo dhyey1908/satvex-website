@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { MapPin, CheckCircle2, XCircle, Loader2, Truck } from 'lucide-react';
 import { deliveryService } from '../services/deliveryService';
+import { useSettings } from '../context/SettingsContext';
 import './PincodeCheck.css';
 
 // Standard estimate window shown once a pincode is verified — matches the
@@ -32,6 +33,8 @@ function formatEstimate() {
  * again at checkout regardless of what this widget shows.
  */
 export function PincodeCheck() {
+  const { settings } = useSettings();
+  const freeDeliveryThreshold = settings?.shipping?.freeThreshold ?? 0;
   const [pincode, setPincode] = useState('');
   const [state, setState] = useState('idle'); // idle | loading | found | not-deliverable | not-found
   const [area, setArea] = useState(null);
@@ -64,7 +67,9 @@ export function PincodeCheck() {
 
   return (
     <div className="pincode-check">
-      <p className="pincode-check-title">Delivery Details</p>
+      <p className="pincode-check-title">
+        <Truck size={16} /> Delivery Details
+      </p>
 
       <p className="pincode-check-label">
         <MapPin size={14} /> Select delivery location
@@ -78,10 +83,15 @@ export function PincodeCheck() {
           onChange={handleChange}
           maxLength={6}
         />
-        <button type="submit" className="btn btn-outline btn-sm" disabled={pincode.length !== 6 || state === 'loading'}>
+        <button type="submit" className="btn btn-primary btn-sm pincode-check-btn" disabled={pincode.length !== 6 || state === 'loading'}>
           {state === 'loading' ? <Loader2 size={14} className="btn-spinner" /> : 'Check'}
         </button>
       </form>
+      {freeDeliveryThreshold > 0 && (
+        <p className="pincode-check-free-delivery">
+          <CheckCircle2 size={14} /> Free delivery on orders above ₹{freeDeliveryThreshold}
+        </p>
+      )}
       {state === 'found' && (
         <>
           <p className="pincode-check-result success">

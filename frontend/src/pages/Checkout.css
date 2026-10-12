@@ -109,7 +109,12 @@
 
 .checkout-address-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  /* minmax(240px, 1fr) forces a 240px-wide track no matter what — on a
+     narrow phone where the card's actual content width is already under
+     240px (padding eats into the 320-430px viewport), that fixed minimum
+     is what overflows, not anything about the address content itself.
+     min(240px, 100%) lets the track shrink to fit instead. */
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
   gap: var(--space-3);
 }
 
@@ -158,8 +163,13 @@
 .payment-method-option.selected { border-color: var(--color-primary); background: var(--color-surface-container); }
 .payment-method-option input { margin: 0; width: auto; flex-shrink: 0; }
 .payment-method-option svg { color: var(--color-accent); flex-shrink: 0; }
-.payment-method-name { font-weight: 600; margin: 0; font-size: 0.88rem; line-height: 1.3; }
-.payment-method-meta { font-size: 0.74rem; color: var(--color-text-muted); margin: 1px 0 0; line-height: 1.3; }
+/* The text block is a plain <div> flex item — without min-width: 0 a flex
+   item's default min-width is its content's intrinsic width, not zero, so
+   at narrow widths (COD's charge note especially) it could push the card
+   wider than its container instead of wrapping. */
+.payment-method-option > div { flex: 1; min-width: 0; }
+.payment-method-name { font-weight: 600; margin: 0; font-size: 0.88rem; line-height: 1.3; overflow-wrap: break-word; }
+.payment-method-meta { font-size: 0.74rem; color: var(--color-text-muted); margin: 1px 0 0; line-height: 1.3; overflow-wrap: break-word; }
 
 .checkout-summary-col {
   position: sticky;

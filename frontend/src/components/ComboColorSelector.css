@@ -91,17 +91,6 @@
   margin-top: var(--space-1);
 }
 
-.combo-count-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 10px;
-  border-radius: var(--radius-pill);
-  font-weight: 600;
-  font-size: 0.76rem;
-  letter-spacing: 0.01em;
-}
-.combo-count-badge.complete { background: var(--color-success-bg); color: var(--color-success); }
-.combo-count-badge.incomplete { background: var(--color-surface-container); color: var(--color-text-muted); }
-
-.combo-hint { margin-top: var(--space-2); font-size: 0.78rem; }
+.combo-hint { margin-top: 0; font-size: 0.78rem; }
+.combo-hint + .combo-hint { margin-top: var(--space-2); }
 .combo-hint-required { color: var(--color-accent); font-weight: 500; }

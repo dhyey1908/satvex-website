@@ -61,6 +61,13 @@ export function ProductDetail() {
   const [buyingNow, setBuyingNow] = useState(false);
   const [wishlistBurst, setWishlistBurst] = useState(false);
   const [descOpen, setDescOpen] = useState(false);
+  // Whether the sticky gallery is currently pinned to the bottom of its
+  // column instead of sticking under the header — see the scroll-driven
+  // effect below and the CSS comment on .pdp-gallery-sticky for why this
+  // can't be done with pure CSS position:sticky.
+  const [galleryPinnedBottom, setGalleryPinnedBottom] = useState(false);
+  const galleryColRef = useRef(null);
+  const galleryStickyRef = useRef(null);
 
   useDocumentMeta({
     title: product?.name,
@@ -135,6 +142,60 @@ export function ProductDetail() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedColors]);
+
+  // Keeps the sticky gallery visually "stuck" under the header for as long
+  // as there's room, then pins it to the bottom of its column (see the CSS
+  // comment on .pdp-gallery-sticky for why plain position:sticky alone
+  // can't do this without either overlapping Reviews or leaving a dead gap
+  // above it). Desktop-only — mobile never uses sticky/pinned-bottom at all
+  // (CSS resets .pdp-gallery-sticky to position:static there), so this is
+  // gated on viewport width rather than running pointless measurements on
+  // every mobile scroll.
+  useEffect(() => {
+    const desktopQuery = window.matchMedia('(min-width: 861px)');
+    let rafId = null;
+
+    function measure() {
+      rafId = null;
+      const col = galleryColRef.current;
+      const sticky = galleryStickyRef.current;
+      if (!col || !sticky || !desktopQuery.matches) {
+        setGalleryPinnedBottom(false);
+        return;
+      }
+      const rootStyles = getComputedStyle(document.documentElement);
+      const headerHeight = parseFloat(rootStyles.getPropertyValue('--header-height')) || 68;
+      const space5 = parseFloat(rootStyles.getPropertyValue('--space-5')) || 32;
+      const stickyTopOffset = headerHeight + space5;
+
+      const colRect = col.getBoundingClientRect();
+      // Room left between the sticky line and this column's own bottom
+      // edge, in viewport coordinates. Once the image no longer fits in
+      // that room, pin it to the column's bottom instead of letting it
+      // detach mid-air and leave a gap.
+      const roomBelowStickyLine = colRect.bottom - stickyTopOffset;
+      setGalleryPinnedBottom(roomBelowStickyLine < sticky.offsetHeight);
+    }
+
+    function scheduleMeasure() {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(measure);
+    }
+
+    measure();
+    window.addEventListener('scroll', scheduleMeasure, { passive: true });
+    window.addEventListener('resize', scheduleMeasure);
+    desktopQuery.addEventListener('change', scheduleMeasure);
+    return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      window.removeEventListener('scroll', scheduleMeasure);
+      window.removeEventListener('resize', scheduleMeasure);
+      desktopQuery.removeEventListener('change', scheduleMeasure);
+    };
+    // Re-measure whenever the product (and therefore gallery/purchase
+    // content height) changes — a different product can make the two
+    // columns' relative heights completely different.
+  }, [product]);
 
   if (error) return <ErrorState message={error} />;
   if (!product) return <Loader label="Loading product…" />;
@@ -261,7 +322,6 @@ export function ProductDetail() {
   }
 
   const highlights = settings?.whyPillars || DEFAULT_HIGHLIGHTS;
-  const selectedShadeName = activeVariant?.colorName ?? null;
   // Which image is genuinely on screen right now, reported up from
   // ProductGallery and matched back to a variant by its own image URL. With
   // the gallery now built from variant photos whenever they exist
@@ -269,19 +329,17 @@ export function ProductDetail() {
   // real photo through every way it can change, including just browsing the
   // gallery's own thumbnails (not only an explicit color pick).
   const displayedVariant = displayedImage ? product.variants.find((v) => v.image && v.image === displayedImage) : null;
-  // activeVariant (an explicit pick/preview from the selector below) takes
-  // priority when one exists — and is hidden outright if THAT variant has
-  // no image of its own, same as the main image's own fallback. This
-  // matters because activeVariant having no image means activeImage is
-  // falsy, so the main image stays on whatever was last browsed and
-  // displayedVariant/onImageChange never fires again — without this
-  // priority, the badge would otherwise keep showing that stale, no-longer-
-  // selected color instead of correctly showing nothing. Only once nothing
-  // is explicitly selected does the badge fall back to plain gallery
-  // browsing.
-  const badgeColorName = activeVariant ? (activeVariant.image ? activeVariant.colorName : null) : displayedVariant?.colorName ?? null;
+  // Always follows whatever photo is genuinely on screen, not which color
+  // was last explicitly selected — ProductGallery's own manualOverride
+  // (browsing away via the nav arrows/swipe/thumbnails) means the visible
+  // photo and the "selected" color can now legitimately diverge, and the
+  // badge needs to agree with the former, same as the gallery itself does.
+  // When activeVariant has no image of its own, the main image simply never
+  // changes to it, so displayedVariant correctly keeps showing whatever
+  // real photo was already on screen instead of going stale.
+  const badgeColorName = displayedVariant?.colorName ?? null;
   const isComboPreview =
-    Boolean(activeVariant) && (sellingOption?.quantity ?? 1) > 1 && selectedColors.includes(activeVariant.id);
+    Boolean(displayedVariant) && (sellingOption?.quantity ?? 1) > 1 && selectedColors.includes(displayedVariant.id);
 
   return (
     <>
@@ -311,53 +369,57 @@ export function ProductDetail() {
       </nav>
 
       <div className="product-detail-grid">
-        <div className="pdp-gallery-wrap">
-          <ProductGallery
-            images={galleryImages}
-            activeImage={activeVariant?.image}
-            videoUrl={product.videoUrl}
-            alt={product.name}
-            onImageChange={setDisplayedImage}
-          />
-          <AnimatePresence>
-            {badgeColorName && (
-              <motion.span
-                key={activeVariant?.id ?? displayedVariant?.id ?? badgeColorName}
-                className="pdp-color-badge"
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.18 }}
+        <div className="pdp-gallery-wrap" ref={galleryColRef}>
+          <div
+            className={`pdp-gallery-sticky ${galleryPinnedBottom ? 'pdp-gallery-pinned-bottom' : ''}`}
+            ref={galleryStickyRef}
+          >
+            <ProductGallery
+              images={galleryImages}
+              activeImage={activeVariant?.image}
+              videoUrl={product.videoUrl}
+              alt={product.name}
+              onImageChange={setDisplayedImage}
+            />
+            <AnimatePresence>
+              {badgeColorName && (
+                <motion.span
+                  key={displayedVariant?.id ?? badgeColorName}
+                  className="pdp-color-badge"
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.18 }}
+                >
+                  {badgeColorName}
+                </motion.span>
+              )}
+            </AnimatePresence>
+            <div className="pdp-gallery-actions">
+              <button
+                type="button"
+                className="pdp-gallery-share"
+                onClick={handleShareProduct}
+                aria-label="Share this product"
               >
-                {isComboPreview && <span className="pdp-color-badge-label">Previewing</span>}
-                {badgeColorName}
-              </motion.span>
-            )}
-          </AnimatePresence>
-          <div className="pdp-gallery-actions">
-            <button
-              type="button"
-              className="pdp-gallery-share"
-              onClick={handleShareProduct}
-              aria-label="Share this product"
-            >
-              <Share2 size={17} />
-            </button>
-            <motion.button
-              type="button"
-              className={`pdp-gallery-wishlist ${inWishlist ? 'active' : ''}`}
-              onClick={toggleWishlist}
-              whileTap={{ scale: 0.9 }}
-              aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
-            >
-              <motion.span
-                animate={wishlistBurst ? { scale: [1, 1.35, 1] } : { scale: 1 }}
-                transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                style={{ display: 'inline-flex' }}
+                <Share2 size={17} />
+              </button>
+              <motion.button
+                type="button"
+                className={`pdp-gallery-wishlist ${inWishlist ? 'active' : ''}`}
+                onClick={toggleWishlist}
+                whileTap={{ scale: 0.9 }}
+                aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
               >
-                <Heart size={18} fill={inWishlist ? 'currentColor' : 'none'} />
-              </motion.span>
-            </motion.button>
+                <motion.span
+                  animate={wishlistBurst ? { scale: [1, 1.35, 1] } : { scale: 1 }}
+                  transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                  style={{ display: 'inline-flex' }}
+                >
+                  <Heart size={18} fill={inWishlist ? 'currentColor' : 'none'} />
+                </motion.span>
+              </motion.button>
+            </div>
           </div>
         </div>
 
@@ -393,15 +455,14 @@ export function ProductDetail() {
 
           {sellingOption && (
             <div className="product-detail-section pdp-color-section">
-              <h3>
-                {sellingOption.quantity === 1 ? 'Select a Color' : `Select ${sellingOption.quantity} Colors`}
-                {selectedShadeName && (
-                  <span className="pdp-selected-shade">
-                    {' '}
-                    — {sellingOption.quantity === 1 ? selectedShadeName : `Previewing ${selectedShadeName}`}
+              <div className="pdp-color-section-header">
+                <h3>{sellingOption.quantity === 1 ? 'Select a Color' : `Select ${sellingOption.quantity} Colors`}</h3>
+                {sellingOption.quantity > 1 && (
+                  <span className="pdp-color-count">
+                    {selectedColors.length} / {sellingOption.quantity} selected
                   </span>
                 )}
-              </h3>
+              </div>
               <ComboColorSelector
                 variants={product.variants}
                 requiredCount={sellingOption.quantity}
@@ -499,8 +560,7 @@ export function ProductDetail() {
             keyboard/tab order agree. */}
         <div className="product-detail-reviews" id="reviews">
           <h3 className="text-headline-sm">Reviews</h3>
-          <RatingDisplay rating={product.rating} reviewCount={product.reviewCount} size="lg" />
-          <ProductReviews productId={product.productId} />
+          <ProductReviews productId={product.productId} rating={product.rating} reviewCount={product.reviewCount} />
         </div>
       </div>
 

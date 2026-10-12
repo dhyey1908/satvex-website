@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { Star, Loader2, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Star, Loader2, X, PenLine } from 'lucide-react';
 import { reviewService } from '../services/reviewService';
 import { orderService } from '../services/orderService';
 import { useAuth } from '../context/AuthContext';
@@ -32,9 +33,11 @@ function StarInput({ value, onChange }) {
   );
 }
 
-export function ProductReviews({ productId }) {
+export function ProductReviews({ productId, rating, reviewCount }) {
   const { isAuthenticated } = useAuth();
   const { showToast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [reviews, setReviews] = useState(null);
   // undefined = still checking, null = not eligible (never delivered), object = user's existing review
   const [eligible, setEligible] = useState(false);
@@ -43,7 +46,21 @@ export function ProductReviews({ productId }) {
   const [form, setForm] = useState({ rating: 0, title: '', comment: '', images: [] });
   const [submitting, setSubmitting] = useState(false);
   const [lightboxImage, setLightboxImage] = useState(null);
+  // Set by the "Write a Review" button so the form can be scrolled into
+  // view once it's actually in the DOM (it may need setEditing(true) first,
+  // which only takes effect on the next render) rather than racing it.
+  const [scrollToFormPending, setScrollToFormPending] = useState(false);
+  const formRef = useRef(null);
   const { page, setPage, totalPages, pageItems, total, rangeStart, rangeEnd } = usePagination(reviews, PAGE_SIZE);
+
+  // Star-distribution bars in the summary card are built from the actual
+  // loaded reviews (what's really being shown), not just the aggregate
+  // rating/reviewCount passed down from the product.
+  const distribution = [5, 4, 3, 2, 1].map((stars) => ({
+    stars,
+    count: reviews ? reviews.filter((r) => r.rating === stars).length : 0,
+  }));
+  const distributionTotal = reviews?.length ?? 0;
 
   function loadReviews() {
     reviewService
@@ -74,9 +91,33 @@ export function ProductReviews({ productId }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId, isAuthenticated]);
 
+  // Runs once the form (editing or fresh) has actually mounted after a
+  // "Write a Review" click requested it — see handleWriteReviewClick.
+  useEffect(() => {
+    if (!scrollToFormPending) return;
+    if (formRef.current) {
+      formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setScrollToFormPending(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollToFormPending, editing, myReview]);
+
   function startEdit() {
     setForm({ rating: myReview.rating, title: myReview.title || '', comment: myReview.comment, images: myReview.images || [] });
     setEditing(true);
+  }
+
+  function handleWriteReviewClick() {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: location } });
+      return;
+    }
+    if (!eligible) {
+      showToast('You can write a review once your delivered order for this product arrives.', 'info');
+      return;
+    }
+    if (myReview && !editing) startEdit();
+    setScrollToFormPending(true);
   }
 
   function addImage(url) {
@@ -117,6 +158,36 @@ export function ProductReviews({ productId }) {
 
   return (
     <div className="product-reviews">
+      <div className="product-reviews-summary">
+        <div className="product-reviews-summary-score">
+          <span className="product-reviews-summary-number">{reviewCount ? Number(rating).toFixed(1) : '—'}</span>
+          <span className="product-reviews-summary-stars">
+            {'★'.repeat(Math.round(rating || 0))}
+            {'☆'.repeat(5 - Math.round(rating || 0))}
+          </span>
+          <span className="product-reviews-summary-count">
+            {reviewCount || 0} review{reviewCount === 1 ? '' : 's'}
+          </span>
+        </div>
+        <div className="product-reviews-summary-bars">
+          {distribution.map(({ stars, count }) => {
+            const pct = distributionTotal > 0 ? Math.round((count / distributionTotal) * 100) : 0;
+            return (
+              <div className="product-reviews-bar-row" key={stars}>
+                <span className="product-reviews-bar-label">{stars}★</span>
+                <span className="product-reviews-bar-track">
+                  <span className="product-reviews-bar-fill" style={{ width: `${pct}%` }} />
+                </span>
+                <span className="product-reviews-bar-pct">{pct}%</span>
+              </div>
+            );
+          })}
+        </div>
+        <button type="button" className="btn btn-primary product-reviews-write-btn" onClick={handleWriteReviewClick}>
+          <PenLine size={15} /> {myReview ? 'Edit Review' : 'Write a Review'}
+        </button>
+      </div>
+
       {reviews === null && <p className="text-body-sm">Loading reviews…</p>}
 
       {reviews && reviews.length === 0 && (
@@ -169,7 +240,7 @@ export function ProductReviews({ productId }) {
       )}
 
       {showForm && (
-        <form className="product-review-form" onSubmit={handleSubmit}>
+        <form className="product-review-form" ref={formRef} onSubmit={handleSubmit}>
           <h4>{myReview ? 'Edit your review' : 'Write a review'}</h4>
           <StarInput value={form.rating} onChange={(rating) => setForm((p) => ({ ...p, rating }))} />
           <div className="field">
@@ -238,14 +309,6 @@ export function ProductReviews({ productId }) {
         </div>
       )}
 
-      {isAuthenticated && eligible && myReview && !editing && (
-        <div className="product-review-mine">
-          <p className="text-body-sm">You've already reviewed this product.</p>
-          <button type="button" className="btn btn-outline btn-sm" onClick={startEdit}>
-            Edit Review
-          </button>
-        </div>
-      )}
     </div>
   );
 }

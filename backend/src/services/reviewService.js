@@ -100,7 +100,22 @@ async function update(reviewId, { rating, title, comment, images }) {
     new UpdateCommand({
       TableName: TABLE,
       Key: { reviewId },
-      UpdateExpression: 'SET rating = :rating, title = :title, comment = :comment, images = :images, updatedAt = :now',
+      // `comment` is a DynamoDB reserved keyword — it can't appear as a bare
+      // attribute name in an UpdateExpression (unlike PutCommand, which
+      // writes the whole item as a plain JSON map and never hits this).
+      // Every real attribute name is aliased here on principle, not just
+      // the one that happens to need it, so this doesn't silently break
+      // again if a future field happens to collide with another reserved
+      // word.
+      UpdateExpression:
+        'SET #rating = :rating, #title = :title, #comment = :comment, #images = :images, #updatedAt = :now',
+      ExpressionAttributeNames: {
+        '#rating': 'rating',
+        '#title': 'title',
+        '#comment': 'comment',
+        '#images': 'images',
+        '#updatedAt': 'updatedAt',
+      },
       ExpressionAttributeValues: {
         ':rating': rating,
         ':title': title || '',

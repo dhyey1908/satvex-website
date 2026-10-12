@@ -44,4 +44,17 @@
   justify-content: space-between;
   font-size: 0.88rem;
 }
-.coupon-applied span {align-items: center; gap: 6px; }
+/* `span` is a flex item here (parent is .coupon-input's display: flex) but
+   was never actually turned into a flex container itself, so its own
+   align-items/gap declarations did nothing — the coupon code + discount
+   amount text just ran as unbreakable inline content. At narrow widths a
+   long coupon code or a big discount amount could overflow the card. */
+.coupon-applied span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+.coupon-applied .btn { flex-shrink: 0; }

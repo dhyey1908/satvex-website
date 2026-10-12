@@ -92,23 +92,6 @@ export function ComboColorSelector({ variants, requiredCount, allowDuplicateColo
         })}
       </div>
       {canScroll && <p className="combo-scroll-hint">Scroll for more colors ↓</p>}
-
-      <div className="combo-selection-summary">
-        {isCombo && (
-          <span className={`combo-count-badge ${remaining > 0 ? 'incomplete' : 'complete'}`}>
-            {totalSelected} / {requiredCount} selected
-          </span>
-        )}
-
-        {isCombo && remaining > 0 && (
-          <p className="combo-hint combo-hint-required">
-            Select {remaining} more color{remaining > 1 ? 's' : ''} to continue.
-          </p>
-        )}
-        {isCombo && !allowDuplicateColors && (
-          <p className="combo-hint">Duplicate colors are not allowed for this option.</p>
-        )}
-      </div>
     </div>
   );
 }

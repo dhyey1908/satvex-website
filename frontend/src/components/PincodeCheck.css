@@ -1,15 +1,20 @@
 .pincode-check {
   padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--color-outline-variant);
+  border-radius: var(--radius-lg);
   background: var(--color-surface-container);
 }
 .pincode-check-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   font-family: var(--font-body);
   font-weight: 700;
-  font-size: 0.85rem;
-  margin: 0 0 var(--space-2);
+  font-size: 0.9rem;
+  color: var(--color-accent);
+  margin: 0 0 var(--space-3);
 }
+.pincode-check-title svg { color: var(--color-accent); }
 .pincode-check-label {
   display: flex;
   align-items: center;
@@ -36,7 +41,24 @@
   color: var(--color-text);
   font-size: 0.9rem;
 }
-.pincode-check-form input:focus { outline: none; }
+.pincode-check-form input:focus { outline: none; border-color: var(--color-accent); }
+
+.pincode-check-btn { flex-shrink: 0; }
+
+/* Dynamic (settings.shipping.freeThreshold), shown regardless of whether a
+   pincode has been checked yet — a store-wide fact, not a per-pincode one. */
+.pincode-check-free-delivery {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: var(--space-3) 0 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
 
 .pincode-check-result {
   display: flex;
