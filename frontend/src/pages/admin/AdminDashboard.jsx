@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, AlertTriangle } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { Loader } from '../../components/Loader';
 import { ErrorState } from '../../components/ErrorState';
@@ -48,6 +48,7 @@ export function AdminDashboard() {
   const [error, setError] = useState(null);
   const [orders, setOrders] = useState(null);
   const [range, setRange] = useState(7);
+  const [syncIssues, setSyncIssues] = useState(null);
 
   useEffect(() => {
     adminService
@@ -58,6 +59,10 @@ export function AdminDashboard() {
       .orders({})
       .then((data) => setOrders(data.orders))
       .catch(() => setOrders([]));
+    adminService
+      .shipmentSyncIssues()
+      .then((data) => setSyncIssues(data.counts))
+      .catch(() => setSyncIssues(null));
   }, []);
 
   const series = useMemo(() => (orders ? buildDailySeries(orders, range) : []), [orders, range]);
@@ -75,6 +80,18 @@ export function AdminDashboard() {
           <ArrowLeft size={16} /> Back to Customer View
         </Link>
       </div>
+
+      {syncIssues?.total > 0 && (
+        <Link to="/admin/shipment-issues" className="admin-alert-banner admin-alert-banner-danger">
+          <AlertTriangle size={18} />
+          <span>
+            {syncIssues.total} paid order{syncIssues.total === 1 ? '' : 's'} not shipped to Shiprocket
+            {' — '}
+            {syncIssues.failed} failed, {syncIssues.retrying} retrying, {syncIssues.noJob} not synced. Click to review.
+          </span>
+        </Link>
+      )}
+
       <div className="stat-grid">
         {Object.entries(LABELS).map(([key, label]) => (
           <div key={key} className="stat-tile">

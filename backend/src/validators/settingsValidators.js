@@ -120,6 +120,10 @@ const paymentsSettingsSchema = z.object({
   onlineTestUserIds: z.array(z.string().trim().min(1)).max(50).default([]),
 });
 
+const notificationsSettingsSchema = z.object({
+  shipmentAlertEmail: z.string().trim().email().optional().or(z.literal('')),
+});
+
 const updateSettingsSchema = z.object({
   contactPhone: z.string().trim().max(20).optional(),
   contactEmail: z.string().trim().email().optional().or(z.literal('')),
@@ -137,6 +141,7 @@ const updateSettingsSchema = z.object({
   payments: paymentsSettingsSchema.optional(),
   shiprocket: shiprocketSettingsSchema.optional(),
   delivery: deliverySettingsSchema.optional(),
+  notifications: notificationsSettingsSchema.optional(),
 });
 
 module.exports = { updateSettingsSchema };

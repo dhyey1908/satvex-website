@@ -33,7 +33,24 @@ const logger = require('../utils/logger');
 // Shiprocket actually assigned matches what was quoted, as a diagnostic;
 // it cannot force the match. Confirm via scripts/shiprocket-sample-rate.js
 // whether a usable id field exists before this can be fixed.
+// Exported separately from attemptShipmentCreation so the lock can wrap the
+// WHOLE attempt (every step), not just one DB write — see
+// orderService.acquireShipmentLock's comment for why this exists: the
+// automatic sweep, an admin's manual retry, and "Retry All" can otherwise
+// all reach this same order at once.
 async function attemptShipmentCreation(orderId) {
+  const { acquired } = await orderService.acquireShipmentLock(orderId);
+  if (!acquired) {
+    throw new Error('Shipment sync for this order is already in progress — try again in a minute.');
+  }
+  try {
+    return await attemptShipmentCreationLocked(orderId);
+  } finally {
+    await orderService.releaseShipmentLock(orderId);
+  }
+}
+
+async function attemptShipmentCreationLocked(orderId) {
   const settings = await settingsService.getSettings();
   if (!settings.shiprocket?.enabled) {
     throw new Error('Shiprocket is not enabled in settings.');
@@ -46,7 +63,18 @@ async function attemptShipmentCreation(orderId) {
   if (!order) throw new Error(`Order ${orderId} not found.`);
 
   // Step 1: create the Shiprocket order (skip if already done — the
-  // resumability that makes this whole function idempotent).
+  // resumability that makes this whole function idempotent). First checks
+  // whether Shiprocket already has an order for us (covers a previous
+  // createOrder call that succeeded on Shiprocket's side but whose response
+  // we never got to save — see findOrderByChannelOrderId) before ever
+  // calling createOrder again.
+  if (!order.shiprocketOrderId) {
+    const existing = await shiprocketService.findOrderByChannelOrderId(order.orderId);
+    if (existing) {
+      await orderService.recordShiprocketOrderCreated(orderId, { shiprocketOrderId: existing.shiprocketOrderId });
+      order = await orderService.findById(orderId);
+    }
+  }
   if (!order.shiprocketOrderId) {
     const { lengthCm, breadthCm, heightCm, weightKg } = settings.shiprocket.defaultPackage || {};
     const [firstName, ...rest] = (order.customer?.name || '').trim().split(' ');
@@ -179,4 +207,82 @@ async function triggerShipmentIfNeeded(orderId) {
   }
 }
 
-module.exports = { attemptShipmentCreation, triggerShipmentIfNeeded };
+// Shared by the admin "Retry Shipment" button and "Retry All Failed" (see
+// orderController.adminRetryShipment/adminRetryAllShipments) — same
+// bookkeeping either way: on success, mark any existing job done; on
+// failure, reset an existing job for another round or create one if none
+// existed yet (e.g. this order's very first attempt never even got a job,
+// because Shiprocket was disabled at the time — see listSyncIssues below).
+// Never throws — returns a result object so a bulk caller can tally
+// successes/failures without needing try/catch per order.
+async function retryShipment(orderId) {
+  try {
+    const order = await attemptShipmentCreation(orderId);
+    const existingJob = await shipmentJobService.findByOrderId(orderId);
+    if (existingJob) await shipmentJobService.markDone(orderId);
+    return { success: true, order };
+  } catch (err) {
+    const existingJob = await shipmentJobService.findByOrderId(orderId);
+    if (existingJob) await shipmentJobService.resetForManualRetry(orderId);
+    else await shipmentJobService.createJob(orderId);
+    return { success: false, error: err.message };
+  }
+}
+
+// An order counts as "paid/confirmed" for sync-issue purposes if money has
+// genuinely changed hands and is still with us: COD orders confirm on
+// placement (no payment gate), Online orders only once paymentStatus is
+// 'paid'. Cancelled orders and anything already refunded are excluded either
+// way — per the brief, there's nothing left to ship for either.
+function isPaidOrConfirmed(order) {
+  if (order.status === 'Cancelled') return false;
+  if (order.refundStatus === 'success') return false;
+  if (order.paymentMethod === 'Online') return order.paymentStatus === 'paid';
+  return true;
+}
+
+// Powers both the admin dashboard's warning card/count and the dedicated
+// "Shipment Sync Issues" list (see orderController.adminShipmentSyncIssues).
+// A paid/confirmed order with shipmentStatus !== 'label_generated' hasn't
+// finished the pipeline — bucketed by its job's state: 'retrying' (job still
+// has attempts left), 'failed' (job exhausted MAX_ATTEMPTS — see
+// shipmentJobService/shipmentSweep), or 'no_job' (no job record exists at
+// all, e.g. Shiprocket was disabled in settings at the moment this order
+// became paid, so triggerShipmentIfNeeded never even queued one — see its
+// own comment). All three are real, actionable problems; none is silently
+// dropped. Scan-based, same reasoning as orderService.listAll — admin order
+// volume for this store is modest enough that a Scan plus in-memory
+// filtering is simpler and cheaper than maintaining another GSI.
+async function listSyncIssues() {
+  const orders = await orderService.listAll({});
+  const candidates = orders.filter((o) => isPaidOrConfirmed(o) && o.shipmentStatus !== 'label_generated');
+
+  const issues = await Promise.all(
+    candidates.map(async (order) => {
+      const job = await shipmentJobService.findByOrderId(order.orderId);
+      const bucket = !job ? 'no_job' : job.status === 'failed' ? 'failed' : 'retrying';
+      return {
+        orderId: order.orderId,
+        customerName: order.customer?.name || null,
+        total: order.total,
+        paidAt: order.paidAt || order.createdAt,
+        paymentMethod: order.paymentMethod,
+        shipmentStatus: order.shipmentStatus || 'not_created',
+        bucket,
+        attempts: job?.attempts ?? 0,
+        lastError: job?.lastError ?? null,
+      };
+    })
+  );
+
+  issues.sort((a, b) => (a.paidAt < b.paidAt ? 1 : -1));
+  const counts = {
+    total: issues.length,
+    retrying: issues.filter((i) => i.bucket === 'retrying').length,
+    failed: issues.filter((i) => i.bucket === 'failed').length,
+    noJob: issues.filter((i) => i.bucket === 'no_job').length,
+  };
+  return { issues, counts };
+}
+
+module.exports = { attemptShipmentCreation, triggerShipmentIfNeeded, retryShipment, listSyncIssues };

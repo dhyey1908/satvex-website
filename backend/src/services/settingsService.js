@@ -53,6 +53,11 @@ const DEFAULT_SETTINGS = {
   // admin turns it on, only states in enabledStates are deliverable; a
   // state not yet added is disabled by default.
   delivery: { enabled: false, enabledStates: [] },
+  // Where the "a shipment sync job exhausted all retries" alert (see
+  // shipmentSweep.js) is sent. Admin-editable in Settings; defaults to the
+  // team inbox so the alert has somewhere to go even before anyone sets it
+  // explicitly.
+  notifications: { shipmentAlertEmail: 'satvexproducts.team@gmail.com' },
   whyPillars: [
     { title: 'Flexible', description: 'Moves comfortably with your everyday needs.' },
     { title: 'Comfortable', description: 'Lightweight designs created for effortless everyday use.' },

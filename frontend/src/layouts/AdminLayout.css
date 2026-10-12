@@ -44,6 +44,22 @@
 .admin-sidebar nav a:hover { background: rgba(255,255,255,0.08); color: #fff; }
 .admin-sidebar nav a.active { background: var(--color-accent); color: #fff; }
 
+.admin-nav-badge {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-error, #a13a2f);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .admin-user {
   display: flex;
   align-items: center;

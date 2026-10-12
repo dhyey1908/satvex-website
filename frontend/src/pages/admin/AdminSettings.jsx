@@ -286,7 +286,21 @@ export function AdminSettings() {
                 placeholder="Must match Shiprocket panel exactly"
               />
             </div>
+            <div className="field">
+              <label htmlFor="shipmentAlertEmail">Shipment Sync Alert Email</label>
+              <input
+                id="shipmentAlertEmail"
+                type="email"
+                value={form.notifications?.shipmentAlertEmail ?? ''}
+                onChange={(e) => setNestedField('notifications', 'shipmentAlertEmail', e.target.value)}
+                placeholder="e.g. satvexproducts.team@gmail.com"
+              />
+            </div>
           </div>
+          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
+            Sent once per order, only when a paid order's Shiprocket sync job exhausts all retry attempts — see
+            Orders → Shipment Sync Issues.
+          </p>
           <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
             Pickup Location Nickname must exactly match a pickup address already created in the Shiprocket panel
             (Settings → Pickup Addresses) — used when actually booking a shipment. Pickup Pincode is separate, used

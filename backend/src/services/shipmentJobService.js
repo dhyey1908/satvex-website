@@ -73,7 +73,9 @@ async function markDone(jobId) {
 
 // Called on a failed attempt. Flips to 'failed' (visible in the admin
 // failed-jobs list) once MAX_ATTEMPTS is exhausted, otherwise reschedules
-// with capped exponential backoff.
+// with capped exponential backoff. Returns whether THIS call is the one
+// that just pushed the job into terminal 'failed' — the caller (shipmentSweep)
+// uses that to fire the admin alert exactly once, not on every backoff step.
 async function recordFailure(jobId, attemptsSoFar, error) {
   const attempts = attemptsSoFar + 1;
   const now = new Date().toISOString();
@@ -87,7 +89,7 @@ async function recordFailure(jobId, attemptsSoFar, error) {
         ExpressionAttributeValues: { ':failed': 'failed', ':attempts': attempts, ':err': error?.message || 'Unknown error', ':now': now },
       })
     );
-    return;
+    return { failed: true };
   }
   const backoffMin = BACKOFF_MINUTES[Math.min(attempts - 1, BACKOFF_MINUTES.length - 1)];
   const nextAttemptAt = new Date(Date.now() + backoffMin * 60 * 1000).toISOString();
@@ -99,6 +101,7 @@ async function recordFailure(jobId, attemptsSoFar, error) {
       ExpressionAttributeValues: { ':attempts': attempts, ':next': nextAttemptAt, ':err': error?.message || 'Unknown error', ':now': now },
     })
   );
+  return { failed: false };
 }
 
 // Admin "Retry Shipment" button — resets a failed (or still-pending) job to

@@ -21,6 +21,19 @@
 }
 .admin-alert-banner svg { flex-shrink: 0; }
 
+/* Clickable variant (a <Link>, not a <div>) for actionable warnings, e.g.
+   the dashboard's "paid orders not shipped" card — red, not amber, since
+   this one represents money already collected with nothing shipped yet,
+   not just an informational flag. */
+.admin-alert-banner-danger {
+  background: var(--color-error-bg);
+  color: var(--color-error-dark, var(--color-error));
+  text-decoration: none;
+  cursor: pointer;
+  transition: box-shadow var(--transition-fast);
+}
+.admin-alert-banner-danger:hover { box-shadow: var(--shadow-sm); }
+
 .admin-needs-review-icon { color: var(--color-warning, #8a5a10); margin-left: 6px; vertical-align: middle; }
 
 .stat-grid {
@@ -64,6 +77,8 @@
 .pill { padding: 3px 10px; border-radius: var(--radius-pill); font-size: 0.75rem; font-weight: 600; }
 .pill-active { background: var(--color-success-bg); color: var(--color-success); }
 .pill-inactive { background: var(--color-surface-muted); color: var(--color-text-muted); }
+.pill-warning { background: var(--color-warning-bg, #fdf3d9); color: var(--color-warning, #8a5a10); }
+.pill-danger { background: var(--color-error-bg); color: var(--color-error); }
 
 .admin-filters { display: flex; gap: var(--space-3); margin-bottom: var(--space-4); flex-wrap: wrap; }
 .admin-filters input, .admin-filters select { padding: 9px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); }

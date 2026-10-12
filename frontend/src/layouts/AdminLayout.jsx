@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { adminService } from '../services/adminService';
 import {
   Menu,
   ArrowLeft,
@@ -30,9 +31,28 @@ const LINKS = [
   { to: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
+// How often the sidebar re-checks the sync-issue count while an admin is
+// browsing — frequent enough to notice a new failure within a reasonable
+// time without turning this into a real-time/websocket feature nobody asked
+// for.
+const SYNC_ISSUE_POLL_MS = 2 * 60 * 1000;
+
 export function AdminLayout() {
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [syncIssueCount, setSyncIssueCount] = useState(0);
+
+  useEffect(() => {
+    function loadCount() {
+      adminService
+        .shipmentSyncIssues()
+        .then((data) => setSyncIssueCount(data.counts.total))
+        .catch(() => {}); // badge is a convenience, not worth surfacing an error for
+    }
+    loadCount();
+    const interval = setInterval(loadCount, SYNC_ISSUE_POLL_MS);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className={`admin-shell ${sidebarOpen ? 'sidebar-open' : ''}`}>
@@ -50,6 +70,11 @@ export function AdminLayout() {
                 onClick={() => setSidebarOpen(false)}
               >
                 <Icon size={17} /> {link.label}
+                {link.to === '/admin/orders' && syncIssueCount > 0 && (
+                  <span className="admin-nav-badge" title={`${syncIssueCount} paid order(s) not yet shipped to Shiprocket`}>
+                    {syncIssueCount}
+                  </span>
+                )}
               </NavLink>
             );
           })}

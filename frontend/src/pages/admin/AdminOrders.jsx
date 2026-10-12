@@ -27,6 +27,10 @@ const SHIPMENT_STATUS_LABELS = {
   awb_assigned: 'AWB Assigned',
   pickup_scheduled: 'Pickup Scheduled',
   label_generated: 'Label Ready',
+  // Set once a sync job exhausts all retries (see shipmentJobService/
+  // shipmentSweep.js) — distinct from 'not_created' so a stuck PAID order
+  // never reads the same as a brand-new unpaid one in this table.
+  sync_failed: 'Sync Failed',
 };
 
 const STATUSES = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
@@ -273,7 +277,9 @@ export function AdminOrders() {
                       {o.needsReview && <AlertTriangle size={14} className="admin-needs-review-icon" title="Needs review" />}
                     </td>
                     <td>
-                      <span className={`pill ${o.awbCode ? 'pill-active' : 'pill-inactive'}`}>
+                      <span
+                        className={`pill ${o.shipmentStatus === 'sync_failed' ? 'pill-danger' : o.awbCode ? 'pill-active' : 'pill-inactive'}`}
+                      >
                         {SHIPMENT_STATUS_LABELS[o.shipmentStatus] || o.shipmentStatus || 'Not Created'}
                       </span>
                     </td>

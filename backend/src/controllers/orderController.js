@@ -7,7 +7,6 @@ const pricingService = require('../services/pricingService');
 const payuService = require('../services/payuService');
 const settingsService = require('../services/settingsService');
 const shipmentService = require('../services/shipmentService');
-const shipmentJobService = require('../services/shipmentJobService');
 const shiprocketService = require('../services/shiprocketService');
 const { checkoutSchema, quoteSchema, updateOrderStatusSchema, refundSchema } = require('../validators/orderValidators');
 const AppError = require('../utils/AppError');
@@ -549,24 +548,48 @@ async function refreshTracking(req, res) {
 // On failure, the order itself is never mutated into a bad state — only a
 // retry job is queued/reset, exactly as the background sweep would do. Safe
 // to call repeatedly; attemptShipmentCreation resumes from whichever step
-// last succeeded rather than re-doing completed steps.
+// last succeeded rather than re-doing completed steps. Bookkeeping lives in
+// shipmentService.retryShipment, shared with the bulk "Retry All" endpoint
+// below.
 async function adminRetryShipment(req, res) {
   const order = await orderService.findById(req.params.id);
   if (!order) {
     throw new AppError('Order not found.', 404, 'NOT_FOUND');
   }
 
-  try {
-    const updated = await shipmentService.attemptShipmentCreation(order.orderId);
-    const existingJob = await shipmentJobService.findByOrderId(order.orderId);
-    if (existingJob) await shipmentJobService.markDone(order.orderId);
-    ok(res, { order: updated });
-  } catch (err) {
-    const existingJob = await shipmentJobService.findByOrderId(order.orderId);
-    if (existingJob) await shipmentJobService.resetForManualRetry(order.orderId);
-    else await shipmentJobService.createJob(order.orderId);
-    throw new AppError(`Shipment retry failed: ${err.message}`, 502, 'SHIPMENT_RETRY_FAILED');
+  const result = await shipmentService.retryShipment(order.orderId);
+  if (!result.success) {
+    throw new AppError(`Shipment retry failed: ${result.error}`, 502, 'SHIPMENT_RETRY_FAILED');
   }
+  ok(res, { order: result.order });
+}
+
+// Admin "Shipment Sync Issues" list — every paid/confirmed order that
+// hasn't finished the Shiprocket pipeline yet, bucketed by why (still
+// retrying / exhausted retries / no job at all). See
+// shipmentService.listSyncIssues for exactly what counts.
+async function adminShipmentSyncIssues(req, res) {
+  const result = await shipmentService.listSyncIssues();
+  ok(res, result);
+}
+
+// "Retry All Failed" — reruns retryShipment for every order currently
+// showing up in the sync-issues list, sequentially with a short delay
+// between each (same BATCH_DELAY_MS pattern as shipmentSweep.js) rather than
+// in parallel, so a burst of retries doesn't hammer Shiprocket's API all at
+// once. Each order still goes through the same lock as every other path
+// (shipmentService.attemptShipmentCreation), so this can safely overlap with
+// the scheduled sweep without double-booking anything.
+async function adminRetryAllShipments(req, res) {
+  const { issues } = await shipmentService.listSyncIssues();
+  const result = { total: issues.length, succeeded: 0, failed: 0 };
+  for (const issue of issues) {
+    const outcome = await shipmentService.retryShipment(issue.orderId);
+    if (outcome.success) result.succeeded += 1;
+    else result.failed += 1;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  ok(res, result);
 }
 
 // Read-only — logs in and makes one serviceability lookup, nothing else.
@@ -593,6 +616,8 @@ module.exports = {
   adminUpdateStatus,
   adminRefund,
   adminRetryShipment,
+  adminShipmentSyncIssues,
+  adminRetryAllShipments,
   adminTestShiprocketConnection,
   finalizeExpiry,
 };

@@ -45,6 +45,15 @@ function stubEverything() {
   jobServiceCalls = { createJob: 0 };
 
   orderService.findById = async (orderId) => fakeOrders[orderId] || null;
+  // In-memory fakes for the per-order lock attemptShipmentCreation now
+  // wraps every attempt in — without these, the real DynamoDB-backed
+  // implementations would run against the actual orders table, which can
+  // both fail (no real credentials in CI) and, worse, silently create
+  // stray skeleton order rows for ids like 'ORDER-2' that don't otherwise
+  // exist (UpdateCommand upserts). Matches this file's own stated rule:
+  // every DynamoDB-backed call is monkey-patched with an in-memory fake.
+  orderService.acquireShipmentLock = async () => ({ acquired: true });
+  orderService.releaseShipmentLock = async () => {};
   orderService.recordShiprocketOrderCreated = async (orderId, { shiprocketOrderId }) => {
     fakeOrders[orderId] = { ...fakeOrders[orderId], shiprocketOrderId: String(shiprocketOrderId), shipmentStatus: 'order_created' };
   };
@@ -73,6 +82,12 @@ function stubEverything() {
     jobServiceCalls.createJob += 1;
     return { created: true, orderId };
   };
+
+  // Defaults to "nothing found" — the normal case, since these tests start
+  // every order with shiprocketOrderId: null and expect createOrder to run.
+  // Overridden per-test (none currently need to) if a case wants to
+  // exercise the "Shiprocket already had it" recovery path instead.
+  shiprocketService.findOrderByChannelOrderId = async () => null;
 }
 
 beforeEach(stubEverything);

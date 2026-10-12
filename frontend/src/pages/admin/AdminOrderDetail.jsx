@@ -235,7 +235,10 @@ export function AdminOrderDetail() {
       <div className="admin-form-section">
         <h3>Shipment</h3>
         <p>
-          Status: <strong>{order.shipmentStatus || 'not_created'}</strong>
+          Status:{' '}
+          <span className={`pill ${order.shipmentStatus === 'sync_failed' ? 'pill-danger' : 'pill-inactive'}`}>
+            {order.shipmentStatus === 'sync_failed' ? 'Sync Failed — Needs Action' : order.shipmentStatus || 'not_created'}
+          </span>
         </p>
         {order.awbCode && (
           <p>

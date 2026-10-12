@@ -153,6 +153,37 @@ async function createOrder({
   return data;
 }
 
+// Looks up whether Shiprocket already has an order for OUR orderId (the
+// "channel order id" — what we pass as `order_id` in createOrder's body
+// above) — used by shipmentService before calling createOrder, to cover the
+// case where Shiprocket received and created a previous createOrder request
+// but our own save of shiprocketOrderId never completed (e.g. the request
+// timed out, or the Lambda was killed between the two). Without this, a
+// retry in that exact window would call createOrder again and likely create
+// a second, duplicate Shiprocket order for the same sale.
+//
+// TODO(confirm): the search/filter query param on Shiprocket's "Get All
+// Orders" list endpoint isn't independently confirmed from an official doc
+// fetch in this codebase (only from secondary/mirrored documentation and
+// SDK references describing a `search` param that matches AWB or channel
+// order_id) — treated as best-effort: ANY unexpected shape, error, or no
+// match simply returns null, which falls straight through to the existing,
+// already-working createOrder call. This can only ever prevent a duplicate
+// it manages to find — it can never make shipment creation worse than
+// today's behavior.
+async function findOrderByChannelOrderId(orderId) {
+  try {
+    const data = await shiprocketFetch(BASE_URL, `/v1/external/orders?search=${encodeURIComponent(orderId)}`, { method: 'GET' });
+    const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+    const match = list.find((o) => String(o.channel_order_id ?? o.order_id_num ?? '') === String(orderId));
+    if (!match) return null;
+    const shiprocketOrderId = match.id ?? match.order_id;
+    return shiprocketOrderId ? { shiprocketOrderId } : null;
+  } catch {
+    return null;
+  }
+}
+
 async function assignAwb({ shiprocketOrderId, courierId }) {
   const body = { oid: shiprocketOrderId, ...(courierId ? { courier_id: courierId } : {}) };
   const data = await shiprocketFetch(BASE_URL, '/v1/external/courier/assign/awb', { method: 'POST', body: JSON.stringify(body) });
@@ -247,6 +278,7 @@ module.exports = {
   getServiceabilityRaw,
   listPickupAddresses,
   createOrder,
+  findOrderByChannelOrderId,
   assignAwb,
   schedulePickup,
   generateLabel,

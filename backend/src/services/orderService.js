@@ -473,6 +473,72 @@ async function recordRefundResult(order, { refundId, status, payuRefundId }) {
 
 // ---------- Shiprocket lifecycle (Step 2) ----------
 
+// Prevents two concurrent shipment-sync attempts on the SAME order — the
+// automatic sweep and an admin's manual retry (or "Retry All") button, or
+// two admins clicking retry at once, could otherwise both call Shiprocket's
+// create/AWB/label APIs for the same order at the same time. Conditioned on
+// the lock being absent OR stale (older than LOCK_STALE_MS) so a crashed
+// holder (Lambda timeout, cold-start death) can never permanently wedge an
+// order — the next attempt, whenever it comes, just takes over.
+const LOCK_STALE_MS = 2 * 60 * 1000; // longer than any single attemptShipmentCreation run should take
+
+async function acquireShipmentLock(orderId) {
+  const now = Date.now();
+  try {
+    await docClient.send(
+      new UpdateCommand({
+        TableName: TABLE,
+        Key: { orderId },
+        UpdateExpression: 'SET shipmentLockedAt = :now',
+        ConditionExpression: 'attribute_not_exists(shipmentLockedAt) OR shipmentLockedAt < :stale',
+        ExpressionAttributeValues: { ':now': now, ':stale': now - LOCK_STALE_MS },
+      })
+    );
+    return { acquired: true };
+  } catch (err) {
+    if (err.name === 'ConditionalCheckFailedException') return { acquired: false };
+    throw err;
+  }
+}
+
+// Best-effort — a failure to release just means the lock expires naturally
+// after LOCK_STALE_MS instead of immediately; never worth throwing over.
+async function releaseShipmentLock(orderId) {
+  try {
+    await docClient.send(
+      new UpdateCommand({
+        TableName: TABLE,
+        Key: { orderId },
+        UpdateExpression: 'REMOVE shipmentLockedAt',
+      })
+    );
+  } catch (err) {
+    logger.error('failed to release shipment lock (non-fatal)', { orderId, message: err.message });
+  }
+}
+
+// Set once a shipment-sync job exhausts all retry attempts (see
+// shipmentJobService.recordFailure / shipmentSweep.js) — gives a stuck paid
+// order its own distinct status instead of sitting at 'not_created'
+// indistinguishable from a brand-new unpaid order. Conditioned on not
+// already being 'label_generated' so a late/racing failure report can never
+// downgrade an order that actually finished successfully in the meantime.
+async function markShipmentSyncFailed(orderId) {
+  try {
+    await docClient.send(
+      new UpdateCommand({
+        TableName: TABLE,
+        Key: { orderId },
+        UpdateExpression: 'SET shipmentStatus = :failed, updatedAt = :now',
+        ConditionExpression: 'shipmentStatus <> :done',
+        ExpressionAttributeValues: { ':failed': 'sync_failed', ':done': 'label_generated', ':now': new Date().toISOString() },
+      })
+    );
+  } catch (err) {
+    if (err.name !== 'ConditionalCheckFailedException') throw err;
+  }
+}
+
 async function recordShiprocketOrderCreated(orderId, { shiprocketOrderId }) {
   await docClient.send(
     new UpdateCommand({
@@ -704,6 +770,9 @@ module.exports = {
   flagForReview,
   recordRefundPending,
   recordRefundResult,
+  acquireShipmentLock,
+  releaseShipmentLock,
+  markShipmentSyncFailed,
   recordShiprocketOrderCreated,
   findByShiprocketOrderId,
   recordAwbAssigned,

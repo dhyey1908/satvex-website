@@ -552,6 +552,7 @@ Resources:
           SHIPROCKET_PASSWORD: !Ref ShiprocketPassword
           SHIPROCKET_BASE_URL: !Ref ShiprocketBaseUrl
           SHIPROCKET_SERVICEABILITY_BASE_URL: !Ref ShiprocketServiceabilityBaseUrl
+          SES_SENDER_EMAIL: !Ref SesSenderEmail
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref OrdersTable
@@ -559,6 +560,8 @@ Resources:
             TableName: !Ref ShipmentJobsTable
         - DynamoDBCrudPolicy:
             TableName: !Ref SettingsTable
+        - SESCrudPolicy:
+            IdentityName: !Ref SesSenderEmail
       Events:
         TenMinuteSweep:
           Type: Schedule
