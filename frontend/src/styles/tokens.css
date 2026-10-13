@@ -74,6 +74,12 @@
      acknowledgement, not a heavy colored box. */
   --focus-ring: 0 0 0 2px rgba(107, 39, 55, 0.18);
 
+  /* One border + corner radius for every text input/select, so a field
+     looks the same wherever it appears (search, coupon, checkout, OTP,
+     contact, admin) — see the .field and .input-shell rules in global.css. */
+  --input-border: 1.5px solid var(--color-outline-variant);
+  --input-radius: var(--radius-button);
+
   --transition-fast: 120ms ease;
   --transition-base: 220ms cubic-bezier(0.65, 0, 0.35, 1);
 

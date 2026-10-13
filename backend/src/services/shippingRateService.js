@@ -113,7 +113,18 @@ async function getShippingQuote({ deliveryPincode, paymentMethod, weightKg }) {
       if (shipCfg.minCharge != null) charge = Math.max(charge, Number(shipCfg.minCharge));
       if (shipCfg.maxCharge != null) charge = Math.min(charge, Number(shipCfg.maxCharge));
       charge = round(charge, shipCfg.roundTo);
-      result = { charge, source: 'shiprocket', courierName: chosen.courier_name };
+      // freightCharge/rtoCharge are the courier's own quoted rates (what the
+      // store would pay), not the customer-facing `charge` — stored on the
+      // order for admin cost analytics only. rto_charges isn't guaranteed
+      // present in Shiprocket's response, so it's null when absent.
+      const rawRto = Number(chosen.rto_charges);
+      result = {
+        charge,
+        source: 'shiprocket',
+        courierName: chosen.courier_name,
+        freightCharge: Number(chosen.freight_charge),
+        rtoCharge: Number.isFinite(rawRto) ? rawRto : null,
+      };
     }
   } catch (err) {
     const source = err.message?.includes('timed out') ? 'fallback-timeout' : 'fallback-error';

@@ -216,3 +216,76 @@
     text-align: center;
   }
 }
+
+/* ---------- prepaid nudge (payment options + COD confirmation) ---------- */
+.payment-offer-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.payment-offer-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+.payment-offer-banner svg { flex-shrink: 0; }
+.payment-offer-banner p { flex: 1; min-width: 180px; margin: 0; font-size: 0.85rem; line-height: 1.4; }
+
+.cod-confirm-total { margin: 0 0 var(--space-4); line-height: 1.5; }
+.cod-confirm-offer {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+.cod-confirm-offer svg { flex-shrink: 0; margin-top: 2px; }
+.cod-confirm-offer p { margin: 4px 0 0; font-size: 0.85rem; line-height: 1.45; color: var(--color-text-muted); }
+.cod-confirm-actions { display: flex; flex-direction: column; gap: var(--space-2); }
+
+/* The prepaid offer itemised (Online option + COD confirmation) */
+.payment-offer-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.payment-offer-list li {
+  position: relative;
+  padding-left: 16px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-success);
+  line-height: 1.35;
+}
+.payment-offer-list li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  font-weight: 700;
+}
+.payment-offer-list-modal li { font-size: 0.85rem; }
+.cod-confirm-newtotal { margin: 8px 0 0; font-size: 0.9rem; color: var(--color-text); }
+.cod-confirm-newtotal s { margin-left: 8px; color: var(--color-text-muted); font-weight: 400; }

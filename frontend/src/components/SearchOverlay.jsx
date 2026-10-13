@@ -89,7 +89,7 @@ export function SearchOverlay() {
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
           >
-            <form onSubmit={goToResults} className="search-overlay-form">
+            <form onSubmit={goToResults} className="search-overlay-form input-shell">
               <Search size={16} className="search-overlay-form-icon" />
               <input
                 ref={inputRef}

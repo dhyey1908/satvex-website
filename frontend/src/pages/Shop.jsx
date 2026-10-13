@@ -9,6 +9,7 @@ import { ErrorState } from '../components/ErrorState';
 import { Pagination } from '../components/Pagination';
 import { usePagination } from '../hooks/usePagination';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
+import { getKnownProductCount, rememberProductCount } from '../utils/catalogSize';
 import './Shop.css';
 
 const PAGE_SIZE = 12;
@@ -65,7 +66,11 @@ export function Shop() {
     setProducts(null);
     productService
       .list()
-      .then((data) => setProducts(data.products))
+      .then((data) => {
+        setProducts(data.products);
+        // Sizes the loading placeholders on the next visit — see catalogSize.js.
+        rememberProductCount(data.products.length);
+      })
       .catch((err) => setError(err.message));
   }
 
@@ -123,15 +128,18 @@ export function Shop() {
     if (search) setSearchParams({});
   }
 
+  // One product (or, while loading, a catalog we last saw with one) gets the
+  // centered single-card layout — so the placeholder and the real card sit in
+  // the same place and nothing jumps when the data arrives.
+  const singleProductLayout = products ? visible?.length === 1 : getKnownProductCount() === 1;
+
   const activeFilterCount = selectedColors.length + (inStockOnly ? 1 : 0) + (search ? 1 : 0);
 
   return (
     <div className="container section shop-page">
       <PageHeader eyebrow="Shop" title="All Products" count={visible?.length} countLabel="products" />
       <p className="shop-subcopy text-body-md">
-        {products && products.length <= 1
-          ? 'Thoughtfully designed, sold single or as a curated combo.'
-          : 'The complete Satvex collection — thoughtfully designed essentials, sold single or as a curated combo.'}
+        Thoughtfully designed essentials, sold single or as a curated combo.
       </p>
 
       <div className="shop-filter-bar">
@@ -212,7 +220,7 @@ export function Shop() {
         )}
       </AnimatePresence>
 
-      <div className={`shop-results ${visible?.length === 1 ? 'shop-single-product' : ''}`}>
+      <div className={`shop-results ${singleProductLayout ? 'shop-single-product' : ''}`}>
         {error && <ErrorState message={error} onRetry={load} />}
         {!error && (
           <ProductGrid

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const settingsService = require('./settingsService');
 const couponService = require('./couponService');
 const deliveryEligibilityService = require('./deliveryEligibilityService');
-const { calculateTotals } = require('./pricingService');
+const { calculateTotals, buildPrepaidOffer } = require('./pricingService');
 
 const originalGetSettings = settingsService.getSettings;
 const originalFindByCode = couponService.findByCode;
@@ -177,4 +177,33 @@ test('optional prepaid discount reduces the total only on Online payment, never 
   assert.equal(online.prepaidDiscount, 20);
   const cod = await calculateTotals({ items: comboItems(1), paymentMethod: 'COD' });
   assert.equal(cod.prepaidDiscount, 0);
+});
+
+// ---- buildPrepaidOffer: the "pay online and save" figure the checkout shows ----
+
+test('buildPrepaidOffer: saving is the full total difference (COD charge + prepaid discount)', () => {
+  const offer = buildPrepaidOffer(
+    { total: 478.64, codCharge: 59, prepaidDiscount: 0 },
+    { total: 409.64, codCharge: 0, prepaidDiscount: 10 }
+  );
+  assert.equal(offer.savings, 69);
+  assert.equal(offer.codCharge, 59);
+  assert.equal(offer.prepaidDiscount, 10);
+  assert.equal(offer.codTotal, 478.64);
+  assert.equal(offer.onlineTotal, 409.64);
+});
+
+test('buildPrepaidOffer: never reports a negative saving when prepaid is not cheaper', () => {
+  const offer = buildPrepaidOffer(
+    { total: 400, codCharge: 0, prepaidDiscount: 0 },
+    { total: 400, codCharge: 0, prepaidDiscount: 0 }
+  );
+  assert.equal(offer.savings, 0);
+  const worse = buildPrepaidOffer({ total: 400, codCharge: 0 }, { total: 410, codCharge: 0, prepaidDiscount: 0 });
+  assert.equal(worse.savings, 0);
+});
+
+test('buildPrepaidOffer: rounds to paise', () => {
+  const offer = buildPrepaidOffer({ total: 100.3, codCharge: 0 }, { total: 100.1, codCharge: 0, prepaidDiscount: 0 });
+  assert.equal(offer.savings, 0.2);
 });

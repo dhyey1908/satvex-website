@@ -3,31 +3,36 @@ const productService = require('../services/productService');
 const { productSchema, productUpdateSchema } = require('../validators/productValidators');
 const AppError = require('../utils/AppError');
 const { ok, created } = require('../utils/response');
+const { productForViewer } = require('../utils/productVisibility');
 
 function assignIdsIfMissing(list, prefix) {
   return (list || []).map((item) => ({ ...item, id: item.id || `${prefix}_${uuid()}` }));
 }
 
+const forViewer = productForViewer;
+
 async function list(req, res) {
   const isAdmin = req.user?.role === 'admin';
   const products = await productService.listProducts({ onlyActive: !isAdmin });
-  ok(res, { products });
+  ok(res, { products: products.map((p) => forViewer(p, isAdmin)) });
 }
 
 async function getById(req, res) {
+  const isAdmin = req.user?.role === 'admin';
   const product = await productService.findById(req.params.id);
-  if (!product || (!product.isActive && req.user?.role !== 'admin')) {
+  if (!product || (!product.isActive && !isAdmin)) {
     throw new AppError('Product not found.', 404, 'NOT_FOUND');
   }
-  ok(res, { product });
+  ok(res, { product: forViewer(product, isAdmin) });
 }
 
 async function getBySlug(req, res) {
+  const isAdmin = req.user?.role === 'admin';
   const product = await productService.findBySlug(req.params.slug);
-  if (!product || (!product.isActive && req.user?.role !== 'admin')) {
+  if (!product || (!product.isActive && !isAdmin)) {
     throw new AppError('Product not found.', 404, 'NOT_FOUND');
   }
-  ok(res, { product });
+  ok(res, { product: forViewer(product, isAdmin) });
 }
 
 async function create(req, res) {

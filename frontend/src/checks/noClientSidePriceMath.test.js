@@ -75,3 +75,14 @@ test('Cart/Checkout/OrderConfirmation/AccountOrderDetail/AdminOrderDetail never 
     assert.deepEqual(offending, [], `Found arithmetic on a quote./order. price field in ${file}:\n${offending.join('\n')}`);
   }
 });
+
+// The Financial Analytics screen displays dozens of money values — every one
+// of them must be a ready-made figure from GET /admin/analytics/financial
+// (computed in financialAnalyticsService.js). Nothing is added/subtracted/
+// multiplied/divided inside a currency-format call.
+test('AdminAnalytics.jsx never does arithmetic inside inr(...) money formatting', () => {
+  const src = read('pages/admin/AdminAnalytics.jsx');
+  const arithmeticInInr = /inr\([^)]*[\w\]]\s*[-+*/]\s*[\w(]/;
+  const offending = src.split('\n').filter((line) => arithmeticInInr.test(line));
+  assert.deepEqual(offending, [], `Found arithmetic inside inr() in AdminAnalytics.jsx:\n${offending.join('\n')}`);
+});

@@ -44,6 +44,9 @@ async function createOrder({
   gstAmount,
   shipping,
   shippingCourier,
+  shippingSource,
+  quotedFreightCharge,
+  quotedRtoCharge,
   paymentMethod,
   codCharge,
   prepaidDiscount,
@@ -69,6 +72,13 @@ async function createOrder({
     gstAmount: gstAmount || 0,
     shipping: shipping || 0,
     shippingCourier: shippingCourier || null,
+    // How `shipping` was decided ('free' | 'shiprocket' | 'fallback…') and
+    // the courier's own quoted cost — snapshotted for cost analytics so a
+    // later settings change can't rewrite history. null when no quote was
+    // made (free-shipping orders skip the rate lookup).
+    shippingSource: shippingSource || null,
+    quotedFreightCharge: quotedFreightCharge ?? null,
+    quotedRtoCharge: quotedRtoCharge ?? null,
     paymentMethod: paymentMethod || 'COD',
     codCharge: codCharge || 0,
     prepaidDiscount: prepaidDiscount || 0,

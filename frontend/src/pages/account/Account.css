@@ -80,8 +80,8 @@
 .account-controls input,
 .account-controls select {
   padding: 10px 14px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border: var(--input-border);
+  border-radius: var(--input-radius);
   background: var(--color-surface);
 }
 .account-controls input { flex: 1; min-width: 180px; }

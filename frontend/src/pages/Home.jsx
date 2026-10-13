@@ -15,6 +15,7 @@ import { PriceDisplay } from '../components/PriceDisplay';
 import { HeroBanner } from '../components/HeroBanner';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import { usePreloadedImage } from '../hooks/usePreloadedImage';
+import { rememberProductCount } from '../utils/catalogSize';
 import { staggerContainer, fadeUp, revealOnScroll, crossfade } from '../motion';
 import './Home.css';
 
@@ -50,6 +51,7 @@ export function Home() {
       .list()
       .then((data) => {
         setProducts(data.products);
+        rememberProductCount(data.products?.length);
         const first = data.products?.[0];
         const activeVariants = (first?.variants || []).filter((v) => v.isActive);
         // Prefer an in-stock color as the default preview so the page never

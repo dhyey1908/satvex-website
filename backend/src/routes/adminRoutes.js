@@ -18,6 +18,8 @@ router.get('/dashboard', asyncHandler(adminController.dashboard));
 
 router.get('/customers', asyncHandler(adminController.listCustomers));
 
+router.get('/analytics/financial', asyncHandler(adminController.financialAnalytics));
+
 router.get('/orders', asyncHandler(orderController.adminListOrders));
 router.get('/orders/:id', asyncHandler(orderController.adminGetOrder));
 router.put('/orders/:id/status', asyncHandler(orderController.adminUpdateStatus));

@@ -19,24 +19,17 @@
   z-index: 550;
 }
 
+/* The form is an .input-shell (global.css): it owns the field's single
+   border and focus state, so the bare input inside draws neither. */
 .search-overlay-form {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--color-border);
+  margin: var(--space-3);
+  padding: 4px 6px 4px var(--space-3);
 }
 .search-overlay-form-icon { color: var(--color-text-muted); flex-shrink: 0; }
 .search-overlay-form input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  background: none;
   font-size: 0.92rem;
-  color: var(--color-text);
-  padding: 4px 0;
+  padding: 6px 0;
 }
-.search-overlay-form input:focus { outline: none; }
 .search-overlay-form input::placeholder { color: var(--color-outline); }
 /* Suppress the native search-input clear button — it would sit right next
    to our own close button and read as a confusing duplicate control. */

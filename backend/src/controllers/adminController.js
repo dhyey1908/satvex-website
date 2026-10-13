@@ -1,6 +1,8 @@
 const customerService = require('../services/customerService');
 const settingsService = require('../services/settingsService');
+const financialAnalyticsService = require('../services/financialAnalyticsService');
 const { updateSettingsSchema } = require('../validators/settingsValidators');
+const { financialAnalyticsQuerySchema } = require('../validators/analyticsValidators');
 const { ok } = require('../utils/response');
 
 async function dashboard(req, res) {
@@ -24,4 +26,12 @@ async function updateSettings(req, res) {
   ok(res, { settings });
 }
 
-module.exports = { dashboard, listCustomers, getSettings, updateSettings };
+// Pricing & Financial Analytics — every figure is computed server-side from
+// the real order records (see financialAnalyticsService.js).
+async function financialAnalytics(req, res) {
+  const filters = financialAnalyticsQuerySchema.parse(req.query);
+  const report = await financialAnalyticsService.getFinancialAnalytics(filters);
+  ok(res, report);
+}
+
+module.exports = { dashboard, listCustomers, getSettings, updateSettings, financialAnalytics };

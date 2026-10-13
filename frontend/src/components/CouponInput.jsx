@@ -54,10 +54,11 @@ export function CouponInput({ appliedCoupon, onApply, onClear }) {
           animate={fade.animate}
           exit={fade.exit}
         >
-          <div className="coupon-input-field">
+          <div className={`coupon-input-field input-shell ${error ? 'invalid' : ''}`}>
             <Tag size={14} />
             <input
               type="text"
+              aria-invalid={Boolean(error)}
               placeholder="Enter coupon code"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}

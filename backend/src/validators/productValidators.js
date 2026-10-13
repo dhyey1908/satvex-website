@@ -27,6 +27,10 @@ const sellingOptionSchema = z.object({
   price: z.number().min(0),
   // Optional; when set and greater than price, the frontend shows a sale badge.
   compareAtPrice: z.number().min(0).optional(),
+  // Internal cost of this pack to the store (COGS) — admin-only, powers the
+  // Financial Analytics profit figures. Never shown to customers (see
+  // orderController.toCustomerOrder). null/absent = cost unknown.
+  costPrice: z.number().min(0).nullable().optional(),
   isActive: z.boolean().default(true),
   allowDuplicateColors: z.boolean().default(false),
 });

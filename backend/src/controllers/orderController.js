@@ -11,7 +11,12 @@ const shiprocketService = require('../services/shiprocketService');
 const { checkoutSchema, quoteSchema, updateOrderStatusSchema, refundSchema } = require('../validators/orderValidators');
 const AppError = require('../utils/AppError');
 const { ok, created } = require('../utils/response');
+const { stripOrderCost } = require('../utils/productVisibility');
 const env = require('../config/env');
+
+// Internal cost data stored on an order for admin profit analytics is
+// stripped from every customer-facing response (see utils/productVisibility).
+const toCustomerOrder = stripOrderCost;
 
 const CANCELLABLE_STATUSES = new Set(['Pending', 'Confirmed']);
 const PAYMENT_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -104,7 +109,33 @@ async function quote(req, res) {
     userId: req.user.id,
     deliveryPincode: pincode,
   });
-  ok(res, { ...totals, items: orderItems });
+  // Prepaid-vs-COD comparison, so the checkout can show "pay online and
+  // save ₹X" using real numbers. Only offered when online payment is
+  // actually usable by this customer (never advertise a method they can't
+  // pick), and strictly best-effort — a failure here must never break the
+  // normal quote.
+  let prepaidOffer = null;
+  try {
+    if (await isOnlinePaymentsAvailable(req.user.id)) {
+      const otherMethod = paymentMethod === 'COD' ? 'Online' : 'COD';
+      const otherTotals = await pricingService.calculateTotals({
+        items: orderItems,
+        couponCode,
+        paymentMethod: otherMethod,
+        userId: req.user.id,
+        deliveryPincode: pincode,
+      });
+      const [codTotals, onlineTotals] = paymentMethod === 'COD' ? [totals, otherTotals] : [otherTotals, totals];
+      prepaidOffer = pricingService.buildPrepaidOffer(codTotals, onlineTotals);
+    }
+  } catch {
+    prepaidOffer = null;
+  }
+
+  // The quoted courier rates and per-pack cost are internal (see
+  // toCustomerOrder) — strip them from the preview the browser receives.
+  const { quotedFreightCharge, quotedRtoCharge, ...customerTotals } = totals;
+  ok(res, { ...customerTotals, prepaidOffer, ...stripOrderCost({ items: orderItems }) });
 }
 
 async function checkout(req, res) {
@@ -206,6 +237,9 @@ async function checkout(req, res) {
       gstAmount: totals.gstAmount,
       shipping: totals.shipping,
       shippingCourier: totals.shippingCourier,
+      shippingSource: totals.shippingSource,
+      quotedFreightCharge: totals.quotedFreightCharge,
+      quotedRtoCharge: totals.quotedRtoCharge,
       paymentMethod: totals.paymentMethod,
       codCharge: totals.codCharge,
       prepaidDiscount: totals.prepaidDiscount,
@@ -232,12 +266,12 @@ async function checkout(req, res) {
   }
 
   // Step 8: return.
-  created(res, { order, payuParams });
+  created(res, { order: toCustomerOrder(order), payuParams });
 }
 
 async function listMyOrders(req, res) {
   const orders = await orderService.listForUser(req.user.id);
-  ok(res, { orders });
+  ok(res, { orders: orders.map(toCustomerOrder) });
 }
 
 async function getMyOrder(req, res) {
@@ -245,7 +279,7 @@ async function getMyOrder(req, res) {
   if (!order || order.userId !== req.user.id) {
     throw new AppError('Order not found.', 404, 'NOT_FOUND');
   }
-  ok(res, { order });
+  ok(res, { order: toCustomerOrder(order) });
 }
 
 async function cancelMyOrder(req, res) {

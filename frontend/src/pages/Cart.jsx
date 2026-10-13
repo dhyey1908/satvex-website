@@ -12,7 +12,7 @@ import { FreeShippingBanner } from '../components/FreeShippingBanner';
 import { EmptyState } from '../components/EmptyState';
 import { PageHeader } from '../components/PageHeader';
 import { Loader } from '../components/Loader';
-import { ArrowLeft, Trash2, Bookmark, ShieldCheck, RotateCcw, Lock } from 'lucide-react';
+import { ArrowLeft, Trash2, Bookmark, ShieldCheck, RotateCcw, Lock, Sparkles } from 'lucide-react';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import './Cart.css';
 
@@ -200,6 +200,20 @@ export function Cart() {
               total={grandTotal}
               savingsAmount={savingsAmount}
             >
+              {/* Server-computed (quote.prepaidOffer) — present only when
+                  online payment is available and prepaid is actually
+                  cheaper, so this never advertises a saving that isn't
+                  real. */}
+              {quote?.prepaidOffer?.savings > 0 && (
+                <div className="prepaid-offer-note">
+                  <Sparkles size={16} />
+                  <p>
+                    <strong>Pay online and save ₹{quote.prepaidOffer.savings.toFixed(2)}</strong>
+                    {quote.prepaidOffer.codCharge > 0 && ` — no ₹${quote.prepaidOffer.codCharge.toFixed(2)} COD charge`}
+                    {quote.prepaidOffer.prepaidDiscount > 0 && `, plus ₹${quote.prepaidOffer.prepaidDiscount.toFixed(2)} prepaid offer`}.
+                  </p>
+                </div>
+              )}
               <Link to="/checkout" className="btn btn-primary btn-block">
                 Checkout
               </Link>

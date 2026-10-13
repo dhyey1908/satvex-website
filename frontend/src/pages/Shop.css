@@ -1,4 +1,7 @@
-.shop-subcopy { color: var(--color-text-muted); max-width: 40rem; margin-top: -8px; margin-bottom: var(--sp-lg); }
+/* PageHeader has no bottom margin of its own, so this sits directly under the
+   title/count — a negative margin here pulled it up over the "All Products"
+   heading while the count was still loading and onto the count line after. */
+.shop-subcopy { color: var(--color-text-muted); max-width: 40rem; margin-top: var(--sp-sm); margin-bottom: var(--sp-lg); }
 
 .shop-filter-bar {
   display: flex;
@@ -82,8 +85,8 @@
 
 .shop-sort-select {
   padding: 9px 14px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border: var(--input-border);
+  border-radius: var(--input-radius);
   background: var(--color-surface);
   font-size: 0.8rem;
 }

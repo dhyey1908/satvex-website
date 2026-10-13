@@ -137,7 +137,7 @@ export function AdminProductForm() {
       ...prev,
       sellingOptions: [
         ...prev.sellingOptions,
-        { id: localId('opt'), name: '', quantity: 1, price: 0, compareAtPrice: '', isActive: true, allowDuplicateColors: false },
+        { id: localId('opt'), name: '', quantity: 1, price: 0, compareAtPrice: '', costPrice: '', isActive: true, allowDuplicateColors: false },
       ],
     }));
     if (fieldErrors.sellingOptions) setFieldErrors((prev) => ({ ...prev, sellingOptions: '' }));
@@ -191,6 +191,9 @@ export function AdminProductForm() {
           o.compareAtPrice !== '' && o.compareAtPrice !== null && Number(o.compareAtPrice) > Number(o.price)
             ? Number(o.compareAtPrice)
             : undefined,
+        // Internal cost of this pack (admin-only, powers Financial
+        // Analytics). Blank clears it to "unknown".
+        costPrice: o.costPrice !== '' && o.costPrice != null && Number(o.costPrice) >= 0 ? Number(o.costPrice) : null,
       })),
     };
 
@@ -430,6 +433,17 @@ export function AdminProductForm() {
                   onChange={(e) => updateSellingOption(i, { compareAtPrice: e.target.value })}
                   placeholder="Leave blank for no discount"
                 />
+              </div>
+              <div className="field">
+                <label>Your Cost Price (₹, optional)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={o.costPrice ?? ''}
+                  onChange={(e) => updateSellingOption(i, { costPrice: e.target.value })}
+                  placeholder="What this pack costs you — admin only"
+                />
+                <p className="field-hint">Never shown to customers. Used for profit in Analytics.</p>
               </div>
               {(() => {
                 const mrp = Number(o.compareAtPrice);

@@ -70,6 +70,10 @@ async function resolveLineItem({ productId, sellingOptionId, selectedColors }) {
     // Reference-only original price for display (strike-through/discount%).
     // Never used in any total/subtotal math — that's always unitPrice.
     compareAtPrice: sellingOption.compareAtPrice ?? null,
+    // The store's own cost of this pack AT ORDER TIME — snapshotted so
+    // historical profit stays accurate if the cost is edited later. Internal
+    // only: customer-facing responses strip it (orderController).
+    costPrice: sellingOption.costPrice ?? null,
   };
 }
 
@@ -155,12 +159,16 @@ async function calculateTotals({ items, couponCode, paymentMethod, userId, deliv
   let shipping = 0;
   let shippingSource = 'free';
   let shippingCourier = null;
+  let quotedFreightCharge = null;
+  let quotedRtoCharge = null;
   if (!qualifiesForFreeShipping) {
     const weightKg = Number(settings.shiprocket?.defaultPackage?.weightKg ?? 0.3);
     const quote = await shippingRateService.getShippingQuote({ deliveryPincode, paymentMethod, weightKg });
     shipping = quote.charge;
     shippingSource = quote.source;
     shippingCourier = quote.courierName;
+    quotedFreightCharge = quote.freightCharge ?? null;
+    quotedRtoCharge = quote.rtoCharge ?? null;
   }
 
   const codEnabled = Boolean(settings.cod?.enabled);
@@ -199,6 +207,11 @@ async function calculateTotals({ items, couponCode, paymentMethod, userId, deliv
     shipping,
     shippingSource,
     shippingCourier,
+    // Internal cost data (the courier's quoted rates) — persisted on the
+    // order by checkout for admin analytics; stripped from every
+    // customer-facing response (see orderController).
+    quotedFreightCharge,
+    quotedRtoCharge,
     freeShippingThreshold: freeThreshold,
     qualifiesForFreeShipping,
     amountToFreeShipping: qualifiesForFreeShipping ? 0 : Number((freeThreshold - freeShippingBase).toFixed(2)),
@@ -214,4 +227,26 @@ async function calculateTotals({ items, couponCode, paymentMethod, userId, deliv
   };
 }
 
-module.exports = { resolveLineItem, validateCoupon, calculateTotals };
+/**
+ * What a customer saves by paying online instead of COD, computed from two
+ * full calculateTotals() results for the SAME cart/coupon/pincode — one with
+ * paymentMethod 'COD', one with 'Online'. Done here (not in the browser) so
+ * the checkout can advertise the real saving without doing any price math.
+ *
+ * savings is the full difference in order total, so it includes everything
+ * that actually differs (the COD handling charge, any prepaid discount, and
+ * a COD-specific courier rate if Shiprocket quotes one) — never an
+ * assumption about which of those applies.
+ */
+function buildPrepaidOffer(codTotals, onlineTotals) {
+  const savings = Number((codTotals.total - onlineTotals.total).toFixed(2));
+  return {
+    savings: savings > 0 ? savings : 0,
+    codCharge: codTotals.codCharge,
+    prepaidDiscount: onlineTotals.prepaidDiscount,
+    codTotal: codTotals.total,
+    onlineTotal: onlineTotals.total,
+  };
+}
+
+module.exports = { resolveLineItem, validateCoupon, calculateTotals, buildPrepaidOffer };

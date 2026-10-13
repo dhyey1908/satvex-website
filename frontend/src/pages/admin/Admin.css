@@ -47,7 +47,7 @@
   border: 1px solid var(--color-border);
   padding: var(--sp-lg);
 }
-.stat-tile .stat-value { font-size: 2rem; font-weight: 600; font-family: var(--font-display); }
+.stat-tile .stat-value { font-size: 1.5rem; font-weight: 600; }
 .stat-tile .stat-label { color: var(--color-text-muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 4px; }
 
 /* Scroll-shadow affordance: subtle edge fades appear only when there's more
@@ -81,7 +81,7 @@
 .pill-danger { background: var(--color-error-bg); color: var(--color-error); }
 
 .admin-filters { display: flex; gap: var(--space-3); margin-bottom: var(--space-4); flex-wrap: wrap; }
-.admin-filters input, .admin-filters select { padding: 9px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+.admin-filters input, .admin-filters select { padding: 9px 12px; border: var(--input-border); border-radius: var(--input-radius); background: var(--color-surface); }
 
 .admin-attachment-grid { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .admin-attachment-item {

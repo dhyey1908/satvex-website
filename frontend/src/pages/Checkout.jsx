@@ -19,8 +19,9 @@ import { AddressCard } from '../components/AddressCard';
 import { PhoneVerification } from '../components/PhoneVerification';
 import { AddressFormFields, ADDRESS_FORM_EMPTY, addressFormToPayload, validateAddressForm } from '../components/AddressFormFields';
 import { PageHeader } from '../components/PageHeader';
-import { Truck, Loader2, Plus } from 'lucide-react';
+import { Truck, Loader2, Plus, Sparkles } from 'lucide-react';
 import { Loader } from '../components/Loader';
+import { Modal } from '../components/Modal';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import { required, minLength, phone as validatePhone, pincode as validatePincode, hasErrors } from '../utils/validators';
 import { mapServerFieldErrors } from '../utils/formErrors';
@@ -55,6 +56,10 @@ export function Checkout() {
   // shown while the browser is being sent to PayU / the confirmation page.
   const [redirecting, setRedirecting] = useState(null);
   const createdOrderIdRef = useRef(null);
+  // The one-time COD confirmation (COD charge + "pay online and save").
+  // codConfirmedRef lets "Continue with COD" re-run handleSubmit past it.
+  const [codConfirmOpen, setCodConfirmOpen] = useState(false);
+  const codConfirmedRef = useRef(false);
 
   const [addresses, setAddresses] = useState(null);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
@@ -353,9 +358,13 @@ export function Checkout() {
     return result;
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  // methodOverride lets the COD confirmation's "Pay online & save" button
+  // place the order as Online in one step, without waiting for the
+  // paymentMethod state change to land first.
+  async function handleSubmit(e, methodOverride) {
+    e?.preventDefault?.();
     setError(null);
+    const method = methodOverride || paymentMethod;
     // Sole enforcement point now that there's no step left to skip past —
     // the Place Order button is already disabled until this is true, but
     // this catches a forced bypass (e.g. devtools re-enabling the button).
@@ -386,6 +395,17 @@ export function Checkout() {
       return;
     }
 
+    // COD confirmation: once, after everything above has passed (so it never
+    // interrupts a form that still has errors). Surfaces the COD charge and,
+    // when prepaid is cheaper, the saving — the aim is to steer customers to
+    // prepaid. "Continue with COD" re-enters here with the flag set.
+    const codNeedsConfirm = Boolean(quote?.codCharge > 0 || quote?.prepaidOffer?.savings > 0);
+    if (method === 'COD' && codNeedsConfirm && !codConfirmedRef.current) {
+      setCodConfirmOpen(true);
+      return;
+    }
+    codConfirmedRef.current = false;
+
     setSubmitting(true);
     let createdOrderId = null;
     try {
@@ -401,7 +421,7 @@ export function Checkout() {
           country: addressPayload.country,
         },
         couponCode: appliedCoupon?.code,
-        paymentMethod,
+        paymentMethod: method,
       });
 
       // The order now exists and the server has emptied the cart. From here
@@ -411,7 +431,7 @@ export function Checkout() {
       createdOrderId = response.order.orderId;
       createdOrderIdRef.current = createdOrderId;
       setRedirecting(
-        paymentMethod === 'Online' && response.payuParams ? 'Redirecting you to secure payment…' : 'Placing your order…'
+        method === 'Online' && response.payuParams ? 'Redirecting you to secure payment…' : 'Placing your order…'
       );
 
       if (saveAddress && !selectedAddressId) {
@@ -433,7 +453,7 @@ export function Checkout() {
         // re-fetch must not derail the payment redirect / confirmation.
       }
 
-      if (paymentMethod === 'Online' && response.payuParams) {
+      if (method === 'Online' && response.payuParams) {
         // Redirects the whole browser to PayU's hosted payment page —
         // nothing after this line runs until the customer is redirected
         // back via the backend's surl/furl callback.
@@ -499,6 +519,21 @@ export function Checkout() {
 
   const discountAmount = quote?.discountAmount ?? appliedCoupon?.discountAmount ?? 0;
   const grandTotal = quote?.total ?? Number((total - discountAmount).toFixed(2));
+  // Server-computed "pay online and save" comparison (null when online
+  // payment isn't available to this customer) — display only.
+  const prepaidOffer = quote?.prepaidOffer ?? null;
+
+  function continueWithCod() {
+    codConfirmedRef.current = true;
+    setCodConfirmOpen(false);
+    handleSubmit(null);
+  }
+
+  function payOnlineInstead() {
+    setCodConfirmOpen(false);
+    setPaymentMethod('Online');
+    handleSubmit(null, 'Online');
+  }
   const productSavings = items.reduce(
     (sum, item) => sum + (item.compareAtPrice > item.unitPrice ? (item.compareAtPrice - item.unitPrice) * item.quantity : 0),
     0
@@ -654,12 +689,43 @@ export function Checkout() {
                   />
                   <Wallet size={16} />
                   <div>
-                    <p className="payment-method-name">Online Payment</p>
-                    <p className="payment-method-meta">UPI / Cards · no extra charge.</p>
+                    <p className="payment-method-name">
+                      Online Payment
+                      {prepaidOffer?.savings > 0 && (
+                        <span className="payment-offer-pill">
+                          <Sparkles size={11} /> Save ₹{prepaidOffer.savings.toFixed(2)}
+                        </span>
+                      )}
+                    </p>
+                    <p className="payment-method-meta">UPI / Cards · secure online payment</p>
+                    {/* The offer itemised, right on the option — not just one
+                        combined "Save" figure. */}
+                    {(prepaidOffer?.codCharge > 0 || prepaidOffer?.prepaidDiscount > 0) && (
+                      <ul className="payment-offer-list">
+                        {prepaidOffer.codCharge > 0 && <li>No COD charge — ₹{prepaidOffer.codCharge.toFixed(2)} saved</li>}
+                        {prepaidOffer.prepaidDiscount > 0 && (
+                          <li>₹{prepaidOffer.prepaidDiscount.toFixed(2)} prepaid offer</li>
+                        )}
+                      </ul>
+                    )}
                   </div>
                 </label>
               )}
             </div>
+
+            {paymentMethod === 'COD' && prepaidOffer?.savings > 0 && (
+              <div className="payment-offer-banner">
+                <Sparkles size={16} />
+                <p>
+                  Pay online and save <strong>₹{prepaidOffer.savings.toFixed(2)}</strong>
+                  {prepaidOffer.codCharge > 0 && ` — skip the ₹${prepaidOffer.codCharge.toFixed(2)} COD charge`}
+                  {prepaidOffer.prepaidDiscount > 0 && ` and get ₹${prepaidOffer.prepaidDiscount.toFixed(2)} off`}.
+                </p>
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => setPaymentMethod('Online')}>
+                  Switch to Prepaid
+                </button>
+              </div>
+            )}
 
             <p className="payment-trust-note">🔒 Secure payments powered by PayU</p>
 
@@ -735,6 +801,52 @@ export function Checkout() {
           <Loader label="Placing your order…" />
         </div>
       )}
+
+      <Modal open={codConfirmOpen} onClose={() => setCodConfirmOpen(false)} title="Confirm Cash on Delivery">
+        <div className="cod-confirm">
+          <p className="cod-confirm-total">
+            Your order total is <strong>₹{grandTotal.toFixed(2)}</strong>
+            {quote?.codCharge > 0 && (
+              <>
+                {' '}
+                including a <strong>₹{quote.codCharge.toFixed(2)} COD charge</strong>
+              </>
+            )}
+            .
+          </p>
+
+          {prepaidOffer?.savings > 0 && (
+            <div className="cod-confirm-offer">
+              <Sparkles size={20} />
+              <div>
+                <strong>Switch to Prepaid and save ₹{prepaidOffer.savings.toFixed(2)}</strong>
+                <ul className="payment-offer-list payment-offer-list-modal">
+                  {prepaidOffer.codCharge > 0 && <li>No COD charge — ₹{prepaidOffer.codCharge.toFixed(2)} saved</li>}
+                  {prepaidOffer.prepaidDiscount > 0 && (
+                    <li>₹{prepaidOffer.prepaidDiscount.toFixed(2)} prepaid offer</li>
+                  )}
+                  <li>Pay securely with UPI / cards</li>
+                </ul>
+                <p className="cod-confirm-newtotal">
+                  New total: <strong>₹{prepaidOffer.onlineTotal.toFixed(2)}</strong>
+                  <s>₹{prepaidOffer.codTotal.toFixed(2)}</s>
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="cod-confirm-actions">
+            {prepaidOffer?.savings > 0 && (
+              <button type="button" className="btn btn-primary btn-block" onClick={payOnlineInstead}>
+                Switch to Prepaid &amp; save ₹{prepaidOffer.savings.toFixed(2)}
+              </button>
+            )}
+            <button type="button" className="btn btn-outline btn-block" onClick={continueWithCod}>
+              Continue with Cash on Delivery
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       <CouponCelebration trigger={couponCelebrationTrigger} />
     </div>

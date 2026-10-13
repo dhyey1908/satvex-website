@@ -127,6 +127,13 @@ const notificationsSettingsSchema = z.object({
   shipmentAlertEmail: z.string().trim().toLowerCase().email().optional().or(z.literal('')),
 });
 
+const financeSettingsSchema = z.object({
+  // Effective payment-gateway fee as a % of the order total, used ONLY to
+  // estimate fees on the Financial Analytics screen. null clears it back to
+  // "not set".
+  paymentGatewayFeePercent: z.number().min(0).max(20).nullable(),
+});
+
 const updateSettingsSchema = z.object({
   contactPhone: z.string().trim().max(20).optional(),
   contactEmail: z.string().trim().toLowerCase().email().optional().or(z.literal('')),
@@ -145,6 +152,7 @@ const updateSettingsSchema = z.object({
   shiprocket: shiprocketSettingsSchema.optional(),
   delivery: deliverySettingsSchema.optional(),
   notifications: notificationsSettingsSchema.optional(),
+  finance: financeSettingsSchema.optional(),
 });
 
 module.exports = { updateSettingsSchema };

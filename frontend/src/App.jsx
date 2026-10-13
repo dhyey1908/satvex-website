@@ -39,6 +39,7 @@ import { AdminShipmentIssues } from './pages/admin/AdminShipmentIssues';
 import { AdminCustomers } from './pages/admin/AdminCustomers';
 import { AdminContacts } from './pages/admin/AdminContacts';
 import { AdminContactDetail } from './pages/admin/AdminContactDetail';
+import { AdminAnalytics } from './pages/admin/AdminAnalytics';
 import { AdminCoupons } from './pages/admin/AdminCoupons';
 import { AdminReviews } from './pages/admin/AdminReviews';
 import { AdminBanners } from './pages/admin/AdminBanners';
@@ -108,6 +109,7 @@ export default function App() {
           <Route path="products/new" element={<AdminProductForm />} />
           <Route path="products/:id" element={<AdminProductForm />} />
           <Route path="orders" element={<AdminOrders />} />
+          <Route path="analytics" element={<AdminAnalytics />} />
           <Route path="orders/:id" element={<AdminOrderDetail />} />
           <Route path="shipment-issues" element={<AdminShipmentIssues />} />
           <Route path="customers" element={<AdminCustomers />} />

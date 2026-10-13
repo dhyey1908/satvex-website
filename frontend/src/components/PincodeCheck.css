@@ -35,13 +35,13 @@
   min-width: 0;
   max-width: 180px;
   padding: 10px 12px;
-  border: 1.5px solid var(--color-outline-variant);
-  border-radius: var(--radius-sm);
+  border: var(--input-border);
+  border-radius: var(--input-radius);
   background: var(--color-surface);
   color: var(--color-text);
   font-size: 0.9rem;
 }
-.pincode-check-form input:focus { outline: none; border-color: var(--color-accent); }
+.pincode-check-form input:focus-visible { border-color: var(--color-accent); }
 
 .pincode-check-btn { flex-shrink: 0; }
 

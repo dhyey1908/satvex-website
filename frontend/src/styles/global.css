@@ -77,7 +77,11 @@ ul {
    default browser outline. Follows whatever border-radius the focused
    element already has, so it never clashes with pill/circular controls. */
 :focus-visible {
-  outline: none;
+  /* Not `outline: none` — a transparent outline is invisible normally but is
+     still drawn (in a system colour) in Windows forced-colors/high-contrast
+     mode, where box-shadow is dropped. Without it keyboard focus would
+     vanish for those users. */
+  outline: 2px solid transparent;
   box-shadow: var(--focus-ring);
 }
 
@@ -292,16 +296,26 @@ ul {
 .field select {
   width: 100%;
   padding: 13px 16px;
-  border: 1.5px solid var(--color-outline-variant);
-  border-radius: var(--radius-button);
+  border: var(--input-border);
+  border-radius: var(--input-radius);
   background: var(--color-surface);
   color: var(--color-text);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
-.field input:focus,
-.field textarea:focus,
-.field select:focus {
-  outline: none;
+/* Focus: the border takes the accent colour and the global :focus-visible
+   ring adds its soft glow — one border, one indicator. Declared BEFORE the
+   .invalid rule below so a field that is both focused and invalid stays red. */
+.field input:focus-visible,
+.field textarea:focus-visible,
+.field select:focus-visible {
+  border-color: var(--color-accent);
+}
+.field input:disabled,
+.field textarea:disabled,
+.field select:disabled {
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
 }
 .field-error {
   color: var(--color-error);
@@ -312,6 +326,46 @@ ul {
 .field.invalid textarea,
 .field.invalid select {
   border-color: var(--color-error);
+}
+
+/* Input shell — for controls where a wrapper (icon + bare <input> [+ button])
+   draws the field. The wrapper owns the single border and the focus state;
+   the bare input inside draws neither. Without this, the global
+   :focus-visible ring landed on the inner <input> and drew a second,
+   square, text-hugging rectangle inside the field's own border (search bar,
+   coupon code). */
+.input-shell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: var(--input-border);
+  border-radius: var(--input-radius);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.input-shell:focus-within {
+  border-color: var(--color-accent);
+  box-shadow: var(--focus-ring);
+  /* forced-colors mode drops box-shadow — keep a drawn indicator there. */
+  outline: 2px solid transparent;
+}
+.input-shell.invalid { border-color: var(--color-error); }
+.input-shell:has(input:disabled) { background: var(--color-surface-muted); cursor: not-allowed; }
+/* :where() keeps this at zero specificity so a component can size its own
+   input (padding, font-size) without depending on stylesheet order. */
+:where(.input-shell) > input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--color-text);
+}
+/* The shell is the focus indicator — no second ring on the input inside it. */
+.input-shell > input:focus-visible {
+  box-shadow: none;
+  outline: none;
 }
 .field-hint {
   font-size: 0.8rem;

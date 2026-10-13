@@ -22,7 +22,9 @@ router.get(
       onlineEnabled || (req.user && (onlineTestUserIds || []).includes(req.user.id))
     );
     const activeAnnouncements = await settingsService.getActiveAnnouncements(settings.announcements);
-    const { payments, ...publicSettings } = settings;
+    // finance holds the admin-only cost assumptions behind the profit
+    // analytics (e.g. the payment-gateway fee %) — never sent to the public.
+    const { payments, finance, ...publicSettings } = settings;
     ok(res, { settings: { ...publicSettings, paymentsOnlineAvailable, announcements: activeAnnouncements } });
   })
 );

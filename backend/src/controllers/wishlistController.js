@@ -3,6 +3,7 @@ const productService = require('../services/productService');
 const { addWishlistItemSchema } = require('../validators/wishlistValidators');
 const AppError = require('../utils/AppError');
 const { ok, created } = require('../utils/response');
+const { stripProductCost } = require('../utils/productVisibility');
 
 async function getWishlist(req, res) {
   const entries = await wishlistService.listForUser(req.user.id);
@@ -16,7 +17,7 @@ async function getWishlist(req, res) {
       // Full product record (same shape the Shop page list/detail endpoints
       // return) so the wishlist grid can render the exact same ProductCard,
       // not a stripped-down lookalike.
-      return { ...product, addedAt: entry.addedAt, available: true };
+      return { ...stripProductCost(product), addedAt: entry.addedAt, available: true };
     })
   );
 

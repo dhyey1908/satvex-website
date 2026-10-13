@@ -3,6 +3,7 @@ import { api } from './apiClient';
 export const adminService = {
   dashboard: () => api.get('/admin/dashboard'),
   customers: () => api.get('/admin/customers'),
+  financialAnalytics: (params) => api.get('/admin/analytics/financial', params),
   orders: (params) => api.get('/admin/orders', params),
   order: (id) => api.get(`/admin/orders/${encodeURIComponent(id)}`),
   updateOrderStatus: (id, status) => api.put(`/admin/orders/${encodeURIComponent(id)}/status`, { status }),

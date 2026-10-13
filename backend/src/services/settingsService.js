@@ -58,6 +58,12 @@ const DEFAULT_SETTINGS = {
   // team inbox so the alert has somewhere to go even before anyone sets it
   // explicitly.
   notifications: { shipmentAlertEmail: 'satvexproducts.team@gmail.com' },
+  // Admin-only assumptions behind the Financial Analytics profit figures —
+  // stripped from the public settings endpoint (see settingsRoutes.js).
+  // paymentGatewayFeePercent: PayU's effective fee as a % of the order
+  // total. null = not set, so fees show as "unavailable" rather than an
+  // invented number.
+  finance: { paymentGatewayFeePercent: null },
   whyPillars: [
     { title: 'Flexible', description: 'Moves comfortably with your everyday needs.' },
     { title: 'Comfortable', description: 'Lightweight designs created for effortless everyday use.' },
