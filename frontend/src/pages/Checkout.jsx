@@ -20,9 +20,11 @@ import { PhoneVerification } from '../components/PhoneVerification';
 import { AddressFormFields, ADDRESS_FORM_EMPTY, addressFormToPayload, validateAddressForm } from '../components/AddressFormFields';
 import { PageHeader } from '../components/PageHeader';
 import { Truck, Loader2, Plus } from 'lucide-react';
+import { Loader } from '../components/Loader';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import { required, minLength, phone as validatePhone, pincode as validatePincode, hasErrors } from '../utils/validators';
 import { mapServerFieldErrors } from '../utils/formErrors';
+import { isPhoneVerifiedFor } from '../utils/phoneVerification';
 import './Checkout.css';
 
 const CHECKOUT_SERVER_FIELD_MAP = {
@@ -49,6 +51,10 @@ export function Checkout() {
   const [touched, setTouched] = useState({});
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  // Non-null once the order has been created — see handleSubmit. The label
+  // shown while the browser is being sent to PayU / the confirmation page.
+  const [redirecting, setRedirecting] = useState(null);
+  const createdOrderIdRef = useRef(null);
 
   const [addresses, setAddresses] = useState(null);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
@@ -144,11 +150,34 @@ export function Checkout() {
   // after the early return since it's a plain value, not a hook).
   const selectedAddress = addresses?.find((a) => a.addressId === selectedAddressId);
   const confirmPhoneForEffect = selectedAddress && !showNewAddressForm ? selectedAddress.phone : form.phone;
-  // Switching/editing the address phone always re-requires verification —
-  // never silently inherit a previous number's verified state.
+  // A different number is never silently treated as verified — but if the
+  // address phone is exactly the number this account already verified
+  // (within the backend's 30-day window), it starts out verified, so the
+  // customer isn't asked to click "Verify" just to be told it's already
+  // done. Re-runs when `user` refreshes after a fresh verification too.
   useEffect(() => {
-    setConfirmPhoneVerified(false);
-  }, [confirmPhoneForEffect]);
+    setConfirmPhoneVerified(isPhoneVerifiedFor(user, confirmPhoneForEffect));
+  }, [confirmPhoneForEffect, user]);
+
+  // The holding screen replaces the whole page at the SAME URL, so no route
+  // change happens (ScrollToTop never fires) — without this it would sit
+  // wherever the long checkout form had been scrolled to.
+  useEffect(() => {
+    if (redirecting) window.scrollTo(0, 0);
+  }, [redirecting]);
+
+  // Browser Back from PayU's page restores this page from the back/forward
+  // cache exactly as it was — frozen on the "Redirecting…" screen forever.
+  // The order already exists, so send the customer to it instead.
+  useEffect(() => {
+    function onPageShow(event) {
+      if (event.persisted && createdOrderIdRef.current) {
+        navigate(`/account/orders/${createdOrderIdRef.current}`, { replace: true });
+      }
+    }
+    window.addEventListener('pageshow', onPageShow);
+    return () => window.removeEventListener('pageshow', onPageShow);
+  }, [navigate]);
 
   // Online is the preselected payment method whenever it's actually
   // available for this customer — COD remains fully available, just no
@@ -358,6 +387,7 @@ export function Checkout() {
     }
 
     setSubmitting(true);
+    let createdOrderId = null;
     try {
       const addressPayload = addressFormToPayload(form);
       const response = await orderService.checkout({
@@ -374,6 +404,16 @@ export function Checkout() {
         paymentMethod,
       });
 
+      // The order now exists and the server has emptied the cart. From here
+      // on this page must never fall through to the "Your cart is empty"
+      // state below — hold a dedicated screen until the browser has actually
+      // left (PayU redirect) or navigated (COD), neither of which is instant.
+      createdOrderId = response.order.orderId;
+      createdOrderIdRef.current = createdOrderId;
+      setRedirecting(
+        paymentMethod === 'Online' && response.payuParams ? 'Redirecting you to secure payment…' : 'Placing your order…'
+      );
+
       if (saveAddress && !selectedAddressId) {
         addressService.create(addressPayload).catch(() => {});
       }
@@ -386,7 +426,12 @@ export function Checkout() {
       }
 
       clearCoupon();
-      await refresh();
+      try {
+        await refresh();
+      } catch {
+        // Best-effort: the order is already placed, so a failed cart
+        // re-fetch must not derail the payment redirect / confirmation.
+      }
 
       if (paymentMethod === 'Online' && response.payuParams) {
         // Redirects the whole browser to PayU's hosted payment page —
@@ -399,6 +444,15 @@ export function Checkout() {
       showToast('Order placed!', 'success');
       navigate(`/order-confirmation/${response.order.orderId}`);
     } catch (err) {
+      if (createdOrderId) {
+        // Failed AFTER the order was created (e.g. the payment redirect
+        // itself) — the cart is already empty, so staying here would leave
+        // a dead "empty cart" page. The order detail page has Retry Payment.
+        showToast('Your order was placed, but we could not open the payment page. You can pay from your order.', 'error');
+        navigate(`/account/orders/${createdOrderId}`);
+        return;
+      }
+      setRedirecting(null);
       const serverErrors = mapServerFieldErrors(err, CHECKOUT_SERVER_FIELD_MAP);
       if (serverErrors) {
         setFieldErrors((prev) => ({ ...prev, ...serverErrors }));
@@ -414,6 +468,17 @@ export function Checkout() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  // Same full-screen overlay as the in-flight state rendered below, so the
+  // moment the order is created the screen doesn't visibly change — it just
+  // updates its label.
+  if (redirecting) {
+    return (
+      <div className="checkout-placing-overlay">
+        <Loader label={redirecting} />
+      </div>
+    );
   }
 
   if (items.length === 0) {
@@ -529,7 +594,13 @@ export function Checkout() {
               key={confirmAddress.phone}
               phone={confirmAddress.phone}
               verified={confirmPhoneVerified}
-              onVerified={() => setConfirmPhoneVerified(true)}
+              onVerified={() => {
+                setConfirmPhoneVerified(true);
+                // Pull the account's new verifiedPhone/phoneVerifiedAt so
+                // the already-verified check above stays accurate if the
+                // address phone is switched away and back again.
+                refreshUser();
+              }}
             />
           </div>
 
@@ -653,6 +724,17 @@ export function Checkout() {
           {submitting ? <Loader2 size={16} className="btn-spinner" /> : 'Place Order'}
         </button>
       </div>
+
+      {/* Shown the instant Place Order is clicked (while the order request is
+          in flight) so the customer never sits on the form wondering if it
+          worked. A fixed overlay, not a page swap: if the request fails
+          (e.g. delivery unavailable) the form is still right there,
+          scrolled exactly where they were. */}
+      {submitting && (
+        <div className="checkout-placing-overlay">
+          <Loader label="Placing your order…" />
+        </div>
+      )}
 
       <CouponCelebration trigger={couponCelebrationTrigger} />
     </div>

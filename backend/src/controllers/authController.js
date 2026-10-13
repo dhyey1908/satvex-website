@@ -258,7 +258,17 @@ async function verifyOtp(req, res) {
   await otpService.verifyOtp(phone, code); // throws AppError on wrong/expired/too-many-attempts
 
   const existingUser = await userService.findByVerifiedPhone(phone);
-  const user = existingUser || (await userService.createUser({ phone, verifiedPhone: phone, role: 'customer' }));
+  let user = existingUser;
+  if (existingUser) {
+    // The OTP just verified is itself proof of ownership of this number —
+    // refresh its verification window now (createUser below already does
+    // this for a brand-new account), so a returning customer who just
+    // logged in isn't asked to verify the same number again at checkout.
+    await userService.markPhoneVerified(existingUser.userId, phone);
+    user = await userService.findById(existingUser.userId);
+  } else {
+    user = await userService.createUser({ phone, verifiedPhone: phone, role: 'customer' });
+  }
 
   const token = await issueSession(req, res, user);
   ok(res, { user: userService.toPublicUser(user), token, isNewAccount: !existingUser });
