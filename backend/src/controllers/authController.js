@@ -11,6 +11,7 @@ const {
 const { sendOtpSchema, verifyOtpSchema } = require('../validators/phoneValidators');
 const userService = require('../services/userService');
 const otpService = require('../services/otpService');
+const refreshTokenService = require('../services/refreshTokenService');
 const { sendPasswordResetEmail } = require('../services/emailService');
 const { hashPassword, verifyPassword, generateRawToken, hashToken } = require('../utils/password');
 const { signAccessToken } = require('../utils/jwt');
@@ -19,7 +20,13 @@ const { ok, created } = require('../utils/response');
 const env = require('../config/env');
 
 const COOKIE_NAME = 'accessToken';
-const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // matches default JWT_EXPIRES_IN
+const COOKIE_MAX_AGE_MS = 60 * 60 * 1000; // matches jwt.accessTokenExpiresIn's default (1h)
+const REFRESH_COOKIE_NAME = 'refreshToken';
+const REFRESH_COOKIE_MAX_AGE_MS = env.auth.refreshTokenMaxAgeDays * 24 * 60 * 60 * 1000;
+// Scoped to only the auth routes that actually need it (refresh, logout) —
+// unlike the access token, this cookie is never read by ordinary API calls,
+// so there's no reason for the browser to attach it to every request.
+const REFRESH_COOKIE_PATH = '/api/auth';
 
 // The deployed frontend (CloudFront) and API (API Gateway) are always on
 // different domains — a cross-site request from the browser's perspective.
@@ -40,9 +47,24 @@ function setAuthCookie(res, token) {
   res.cookie(COOKIE_NAME, token, { ...cookieOptions(), maxAge: COOKIE_MAX_AGE_MS });
 }
 
-function issueSession(res, user) {
+function setRefreshCookie(res, token) {
+  res.cookie(REFRESH_COOKIE_NAME, token, { ...cookieOptions(), path: REFRESH_COOKIE_PATH, maxAge: REFRESH_COOKIE_MAX_AGE_MS });
+}
+
+function clearRefreshCookie(res) {
+  res.clearCookie(REFRESH_COOKIE_NAME, { ...cookieOptions(), path: REFRESH_COOKIE_PATH });
+}
+
+// Issues both halves of a session: the short-lived access token (as
+// before) plus a new refresh-token family (see refreshTokenService.js) —
+// this is what lets a returning device skip OTP entirely for up to
+// REFRESH_TOKEN_MAX_AGE_DAYS instead of needing a fresh one every
+// ACCESS_TOKEN_EXPIRES_IN.
+async function issueSession(req, res, user) {
   const token = signAccessToken({ sub: user.userId, role: user.role });
   setAuthCookie(res, token);
+  const refreshToken = await refreshTokenService.createFamily(user.userId, req.headers['user-agent']);
+  setRefreshCookie(res, refreshToken);
   return token;
 }
 
@@ -70,7 +92,7 @@ async function register(req, res) {
   const passwordHash = await hashPassword(password);
   const user = await userService.createUser({ name, email, phone, passwordHash });
 
-  const token = issueSession(res, user);
+  const token = await issueSession(req, res, user);
   created(res, { user: userService.toPublicUser(user), token });
 }
 
@@ -93,13 +115,46 @@ async function login(req, res) {
     throw new AppError('Invalid credentials.', 401, 'INVALID_CREDENTIALS');
   }
 
-  const token = issueSession(res, user);
+  const token = await issueSession(req, res, user);
   ok(res, { user: userService.toPublicUser(user), token });
 }
 
+// Previously a no-op server-side (purely cleared the cookie) since there
+// was no server-side session state at all before refresh tokens existed.
+// Now it actually revokes this device's refresh token too, so a copy of
+// it made before logout (e.g. from a shared/public computer) can't be
+// replayed afterward.
 async function logout(req, res) {
+  const rawRefreshToken = req.cookies?.[REFRESH_COOKIE_NAME];
+  if (rawRefreshToken) {
+    await refreshTokenService.revoke(rawRefreshToken);
+  }
   res.clearCookie(COOKIE_NAME, cookieOptions());
+  clearRefreshCookie(res);
   ok(res, { loggedOut: true });
+}
+
+// Silent re-auth: trades a still-valid refresh token for a new access
+// token + a newly rotated refresh token, with no OTP involved. Called
+// automatically by the frontend's apiClient whenever a request 401s — see
+// frontend/src/services/apiClient.js.
+async function refresh(req, res) {
+  const rawRefreshToken = req.cookies?.[REFRESH_COOKIE_NAME];
+  if (!rawRefreshToken) {
+    throw new AppError('Session expired. Please log in again.', 401, 'REFRESH_MISSING');
+  }
+
+  const { rawToken: newRefreshToken, userId } = await refreshTokenService.rotate(rawRefreshToken, req.headers['user-agent']);
+
+  const user = await userService.findById(userId);
+  if (!user) {
+    throw new AppError('Session expired. Please log in again.', 401, 'REFRESH_INVALID');
+  }
+
+  const token = signAccessToken({ sub: user.userId, role: user.role });
+  setAuthCookie(res, token);
+  setRefreshCookie(res, newRefreshToken);
+  ok(res, { user: userService.toPublicUser(user), token });
 }
 
 async function me(req, res) {
@@ -205,7 +260,7 @@ async function verifyOtp(req, res) {
   const existingUser = await userService.findByVerifiedPhone(phone);
   const user = existingUser || (await userService.createUser({ phone, verifiedPhone: phone, role: 'customer' }));
 
-  const token = issueSession(res, user);
+  const token = await issueSession(req, res, user);
   ok(res, { user: userService.toPublicUser(user), token, isNewAccount: !existingUser });
 }
 
@@ -237,6 +292,7 @@ module.exports = {
   register,
   login,
   logout,
+  refresh,
   me,
   forgotPassword,
   resetPassword,

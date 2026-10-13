@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useNavigate, useMatch } from 'react-router-dom';
 import { motion, AnimatePresence, useScroll, useTransform, useReducedMotion } from 'framer-motion';
-import { Heart, ShoppingBag, Menu, User, Package, Settings, LogOut } from 'lucide-react';
+import { Heart, ShoppingBag, Menu, User, Package, MapPin, UserCog, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAuthGate } from '../context/AuthGateContext';
 import { useCart } from '../context/CartContext';
@@ -18,6 +18,18 @@ const NAV_LINKS = [
   { to: '/shop', label: 'Shop' },
   { to: '/about', label: 'About' },
   { to: '/contact', label: 'Contact' },
+];
+
+// Same destinations as AccountSidebar's desktop LINKS — the mobile hamburger
+// menu is now the only place these live on small screens (the old
+// horizontal tab strip above account pages was removed), so it needs the
+// full set, not just a subset.
+const ACCOUNT_LINKS = [
+  { to: '/account', label: 'Account Overview', icon: User, end: true },
+  { to: '/account/orders', label: 'My Orders', icon: Package },
+  { to: '/wishlist', label: 'Wishlist', icon: Heart },
+  { to: '/account/addresses', label: 'Addresses', icon: MapPin },
+  { to: '/account/profile', label: 'Profile', icon: UserCog },
 ];
 
 export function Header() {
@@ -145,21 +157,25 @@ export function Header() {
             <>
               <div className="nav-mobile-divider" />
               {user?.role === 'admin' ? (
-                <Link to="/admin" className="nav-mobile-account-link" onClick={() => setMobileOpen(false)}>
+                <NavLink
+                  to="/admin"
+                  className={({ isActive }) => `nav-mobile-account-link ${isActive ? 'active' : ''}`}
+                  onClick={() => setMobileOpen(false)}
+                >
                   <Settings size={18} /> Admin Panel
-                </Link>
+                </NavLink>
               ) : (
-                <>
-                  <Link to="/account" className="nav-mobile-account-link" onClick={() => setMobileOpen(false)}>
-                    <User size={18} /> My Account
-                  </Link>
-                  <Link to="/account/orders" className="nav-mobile-account-link" onClick={() => setMobileOpen(false)}>
-                    <Package size={18} /> My Orders
-                  </Link>
-                  <Link to="/wishlist" className="nav-mobile-account-link" onClick={() => setMobileOpen(false)}>
-                    <Heart size={18} /> Wishlist
-                  </Link>
-                </>
+                ACCOUNT_LINKS.map((link) => (
+                  <NavLink
+                    key={link.to}
+                    to={link.to}
+                    end={link.end}
+                    className={({ isActive }) => `nav-mobile-account-link ${isActive ? 'active' : ''}`}
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    <link.icon size={18} /> {link.label}
+                  </NavLink>
+                ))
               )}
               <button type="button" className="nav-mobile-account-link nav-mobile-logout" onClick={handleMobileLogout}>
                 <LogOut size={18} /> Log Out

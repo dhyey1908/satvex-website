@@ -147,6 +147,8 @@
   color: var(--color-text);
 }
 .nav-mobile-account-link svg { color: var(--color-text-muted); flex-shrink: 0; }
+.nav-mobile-account-link.active { color: var(--color-primary-dark); font-weight: 600; }
+.nav-mobile-account-link.active svg { color: var(--color-accent); }
 .nav-mobile-logout { color: var(--color-error); border-bottom: none; }
 .nav-mobile-logout svg { color: var(--color-error); }
 

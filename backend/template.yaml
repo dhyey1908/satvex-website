@@ -25,6 +25,10 @@ Parameters:
   ResetTokenExpiresMin:
     Type: Number
     Default: 30
+  RefreshTokenMaxAgeDays:
+    Type: Number
+    Default: 730
+    Description: Absolute cap (from first login) on how long a device can stay signed in via silent refresh before a fresh OTP is required
   PayuMerchantKey:
     Type: String
     NoEcho: true
@@ -147,6 +151,37 @@ Resources:
       KeySchema:
         - AttributeName: phone
           KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
+  # Opaque, hashed refresh tokens backing the long-lived (up to
+  # RefreshTokenMaxAgeDays) side of auth — see authController.refresh /
+  # refreshTokenService.js. Only the SHA-256 hash is ever stored (same
+  # pattern as the password-reset token on UsersTable), keyed directly by
+  # that hash for an O(1) lookup on refresh. The userId-index exists so a
+  # detected stolen/replayed token can revoke every session for that user
+  # at once, not just the one token.
+  RefreshTokensTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub satvex_refresh_tokens_${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: tokenHash
+          AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: tokenHash
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: userId-index
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
       TimeToLiveSpecification:
         AttributeName: expiresAt
         Enabled: true
@@ -423,12 +458,14 @@ Resources:
           TABLE_REVIEWS: !Ref ReviewsTable
           TABLE_COUPON_REDEMPTIONS: !Ref CouponRedemptionsTable
           TABLE_OTP_CODES: !Ref OtpCodesTable
+          TABLE_REFRESH_TOKENS: !Ref RefreshTokensTable
           SNS_SENDER_ID: !Ref SnsSenderId
           OTP_TEST_PHONES: !Ref OtpTestPhones
           S3_MEDIA_BUCKET: !Ref MediaBucket
           CLOUDFRONT_MEDIA_URL: !Sub https://${MediaDistribution.DomainName}
           JWT_SECRET: !Ref JwtSecret
-          JWT_EXPIRES_IN: 7d
+          ACCESS_TOKEN_EXPIRES_IN: 1h
+          REFRESH_TOKEN_MAX_AGE_DAYS: !Ref RefreshTokenMaxAgeDays
           RESET_TOKEN_EXPIRES_MIN: !Ref ResetTokenExpiresMin
           SES_SENDER_EMAIL: !Ref SesSenderEmail
           PAYU_MERCHANT_KEY: !Ref PayuMerchantKey
@@ -467,6 +504,8 @@ Resources:
             TableName: !Ref ShipmentJobsTable
         - DynamoDBCrudPolicy:
             TableName: !Ref OtpCodesTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RefreshTokensTable
         - S3CrudPolicy:
             BucketName: !Ref MediaBucket
         # Not SESCrudPolicy (which scopes to a single identity): recipients

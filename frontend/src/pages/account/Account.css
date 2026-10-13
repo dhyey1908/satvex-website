@@ -27,6 +27,19 @@
   gap: var(--space-3);
 }
 
+/* "Cancel Order" + "Reorder" together, without wrap, don't both fit at
+   320-360px (each .btn is nowrap with generous padding) — the second
+   button overflowed the viewport instead of dropping to its own row. */
+.account-order-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+@media (max-width: 480px) {
+  .account-order-actions { flex-direction: column; }
+  .account-order-actions .btn { width: 100%; }
+}
+
 .account-profile-card {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

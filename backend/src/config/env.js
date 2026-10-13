@@ -37,6 +37,7 @@ const env = {
     couponRedemptions: required('TABLE_COUPON_REDEMPTIONS', 'satvex_coupon_redemptions'),
     shipmentJobs: required('TABLE_SHIPMENT_JOBS', 'satvex_shipment_jobs'),
     otpCodes: required('TABLE_OTP_CODES', 'satvex_otp_codes'),
+    refreshTokens: required('TABLE_REFRESH_TOKENS', 'satvex_refresh_tokens'),
   },
 
   sns: {
@@ -82,7 +83,20 @@ const env = {
 
   jwt: {
     secret: required('JWT_SECRET', 'dev-only-insecure-secret'),
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    // Short-lived on purpose — this is the token actually sent on every
+    // request (cookie + Bearer fallback), so its blast radius if leaked
+    // should be small. Long-lived sessions come from the separate,
+    // revocable refresh token below instead (see auth.refreshTokenMaxAgeDays
+    // and refreshTokenService.js), not from extending this.
+    accessTokenExpiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN || '1h',
+  },
+
+  // The refresh token itself is an opaque random value (not a JWT, no
+  // secret/expiresIn needed here) — this is only the absolute cap, from
+  // first login, on how long a device can keep silently refreshing before
+  // a fresh OTP is required again. See refreshTokenService.js.
+  auth: {
+    refreshTokenMaxAgeDays: Number(process.env.REFRESH_TOKEN_MAX_AGE_DAYS || 730),
   },
 
   resetTokenExpiresMin: Number(process.env.RESET_TOKEN_EXPIRES_MIN || 30),

@@ -13,6 +13,14 @@
   align-items: start;
   margin-top: var(--sp-md);
 }
+/* Grid items default to min-width: auto, which resolves to the min-content
+   width of everything nested inside — any unwrappable text/button several
+   levels down (the OTP row, a delivery-method name, an address action
+   button) bubbles all the way up and forces this whole column, and the
+   page itself, wider than the viewport. This is the single root cause
+   behind checkout's mobile horizontal-overflow reports across every
+   section at once — same fix already applied to OrderConfirmation's grid. */
+.checkout-layout > * { min-width: 0; }
 
 .checkout-form { display: flex; flex-direction: column; gap: var(--sp-md); }
 
@@ -66,9 +74,13 @@
   background: var(--color-surface-container);
 }
 .checkout-delivery-card svg { color: var(--color-accent); flex-shrink: 0; }
-.checkout-delivery-name { font-weight: 600; margin: 0; }
-.checkout-delivery-meta { font-size: 0.82rem; color: var(--color-text-muted); margin: 2px 0 0; }
-.checkout-delivery-price { margin-left: auto; font-weight: 700; color: var(--color-success); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
+/* The name/meta block is a plain flex child — without flex:1/min-width:0 a
+   longer delivery-method name or ETA string can't shrink/wrap and pushes
+   the price (and the card) wider than the viewport on a narrow phone. */
+.checkout-delivery-card > div { flex: 1; min-width: 0; }
+.checkout-delivery-name { font-weight: 600; margin: 0; overflow-wrap: break-word; }
+.checkout-delivery-meta { font-size: 0.82rem; color: var(--color-text-muted); margin: 2px 0 0; overflow-wrap: break-word; }
+.checkout-delivery-price { margin-left: auto; flex-shrink: 0; font-weight: 700; color: var(--color-success); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
 
 .payment-method-options {
   display: flex;

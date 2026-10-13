@@ -52,7 +52,7 @@ export function CopyButton({ value, label = 'Copy', className = '' }) {
       aria-label={copied ? 'Copied' : label}
       title={copied ? 'Copied' : label}
     >
-      {copied ? <Check size={13} /> : <Copy size={13} />}
+      {copied ? <Check size={17} /> : <Copy size={17} />}
     </button>
   );
 }

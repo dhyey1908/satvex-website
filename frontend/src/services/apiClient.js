@@ -41,7 +41,7 @@ class ApiError extends Error {
   }
 }
 
-async function request(path, { method = 'GET', body, params } = {}) {
+async function doFetch(path, { method = 'GET', body, params } = {}) {
   let url = `${API_URL}${path}`;
   if (params) {
     const qs = new URLSearchParams(
@@ -74,6 +74,53 @@ async function request(path, { method = 'GET', body, params } = {}) {
   }
 
   return payload.data;
+}
+
+// A 401 here almost always just means the short-lived access token expired
+// — not that the user is actually logged out, since the long-lived refresh
+// cookie (see authController.refresh) is very likely still good. Rather
+// than surfacing that as an error (which would force a fresh OTP), try one
+// silent refresh-and-retry first. This is the whole point of the
+// access/refresh split: it's what lets a returning device go up to ~2
+// years between real OTP sends instead of needing one every time the
+// access token lapses.
+const NO_REFRESH_RETRY_PATHS = new Set(['/auth/login', '/auth/register', '/auth/verify-otp', '/auth/refresh', '/auth/logout']);
+let refreshPromise = null;
+
+// Several requests can all 401 at the same moment (e.g. a page firing a
+// few parallel calls right as the access token expires). The refresh
+// token is single-use/rotated, so two independent refresh calls would
+// make the second one look like a replay of an already-rotated token and
+// wrongly trigger reuse-detection (logging the user out everywhere). This
+// dedup makes every concurrent caller await the SAME in-flight refresh.
+function refreshAccessToken() {
+  if (!refreshPromise) {
+    refreshPromise = doFetch('/auth/refresh', { method: 'POST' })
+      .then((data) => {
+        setAuthToken(data.token);
+        return true;
+      })
+      .catch(() => {
+        setAuthToken(null);
+        return false;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
+
+async function request(path, options = {}) {
+  try {
+    return await doFetch(path, options);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401 && !NO_REFRESH_RETRY_PATHS.has(path)) {
+      const refreshed = await refreshAccessToken();
+      if (refreshed) return doFetch(path, options);
+    }
+    throw err;
+  }
 }
 
 export const api = {

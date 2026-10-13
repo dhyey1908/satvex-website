@@ -262,7 +262,7 @@ export function AccountOrderDetail() {
         <p style={{ marginTop: 8 }}>{order.customer.phone}{order.customer.email ? ` · ${order.customer.email}` : ''}</p>
       </div>
 
-      <div style={{ display: 'flex', gap: 12 }}>
+      <div className="account-order-actions">
         {canCancel && (
           <button type="button" className="btn btn-outline" onClick={handleCancel}>
             Cancel Order

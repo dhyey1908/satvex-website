@@ -17,18 +17,36 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--color-border);
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  box-sizing: border-box;
   margin-bottom: 8px;
   z-index: 1;
+  flex-shrink: 0;
+  transition: background 250ms ease, border-color 250ms ease, box-shadow 250ms ease;
 }
-.order-timeline-step.done .order-timeline-dot { background: var(--color-primary); }
+.order-timeline-step.done .order-timeline-dot { background: var(--color-primary); border-color: var(--color-primary); }
+/* Box-shadow (not a width/height change) so the ring never shifts the
+   connecting line's fixed `top` anchor below — every dot stays the same
+   layout size regardless of done/current state. */
+.order-timeline-step.current .order-timeline-dot {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 4px var(--color-primary-light);
+}
 
 .order-timeline-label {
   font-size: 0.78rem;
   color: var(--color-text-muted);
   text-align: center;
+  line-height: 1.25;
+  max-width: 100%;
+  padding: 0 2px;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 .order-timeline-step.done .order-timeline-label { color: var(--color-text); font-weight: 600; }
+.order-timeline-step.current .order-timeline-label { color: var(--color-accent); font-weight: 700; }
 
 .order-timeline-line {
   position: absolute;
@@ -42,6 +60,15 @@
 }
 .order-timeline-step.done .order-timeline-line { background: var(--color-primary); }
 
+.order-timeline-current-label {
+  display: none;
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: var(--color-text);
+  text-align: center;
+}
+.order-timeline-current-label strong { color: var(--color-accent); }
+
 .order-timeline-cancelled {
   display: flex;
   align-items: center;
@@ -50,8 +77,21 @@
   font-weight: 600;
   padding: var(--space-3) 0;
 }
-.order-timeline-cancelled .order-timeline-dot { background: var(--color-error); margin-bottom: 0; }
+.order-timeline-cancelled .order-timeline-dot { background: var(--color-error); border-color: var(--color-error); margin-bottom: 0; }
 
 @media (max-width: 560px) {
-  .order-timeline-label { font-size: 0.68rem; }
+  .order-timeline-label { font-size: 0.7rem; }
+}
+
+/* Below this width, five full-word labels (e.g. "Processing", "Confirmed")
+   can't fit on one line each — their own track is well under ~55px once
+   the surrounding card/container padding is subtracted at 320-414px — no
+   font-size reduction fixes that without forcing ugly mid-word wraps. Swap
+   to a compact dots-only stepper + the single current-status line above
+   instead, matching the task's "compact labels or a responsive
+   alternative" guidance. */
+@media (max-width: 420px) {
+  .order-timeline-label { display: none; }
+  .order-timeline-current-label { display: block; }
+  .order-timeline { padding-bottom: var(--space-2); }
 }
