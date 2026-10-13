@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -61,11 +61,6 @@ export function Login() {
   return (
     <AuthLayout>
       <div>
-        <div className="auth-tabs">
-          <span className="auth-tab active">Sign In</span>
-          <Link to="/signup" className="auth-tab">Create Account</Link>
-        </div>
-
         <h1 className="text-headline-lg">Welcome Back</h1>
         <p className="auth-subcopy">Sign in to view your orders, wishlist, and saved addresses.</p>
 
@@ -82,10 +77,7 @@ export function Login() {
             {touched.identifier && fieldErrors.identifier && <p className="field-error">{fieldErrors.identifier}</p>}
           </div>
           <div className={`field ${touched.password && fieldErrors.password ? 'invalid' : ''}`}>
-            <div className="field-label-row">
-              <label htmlFor="password">Password</label>
-              <Link to="/forgot-password" className="auth-inline-link">Forgot password?</Link>
-            </div>
+            <label htmlFor="password">Password</label>
             <input
               id="password"
               type="password"
@@ -103,10 +95,6 @@ export function Login() {
             {submitting ? <Loader2 size={16} className="btn-spinner" /> : 'Log In'}
           </button>
         </form>
-
-        <p className="auth-footer">
-          New to Satvex? <Link to="/signup">Create an account</Link>
-        </p>
       </div>
     </AuthLayout>
   );

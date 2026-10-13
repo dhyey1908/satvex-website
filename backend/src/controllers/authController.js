@@ -3,10 +3,14 @@ const {
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  forgotPasswordPhoneSchema,
+  resetPasswordPhoneSchema,
   updateProfileSchema,
   changePasswordSchema,
 } = require('../validators/authValidators');
+const { sendOtpSchema, verifyOtpSchema } = require('../validators/phoneValidators');
 const userService = require('../services/userService');
+const otpService = require('../services/otpService');
 const { sendPasswordResetEmail } = require('../services/emailService');
 const { hashPassword, verifyPassword, generateRawToken, hashToken } = require('../utils/password');
 const { signAccessToken } = require('../utils/jwt');
@@ -144,6 +148,67 @@ async function resetPassword(req, res) {
   ok(res, { message: 'Password updated. You can now log in.' });
 }
 
+// Phone-login accounts have no email, so the email reset-link flow above
+// can never reach them — this is the phone equivalent. It skips the
+// reset-token/email-link mechanism entirely: verifying the OTP already
+// proves ownership of the number, so a successful verify can set the new
+// password directly in the same request.
+async function forgotPasswordPhone(req, res) {
+  const { phone } = forgotPasswordPhoneSchema.parse(req.body);
+  const user = await userService.findByVerifiedPhone(phone);
+
+  // Same "respond identically either way" rule as the email flow, to avoid
+  // leaking which numbers have accounts.
+  if (user) {
+    await otpService.sendOtp(phone);
+  }
+
+  ok(res, { message: 'If an account exists for that mobile number, a verification code has been sent.' });
+}
+
+async function resetPasswordPhone(req, res) {
+  const { phone, code, password } = resetPasswordPhoneSchema.parse(req.body);
+
+  const user = await userService.findByVerifiedPhone(phone);
+  if (!user) {
+    throw new AppError('Invalid or expired code.', 400, 'OTP_NOT_FOUND');
+  }
+
+  await otpService.verifyOtp(phone, code); // throws AppError on wrong/expired/too-many-attempts
+
+  const passwordHash = await hashPassword(password);
+  await userService.updatePassword(user.userId, passwordHash);
+
+  ok(res, { message: 'Password updated. You can now log in.' });
+}
+
+// The customer-facing auth model: phone + OTP only, no password, no email,
+// no signup form. This is the ONLY account-creation path a customer ever
+// goes through now — register() above is left in place solely because
+// admin accounts still use it indirectly via scripts/createAdmin.js, but no
+// customer-facing UI calls it anymore.
+async function requestOtp(req, res) {
+  const { phone } = sendOtpSchema.parse(req.body);
+  // Deliberately no "does this account exist" check — unlike
+  // forgotPasswordPhone, this same endpoint is the signup entry point too,
+  // so sending must succeed identically whether the number is new or
+  // returning. There's nothing to leak by varying behavior here, since
+  // both outcomes already send a code either way.
+  await otpService.sendOtp(phone);
+  ok(res, { sent: true });
+}
+
+async function verifyOtp(req, res) {
+  const { phone, code } = verifyOtpSchema.parse(req.body);
+  await otpService.verifyOtp(phone, code); // throws AppError on wrong/expired/too-many-attempts
+
+  const existingUser = await userService.findByVerifiedPhone(phone);
+  const user = existingUser || (await userService.createUser({ phone, verifiedPhone: phone, role: 'customer' }));
+
+  const token = issueSession(res, user);
+  ok(res, { user: userService.toPublicUser(user), token, isNewAccount: !existingUser });
+}
+
 async function updateProfile(req, res) {
   const data = updateProfileSchema.parse(req.body);
   await userService.updateProfile(req.user.id, data);
@@ -168,4 +233,17 @@ async function changePassword(req, res) {
   ok(res, { updated: true });
 }
 
-module.exports = { register, login, logout, me, forgotPassword, resetPassword, updateProfile, changePassword };
+module.exports = {
+  register,
+  login,
+  logout,
+  me,
+  forgotPassword,
+  resetPassword,
+  forgotPasswordPhone,
+  resetPasswordPhone,
+  requestOtp,
+  verifyOtp,
+  updateProfile,
+  changePassword,
+};

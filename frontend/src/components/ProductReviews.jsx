@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
 import { Star, Loader2, X, PenLine } from 'lucide-react';
 import { reviewService } from '../services/reviewService';
 import { orderService } from '../services/orderService';
 import { useAuth } from '../context/AuthContext';
+import { useAuthGate } from '../context/AuthGateContext';
 import { useToast } from '../context/ToastContext';
 import { Pagination } from './Pagination';
 import { usePagination } from '../hooks/usePagination';
@@ -35,9 +35,8 @@ function StarInput({ value, onChange }) {
 
 export function ProductReviews({ productId, rating, reviewCount }) {
   const { isAuthenticated } = useAuth();
+  const { requireAuth } = useAuthGate();
   const { showToast } = useToast();
-  const navigate = useNavigate();
-  const location = useLocation();
   const [reviews, setReviews] = useState(null);
   // undefined = still checking, null = not eligible (never delivered), object = user's existing review
   const [eligible, setEligible] = useState(false);
@@ -109,9 +108,16 @@ export function ProductReviews({ productId, rating, reviewCount }) {
 
   function handleWriteReviewClick() {
     if (!isAuthenticated) {
-      navigate('/login', { state: { from: location } });
+      // Resuming through handleWriteReviewClick itself would re-check
+      // isAuthenticated against this render's (permanently stale) closure
+      // — see performQuickAdd in ProductCard.jsx for the same pattern.
+      requireAuth(() => performWriteReviewClick());
       return;
     }
+    performWriteReviewClick();
+  }
+
+  function performWriteReviewClick() {
     if (!eligible) {
       showToast('You can write a review once your delivered order for this product arrives.', 'info');
       return;

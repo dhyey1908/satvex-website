@@ -5,6 +5,7 @@ import App from './App';
 import { ToastProvider } from './context/ToastContext';
 import { ConfirmProvider } from './context/ConfirmContext';
 import { AuthProvider } from './context/AuthContext';
+import { AuthGateProvider } from './context/AuthGateContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { SettingsProvider } from './context/SettingsContext';
@@ -28,11 +29,13 @@ createRoot(document.getElementById('root')).render(
         <ConfirmProvider>
           <SettingsProvider>
             <AuthProvider>
-              <CartProvider>
-                <WishlistProvider>
-                  <App />
-                </WishlistProvider>
-              </CartProvider>
+              <AuthGateProvider>
+                <CartProvider>
+                  <WishlistProvider>
+                    <App />
+                  </WishlistProvider>
+                </CartProvider>
+              </AuthGateProvider>
             </AuthProvider>
           </SettingsProvider>
         </ConfirmProvider>

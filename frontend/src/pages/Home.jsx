@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Truck, Gift, Leaf, Infinity as InfinityIcon, Package, Star, CheckCircle2, XCircle, ShoppingBag, Quote } from 'lucide-react';
 import { productService } from '../services/productService';
 import { useAuth } from '../context/AuthContext';
+import { useAuthGate } from '../context/AuthGateContext';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
 import { useSettings } from '../context/SettingsContext';
@@ -33,11 +34,11 @@ export function Home() {
   });
 
   const { isAuthenticated } = useAuth();
+  const { requireAuth } = useAuthGate();
   const { addItem: addToCart, isInCart } = useCart();
   const { showToast } = useToast();
   const { settings } = useSettings();
   const navigate = useNavigate();
-  const location = useLocation();
 
   const [products, setProducts] = useState(null);
   const [error, setError] = useState(null);
@@ -81,11 +82,18 @@ export function Home() {
   const quickAddInCart =
     showcase && singleOption && selectedVariant && isInCart(showcase.productId, singleOption.id, [selectedVariant.id]);
 
-  async function handleQuickAdd() {
+  function handleQuickAdd() {
     if (!isAuthenticated) {
-      navigate('/login', { state: { from: location } });
+      // See performQuickAdd: resuming through handleQuickAdd itself would
+      // re-check isAuthenticated against this render's (stale) closure,
+      // which stays false forever — performQuickAdd has no such check.
+      requireAuth(() => performQuickAdd());
       return;
     }
+    performQuickAdd();
+  }
+
+  async function performQuickAdd() {
     if (!showcase || !singleOption || !selectedVariant) return;
     if (quickAddInCart) {
       navigate('/cart');

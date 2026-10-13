@@ -27,6 +27,18 @@
 }
 .order-summary-savings svg { flex-shrink: 0; }
 
+.order-summary-expanded {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sm);
+}
+
+.order-summary-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sm);
+}
+
 .order-summary-row {
   display: flex;
   justify-content: space-between;
@@ -45,3 +57,47 @@
   padding-top: var(--sp-md);
   margin-top: 6px;
 }
+
+/* The compact, always-visible row — doubles as the expand/collapse
+   trigger, so the whole row (not just the chevron) is one button. */
+.order-summary-collapsed-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.order-summary-collapsed-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.order-summary-collapsed-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.order-summary-collapsed-count {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+.order-summary-collapsed-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.order-summary-collapsed-amount {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.order-summary-collapsed-right svg { color: var(--color-text-muted); transition: transform var(--transition-fast); }
+.order-summary-collapsed-right svg.rotated { transform: rotate(180deg); }

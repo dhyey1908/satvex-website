@@ -6,79 +6,6 @@
 }
 .checkout-return-link:hover { color: var(--color-text); }
 
-.checkout-steps {
-  display: flex;
-  align-items: center;
-  list-style: none;
-  margin: var(--sp-md) 0 0;
-  padding: 0;
-}
-.checkout-step {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--color-text-muted);
-}
-.checkout-step-dot {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  border: 1.5px solid var(--color-border);
-  font-size: 0.75rem;
-  font-weight: 700;
-  background: var(--color-surface);
-  color: var(--color-text-muted);
-  transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
-}
-.checkout-step.active .checkout-step-dot {
-  border-color: var(--color-accent);
-  background: var(--color-accent);
-  color: var(--color-surface);
-}
-.checkout-step.done .checkout-step-dot {
-  border-color: var(--color-accent);
-  background: var(--color-accent);
-  color: var(--color-surface);
-}
-.checkout-step-label {
-  font-size: 0.82rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-.checkout-step.active .checkout-step-label { color: var(--color-text); }
-.checkout-step-line {
-  width: 32px;
-  height: 1.5px;
-  margin: 0 10px;
-  background: var(--color-border);
-  flex-shrink: 0;
-}
-.checkout-step.done .checkout-step-line {
-  background: var(--color-accent);
-}
-
-.checkout-back-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-  font-weight: 600;
-  background: none;
-  border: none;
-  padding: 0;
-  margin-bottom: var(--space-2);
-  cursor: pointer;
-  transition: color var(--transition-fast);
-}
-.checkout-back-link:hover { color: var(--color-accent); }
-
-.checkout-step-continue { margin-top: var(--space-2); }
-
 .checkout-layout {
   display: grid;
   grid-template-columns: 2fr 1fr;
@@ -207,32 +134,16 @@
 @media (max-width: 860px) {
   .checkout-layout, .field-row { grid-template-columns: 1fr; }
 
-  .checkout-steps {
-    overflow-x: auto;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    padding-bottom: 2px;
-  }
-  .checkout-steps::-webkit-scrollbar { display: none; }
-  /* Tighter dot/line/label sizing at narrow widths so all three steps have
-     a real chance to fit without scrolling at all down to 320px; still
-     scrolls smoothly via the rule above on anything narrower than that. */
-  .checkout-step-dot { width: 20px; height: 20px; font-size: 0.68rem; }
-  .checkout-step-label { font-size: 0.74rem; }
-  .checkout-step-line { width: 18px; margin: 0 6px; }
-  .checkout-step { gap: 5px; }
-
   /* Page needs bottom clearance so the sticky bar never covers the last
      card's content. */
   .checkout-page { padding-bottom: 84px; }
 
-  /* The sticky bottom bar replaces both the step "Continue" buttons and the
-     final inline "Place Order" button on mobile — keeping both is
-     redundant. Scoped to .checkout-form (not just the bare class) so this
-     reliably beats .btn's own `display: inline-flex` — both rules have the
-     same specificity otherwise, and .btn happens to come later in the
-     compiled bundle, which silently won and kept these buttons visible. */
-  .checkout-form .checkout-step-continue,
+  /* The sticky bottom bar replaces the inline "Place Order" button on
+     mobile — keeping both visible is redundant. Scoped to .checkout-form
+     (not just the bare class) so this reliably beats .btn's own `display:
+     inline-flex` — both rules have the same specificity otherwise, and
+     .btn happens to come later in the compiled bundle, which silently won
+     and kept the button visible. */
   .checkout-form .checkout-place-order {
     display: none;
   }
@@ -273,18 +184,4 @@
     min-width: 0;
     text-align: center;
   }
-}
-
-@media (max-width: 400px) {
-  /* The 860px-tier sizing above still runs ~15-20px past the available
-     width right at 320px (measured: "3 Payment"'s label clipped at the
-     container edge) — one more, narrower-only reduction closes that gap
-     so all three steps actually fit with no scrolling needed even at the
-     narrowest supported width. Everything else about the mobile layout
-     (sticky bar, hidden inline buttons, etc.) is unaffected — this block
-     only ever touches step-tab sizing. */
-  .checkout-step-dot { width: 18px; height: 18px; font-size: 0.64rem; }
-  .checkout-step-label { font-size: 0.66rem; letter-spacing: -0.01em; }
-  .checkout-step-line { width: 8px; margin: 0 2px; }
-  .checkout-step { gap: 3px; }
 }

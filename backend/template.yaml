@@ -83,6 +83,16 @@ Parameters:
       platform issued). SMS to Indian numbers will not deliver without a
       registered DLT Principal Entity ID + approved template on the AWS
       account, regardless of this value — see otpService.js for details.
+  OtpTestPhones:
+    Type: String
+    Default: ''
+    Description: >
+      Comma-separated 10-digit numbers that always accept OTP code 123456
+      with no real SMS/WhatsApp sent — a deliberately narrow, deployable
+      bypass for testing the live site before real WhatsApp/SMS delivery is
+      wired up. Every number NOT in this list goes through the real OTP
+      path exactly as normal, in production too. Leave blank to disable
+      entirely once real delivery is live — see otpService.js isTestMode.
 
 Globals:
   Function:
@@ -414,6 +424,7 @@ Resources:
           TABLE_COUPON_REDEMPTIONS: !Ref CouponRedemptionsTable
           TABLE_OTP_CODES: !Ref OtpCodesTable
           SNS_SENDER_ID: !Ref SnsSenderId
+          OTP_TEST_PHONES: !Ref OtpTestPhones
           S3_MEDIA_BUCKET: !Ref MediaBucket
           CLOUDFRONT_MEDIA_URL: !Sub https://${MediaDistribution.DomainName}
           JWT_SECRET: !Ref JwtSecret

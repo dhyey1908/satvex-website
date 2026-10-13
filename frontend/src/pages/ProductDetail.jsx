@@ -16,6 +16,7 @@ import { SearchOverlay } from '../components/SearchOverlay';
 import { Loader } from '../components/Loader';
 import { ErrorState } from '../components/ErrorState';
 import { useAuth } from '../context/AuthContext';
+import { useAuthGate } from '../context/AuthGateContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../context/ToastContext';
@@ -34,6 +35,7 @@ const DEFAULT_HIGHLIGHTS = [
 export function ProductDetail() {
   const { slug } = useParams();
   const { isAuthenticated } = useAuth();
+  const { requireAuth } = useAuthGate();
   const { addItem, isInCart, items: cartItems, itemCount: cartCount } = useCart();
   const { isInWishlist, addItem: addWishlistItem, removeItem: removeWishlistItem } = useWishlist();
   const { showToast } = useToast();
@@ -226,12 +228,6 @@ export function ProductDetail() {
     setSelectedColors([]);
   }
 
-  function requireAuthOrRedirect() {
-    if (isAuthenticated) return true;
-    navigate('/login', { state: { from: location } });
-    return false;
-  }
-
   function validSelection() {
     if (!sellingOption) return false;
     return selectedColors.length === sellingOption.quantity;
@@ -242,8 +238,21 @@ export function ProductDetail() {
     return selectedColors.some((id) => variantsById.get(id)?.inStock === false);
   }
 
-  async function handleAddToCart({ redirectToCheckout } = {}) {
-    if (!requireAuthOrRedirect()) return;
+  function handleAddToCart(opts = {}) {
+    if (!isAuthenticated) {
+      // Resuming via the SAME function (checking isAuthenticated again)
+      // would re-fail here: the callback requireAuth stores is this
+      // render's closure, permanently bound to isAuthenticated=false from
+      // the moment it was captured — it never sees the post-login value no
+      // matter when it's actually invoked. performAddToCart has no auth
+      // check at all, so resuming through it is safe.
+      requireAuth(() => performAddToCart(opts));
+      return;
+    }
+    performAddToCart(opts);
+  }
+
+  async function performAddToCart({ redirectToCheckout } = {}) {
     if (!validSelection()) {
       showToast(`Select ${sellingOption.quantity} color(s) to continue.`, 'warning');
       return;
@@ -272,8 +281,15 @@ export function ProductDetail() {
     }
   }
 
-  async function toggleWishlist() {
-    if (!requireAuthOrRedirect()) return;
+  function toggleWishlist() {
+    if (!isAuthenticated) {
+      requireAuth(() => performToggleWishlist());
+      return;
+    }
+    performToggleWishlist();
+  }
+
+  async function performToggleWishlist() {
     try {
       if (isInWishlist(product.productId)) {
         await removeWishlistItem(product.productId);

@@ -4,13 +4,30 @@ const { hashToken } = require('../utils/password');
 const smsService = require('./smsService');
 const AppError = require('../utils/AppError');
 const env = require('../config/env');
+const logger = require('../utils/logger');
 
 const TABLE = env.tables.otpCodes;
 const CODE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const RESEND_COOLDOWN_MS = 60 * 1000; // 1 minute between sends to the same number
 const MAX_VERIFY_ATTEMPTS = 5; // per issued code, before it's invalidated
 
-function generateCode() {
+// Two independent bypasses, both resulting in the fixed code 123456:
+//  - env.otp.testMode: belt-and-suspenders local-only switch (also requires
+//    nodeEnv !== 'production'). template.yaml never sets OTP_TEST_MODE for
+//    the deployed Lambda (and hardcodes NODE_ENV: production there), so
+//    this can only ever be true running the backend locally — it applies
+//    to every phone number.
+//  - env.otp.testPhones: DOES reach the deployed Lambda (wired into
+//    template.yaml), but only ever bypasses for the specific numbers in
+//    that list — every other number still goes through a real random code
+//    + real SMS send, in production exactly as today. Safe to deploy.
+function isTestMode(phone) {
+  if (env.otp.testPhones.includes(phone)) return true;
+  return env.otp.testMode && env.nodeEnv !== 'production';
+}
+
+function generateCode(phone) {
+  if (isTestMode(phone)) return '123456';
   return String(Math.floor(100000 + Math.random() * 900000)); // 6 digits, never starts with 0
 }
 
@@ -21,7 +38,7 @@ async function sendOtp(phone) {
     throw new AppError('Please wait a moment before requesting another code.', 429, 'OTP_COOLDOWN');
   }
 
-  const code = generateCode();
+  const code = generateCode(phone);
   const nowIso = new Date().toISOString();
   await docClient.send(
     new PutCommand({
@@ -36,6 +53,11 @@ async function sendOtp(phone) {
       },
     })
   );
+
+  if (isTestMode(phone)) {
+    logger.warn('OTP test mode active for this number — skipping real SMS send', { phoneSuffix: phone.slice(-4) });
+    return;
+  }
 
   await smsService.sendSms({ phoneNumber: phone, message: `Your SATVEX verification code is ${code}. Valid for 10 minutes. Do not share this code.` });
 }

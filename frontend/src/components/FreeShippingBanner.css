@@ -1,17 +1,26 @@
 .free-shipping-banner {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-sm);
   padding: var(--sp-sm) var(--sp-md);
   margin-top: var(--sp-md);
   border-radius: var(--radius-md);
-  border: 1px solid var(--color-success-bg);
-  background: var(--color-success-bg);
-  color: var(--color-success);
+  border: 1px solid var(--color-accent-light);
+  background: linear-gradient(135deg, var(--color-surface-muted), var(--color-surface));
+  transition: border-color var(--transition-base), background var(--transition-base);
+}
+.free-shipping-banner.qualifies {
+  border-color: var(--color-success-bg);
+  background: linear-gradient(135deg, var(--color-success-bg), var(--color-surface));
+}
+
+.free-shipping-banner-message {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  color: var(--color-accent-dark);
   font-size: 0.85rem;
   font-weight: 600;
 }
-.free-shipping-banner svg {
+.free-shipping-banner.qualifies .free-shipping-banner-message { color: var(--color-success); }
+.free-shipping-banner-message svg {
   flex-shrink: 0;
   width: 26px;
   height: 26px;
@@ -20,3 +29,39 @@
   background: var(--color-surface);
   box-sizing: border-box;
 }
+
+.free-shipping-progress-track {
+  position: relative;
+  margin-top: var(--sp-sm);
+  padding: 0 7px;
+}
+.free-shipping-progress-fill-wrap {
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-container);
+  overflow: hidden;
+}
+.free-shipping-progress-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, var(--color-accent-gold), var(--color-accent));
+}
+.free-shipping-banner.qualifies .free-shipping-progress-fill {
+  background: var(--color-success);
+}
+.free-shipping-progress-truck {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-accent);
+  box-shadow: var(--shadow-sm);
+  transform: translate(-50%, -50%);
+}
+.free-shipping-banner.qualifies .free-shipping-progress-truck { color: var(--color-success); }

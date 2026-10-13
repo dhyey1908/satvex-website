@@ -47,21 +47,24 @@ async function findById(userId) {
   return result.Item || null;
 }
 
-async function createUser({ name, email, phone, passwordHash, role = 'customer' }) {
+async function createUser({ name, email, phone, verifiedPhone, passwordHash, role = 'customer' }) {
   const now = new Date().toISOString();
   const user = {
     userId: uuid(),
-    name,
-    // email/phone are both optional at the data layer now (registerSchema
-    // enforces that at least one is given) — email stored only if present,
-    // since DynamoDB's email-index GSI is sparse and a stored null/empty
-    // string would behave unpredictably in a key attribute.
+    // name/email/passwordHash are all optional now — a phone-OTP signup
+    // (authController.verifyOtp) supplies none of them. Left undefined
+    // (omitted by removeUndefinedValues) rather than null/''  so they don't
+    // show up as empty-but-present fields on an account that never
+    // collected them.
+    ...(name ? { name } : {}),
     ...(email ? { email: normalizeEmail(email) } : {}),
     phone: phone || null,
-    // Deliberately NOT set here (left undefined -> omitted by
-    // removeUndefinedValues) rather than null: verifiedPhone is a GSI key
-    // attribute, and a present-but-null value is invalid for a GSI key.
-    // Only markPhoneVerified sets it, once OTP-verified.
+    // verifiedPhone is a GSI key attribute, so it's only ever set (never
+    // null) — either passed in directly by a phone-OTP signup that already
+    // proved ownership, or left undefined/omitted here and set later by
+    // markPhoneVerified once OTP-verified through the authenticated
+    // re-verify flow.
+    ...(verifiedPhone ? { verifiedPhone, phoneVerifiedAt: now } : {}),
     passwordHash,
     role,
     resetTokenHash: null,

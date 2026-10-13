@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Heart, ShoppingBag, Star } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useAuthGate } from '../context/AuthGateContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../context/ToastContext';
@@ -12,11 +13,11 @@ import './ProductCard.css';
 
 export function ProductCard({ product }) {
   const { isAuthenticated } = useAuth();
+  const { requireAuth } = useAuthGate();
   const { isInWishlist, addItem, removeItem } = useWishlist();
   const { addItem: addToCart, isInCart } = useCart();
   const { showToast } = useToast();
   const navigate = useNavigate();
-  const location = useLocation();
   const [justAdded, setJustAdded] = useState(false);
 
   const inWishlist = isInWishlist(product.productId);
@@ -40,15 +41,22 @@ export function ProductCard({ product }) {
   const canQuickAdd = !outOfStock && singleOption && activeVariants.length > 0;
   const quickAddInCart = canQuickAdd && isInCart(product.productId, singleOption.id, [activeVariants[0].id]);
 
-  async function quickAdd(e) {
+  function quickAdd(e) {
     e.preventDefault();
     e.stopPropagation();
 
+    // isAuthenticated inside a queued requireAuth callback would stay
+    // permanently false — it's fixed at this render's closure, not updated
+    // by the login that happens later. performQuickAdd skips that check
+    // entirely, so it's safe to resume through.
     if (!isAuthenticated) {
-      navigate('/login', { state: { from: location } });
+      requireAuth(() => performQuickAdd());
       return;
     }
+    performQuickAdd();
+  }
 
+  async function performQuickAdd() {
     if (quickAddInCart) {
       navigate('/cart');
       return;
@@ -67,15 +75,18 @@ export function ProductCard({ product }) {
     }
   }
 
-  async function toggleWishlist(e) {
+  function toggleWishlist(e) {
     e.preventDefault();
     e.stopPropagation();
 
     if (!isAuthenticated) {
-      navigate('/login', { state: { from: location } });
+      requireAuth(() => performToggleWishlist());
       return;
     }
+    performToggleWishlist();
+  }
 
+  async function performToggleWishlist() {
     try {
       if (inWishlist) {
         await removeItem(product.productId);

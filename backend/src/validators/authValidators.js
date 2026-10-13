@@ -41,6 +41,16 @@ const resetPasswordSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters').max(72),
 });
 
+const forgotPasswordPhoneSchema = z.object({
+  phone: z.string().trim().regex(/^[0-9]{10}$/, 'Enter a valid 10-digit mobile number.'),
+});
+
+const resetPasswordPhoneSchema = z.object({
+  phone: z.string().trim().regex(/^[0-9]{10}$/, 'Enter a valid 10-digit mobile number.'),
+  code: z.string().trim().regex(/^[0-9]{6}$/, 'Enter the 6-digit code.'),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(72),
+});
+
 const updateProfileSchema = z.object({
   name: z.string().trim().min(2, 'Name is too short').max(100),
   phone: z
@@ -61,6 +71,8 @@ module.exports = {
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  forgotPasswordPhoneSchema,
+  resetPasswordPhoneSchema,
   updateProfileSchema,
   changePasswordSchema,
 };

@@ -90,6 +90,24 @@ const env = {
   ses: {
     senderEmail: process.env.SES_SENDER_EMAIL,
   },
+
+  otp: {
+    // Deliberately NOT wired into template.yaml's Environment.Variables for
+    // ApiFunction — this can only ever be true when running the backend
+    // locally. otpService.js also requires nodeEnv !== 'production' before
+    // honoring this, and NODE_ENV: production is hardcoded in template.yaml
+    // for the deployed Lambda, so this is double-gated against ever
+    // reaching the live site.
+    testMode: process.env.OTP_TEST_MODE === 'true',
+    // Unlike testMode above, THIS one is wired into template.yaml and does
+    // reach the deployed Lambda — deliberately scoped to specific numbers
+    // only (not a blanket bypass) so it's safe to deploy: every number NOT
+    // in this list still goes through the real OTP path in production.
+    testPhones: (process.env.OTP_TEST_PHONES || '')
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean),
+  },
 };
 
 module.exports = env;

@@ -202,6 +202,11 @@ async function calculateTotals({ items, couponCode, paymentMethod, userId, deliv
     freeShippingThreshold: freeThreshold,
     qualifiesForFreeShipping,
     amountToFreeShipping: qualifiesForFreeShipping ? 0 : Number((freeThreshold - freeShippingBase).toFixed(2)),
+    // Pre-computed here (not on the frontend) so FreeShippingBanner.jsx can
+    // stay a pure display component with zero arithmetic on its own props —
+    // see src/checks/noClientSidePriceMath.test.js, which enforces that.
+    freeShippingProgressPercent:
+      freeThreshold > 0 ? Math.min(100, Number(((freeShippingBase / freeThreshold) * 100).toFixed(1))) : 100,
     codCharge,
     prepaidDiscount,
     paymentMethod,

@@ -24,6 +24,22 @@
   white-space: nowrap;
 }
 .auth-tab.active { color: var(--color-text); border-color: var(--color-primary); }
+/* .auth-tab/.auth-inline-link were originally only ever rendered on <span>/
+   <Link> — now also used as <button> (ForgotPassword's email/phone toggle,
+   "Change number"), which needs its own browser-chrome reset (background,
+   border, padding, cursor) that a span/anchor never had to worry about. */
+button.auth-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+button.auth-inline-link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
 
 .auth-subcopy { color: var(--color-text-muted); margin-bottom: var(--sp-lg); }
 

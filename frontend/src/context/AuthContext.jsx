@@ -43,6 +43,17 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  // The customer-facing auth path: phone + OTP only. verify-otp creates the
+  // account server-side if the number is new (see authController.verifyOtp)
+  // — isNewAccount lets the caller show a "Welcome!" vs "Welcome back!"
+  // toast without a second round trip.
+  const loginWithOtp = useCallback(async (phone, code) => {
+    const { user: loggedInUser, token, isNewAccount } = await authService.verifyOtp(phone, code);
+    setAuthToken(token);
+    setUser(loggedInUser);
+    return { user: loggedInUser, isNewAccount };
+  }, []);
+
   const value = {
     user,
     loading,
@@ -51,6 +62,7 @@ export function AuthProvider({ children }) {
     login,
     register,
     logout,
+    loginWithOtp,
     refreshUser: loadUser,
   };
 

@@ -14,9 +14,6 @@ import { ProductDetail } from './pages/ProductDetail';
 import { About } from './pages/About';
 import { Contact } from './pages/Contact';
 import { Login } from './pages/Login';
-import { Signup } from './pages/Signup';
-import { ForgotPassword } from './pages/ForgotPassword';
-import { ResetPassword } from './pages/ResetPassword';
 import { Wishlist } from './pages/Wishlist';
 import { Cart } from './pages/Cart';
 import { Checkout } from './pages/Checkout';
@@ -28,7 +25,6 @@ import { AccountOrders } from './pages/account/AccountOrders';
 import { AccountOrderDetail } from './pages/account/AccountOrderDetail';
 import { AccountAddresses } from './pages/account/AccountAddresses';
 import { AccountProfile } from './pages/account/AccountProfile';
-import { AccountChangePassword } from './pages/account/AccountChangePassword';
 
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AdminProducts } from './pages/admin/AdminProducts';
@@ -68,10 +64,10 @@ export default function App() {
         <Route path="/product/:slug" element={<ProductDetail />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
+        {/* /login stays mounted but unlinked from customer nav — it's now
+            admin's own email+password entry point; customers authenticate
+            exclusively via the phone+OTP popup (AuthGateContext). */}
         <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
 
         <Route element={<ProtectedRoute />}>
           <Route path="/wishlist" element={<Wishlist />} />
@@ -90,7 +86,6 @@ export default function App() {
             <Route path="orders/:id" element={<AccountOrderDetail />} />
             <Route path="addresses" element={<AccountAddresses />} />
             <Route path="profile" element={<AccountProfile />} />
-            <Route path="change-password" element={<AccountChangePassword />} />
           </Route>
         </Route>
 

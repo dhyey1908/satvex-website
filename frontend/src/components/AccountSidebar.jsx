@@ -11,7 +11,6 @@ const LINKS = [
   { to: '/wishlist', label: 'Wishlist' },
   { to: '/account/addresses', label: 'Addresses' },
   { to: '/account/profile', label: 'Profile' },
-  { to: '/account/change-password', label: 'Change Password' },
 ];
 
 export function AccountSidebar() {

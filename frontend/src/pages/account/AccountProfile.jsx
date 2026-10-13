@@ -81,10 +81,6 @@ export function AccountProfile() {
           />
           {touched.phone && fieldErrors.phone && <p className="field-error">{fieldErrors.phone}</p>}
         </div>
-        <div className="field">
-          <label>Email</label>
-          <input value={user?.email || 'Not set'} disabled />
-        </div>
         <button type="submit" className="btn btn-primary" disabled={saving}>
           {saving ? 'Saving…' : 'Save Changes'}
         </button>

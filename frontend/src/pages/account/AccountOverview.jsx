@@ -31,17 +31,13 @@ export function AccountOverview() {
   return (
     <div>
       <div className="eyebrow-dot"><span>My Account</span></div>
-      <h1 className="text-headline-lg">Welcome back, {user?.name?.split(' ')[0]}</h1>
+      <h1 className="text-headline-lg">Welcome back, {user?.name?.split(' ')[0] || 'there'}</h1>
       <p className="account-subtitle">Manage your account, orders and saved information.</p>
 
       <div className="account-profile-card">
         <div>
           <p className="account-profile-label">Name</p>
-          <p className="account-profile-value">{user?.name}</p>
-        </div>
-        <div>
-          <p className="account-profile-label">Email</p>
-          <p className="account-profile-value">{user?.email || '—'}</p>
+          <p className="account-profile-value">{user?.name || 'Satvex Customer'}</p>
         </div>
         <div>
           <p className="account-profile-label">Phone</p>

@@ -6,7 +6,7 @@ import { User, Package, Heart, Settings, LogOut, ChevronDown } from 'lucide-reac
 import './AccountMenu.css';
 
 function getInitials(name) {
-  if (!name) return '?';
+  if (!name) return 'S';
   const parts = name.trim().split(/\s+/);
   const first = parts[0]?.[0] || '';
   const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
@@ -66,8 +66,7 @@ export function AccountMenu() {
       {open && (
         <div className="account-menu-dropdown" role="menu">
           <div className="account-menu-header">
-            <p className="account-menu-name">{user?.name}</p>
-            <p className="account-menu-email">{user?.email}</p>
+            <p className="account-menu-name">{user?.name || 'Satvex Customer'}</p>
           </div>
 
           {isAdmin ? (

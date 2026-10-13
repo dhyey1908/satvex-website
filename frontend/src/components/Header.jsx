@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate, useMatch } from 'react-router-dom';
 import { motion, AnimatePresence, useScroll, useTransform, useReducedMotion } from 'framer-motion';
 import { Heart, ShoppingBag, Menu, User, Package, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useAuthGate } from '../context/AuthGateContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { BrandLogo } from './BrandLogo';
@@ -21,6 +22,7 @@ const NAV_LINKS = [
 
 export function Header() {
   const { isAuthenticated, user, logout } = useAuth();
+  const { openLogin } = useAuthGate();
   const { itemCount: cartCount } = useCart();
   const { itemCount: wishlistCount } = useWishlist();
   const { showToast } = useToast();
@@ -106,9 +108,9 @@ export function Header() {
             {isAuthenticated ? (
               <AccountMenu />
             ) : (
-              <Link to="/login" className="btn btn-outline btn-sm">
+              <button type="button" className="btn btn-outline btn-sm" onClick={openLogin}>
                 Login
-              </Link>
+              </button>
             )}
           </div>
 
@@ -164,9 +166,16 @@ export function Header() {
               </button>
             </>
           ) : (
-            <Link to="/login" onClick={() => setMobileOpen(false)}>
-              Login / Signup
-            </Link>
+            <button
+              type="button"
+              className="nav-mobile-account-link"
+              onClick={() => {
+                setMobileOpen(false);
+                openLogin();
+              }}
+            >
+              Login
+            </button>
           )}
         </motion.nav>
       )}

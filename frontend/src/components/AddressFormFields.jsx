@@ -55,8 +55,9 @@ export function AddressFormFields({ form, setField, touched, markTouched, fieldE
       </button>
 
       <div className={`field ${touched.fullName && fieldErrors.fullName ? 'invalid' : ''}`}>
-        <label>Full Name</label>
+        <label htmlFor="address-fullName">Full Name</label>
         <input
+          id="address-fullName"
           required
           value={form.fullName}
           onChange={(e) => setField('fullName', e.target.value)}
@@ -65,8 +66,9 @@ export function AddressFormFields({ form, setField, touched, markTouched, fieldE
         {touched.fullName && fieldErrors.fullName && <p className="field-error">{fieldErrors.fullName}</p>}
       </div>
       <div className={`field ${touched.phone && fieldErrors.phone ? 'invalid' : ''}`}>
-        <label>Mobile Number</label>
+        <label htmlFor="address-phone">Mobile Number</label>
         <input
+          id="address-phone"
           required
           inputMode="numeric"
           maxLength={10}
@@ -77,8 +79,9 @@ export function AddressFormFields({ form, setField, touched, markTouched, fieldE
         {touched.phone && fieldErrors.phone && <p className="field-error">{fieldErrors.phone}</p>}
       </div>
       <div className={`field ${touched.pincode && fieldErrors.pincode ? 'invalid' : ''}`}>
-        <label>Pincode</label>
+        <label htmlFor="address-pincode">Pincode</label>
         <input
+          id="address-pincode"
           required
           inputMode="numeric"
           maxLength={6}
@@ -93,8 +96,9 @@ export function AddressFormFields({ form, setField, touched, markTouched, fieldE
         {touched.pincode && fieldErrors.pincode && <p className="field-error">{fieldErrors.pincode}</p>}
       </div>
       <div className={`field ${touched.houseFlat && fieldErrors.houseFlat ? 'invalid' : ''}`}>
-        <label>House / Flat / Building</label>
+        <label htmlFor="address-houseFlat">House / Flat / Building</label>
         <input
+          id="address-houseFlat"
           required
           value={form.houseFlat}
           onChange={(e) => setField('houseFlat', e.target.value)}
@@ -103,8 +107,9 @@ export function AddressFormFields({ form, setField, touched, markTouched, fieldE
         {touched.houseFlat && fieldErrors.houseFlat && <p className="field-error">{fieldErrors.houseFlat}</p>}
       </div>
       <div className={`field ${touched.areaStreet && fieldErrors.areaStreet ? 'invalid' : ''}`}>
-        <label>Area / Street</label>
+        <label htmlFor="address-areaStreet">Area / Street</label>
         <input
+          id="address-areaStreet"
           required
           value={form.areaStreet}
           onChange={(e) => setField('areaStreet', e.target.value)}
@@ -113,13 +118,14 @@ export function AddressFormFields({ form, setField, touched, markTouched, fieldE
         {touched.areaStreet && fieldErrors.areaStreet && <p className="field-error">{fieldErrors.areaStreet}</p>}
       </div>
       <div className="field">
-        <label>Landmark (optional)</label>
-        <input value={form.landmark} onChange={(e) => setField('landmark', e.target.value)} />
+        <label htmlFor="address-landmark">Landmark (optional)</label>
+        <input id="address-landmark" value={form.landmark} onChange={(e) => setField('landmark', e.target.value)} />
       </div>
       <div className="field-row">
         <div className={`field ${touched.city && fieldErrors.city ? 'invalid' : ''}`}>
-          <label>City</label>
+          <label htmlFor="address-city">City</label>
           <input
+            id="address-city"
             required
             value={form.city}
             onChange={(e) => setField('city', e.target.value)}
@@ -128,8 +134,9 @@ export function AddressFormFields({ form, setField, touched, markTouched, fieldE
           {touched.city && fieldErrors.city && <p className="field-error">{fieldErrors.city}</p>}
         </div>
         <div className={`field ${touched.state && fieldErrors.state ? 'invalid' : ''}`}>
-          <label>State</label>
+          <label htmlFor="address-state">State</label>
           <input
+            id="address-state"
             required
             value={form.state}
             onChange={(e) => setField('state', e.target.value)}
@@ -139,8 +146,9 @@ export function AddressFormFields({ form, setField, touched, markTouched, fieldE
         </div>
       </div>
       <div className={`field ${touched.country && fieldErrors.country ? 'invalid' : ''}`}>
-        <label>Country</label>
+        <label htmlFor="address-country">Country</label>
         <input
+          id="address-country"
           required
           value={form.country}
           onChange={(e) => setField('country', e.target.value)}
