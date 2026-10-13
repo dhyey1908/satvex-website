@@ -1,5 +1,5 @@
 const s3Service = require('../services/s3Service');
-const { uploadUrlSchema, reviewUploadUrlSchema } = require('../validators/mediaValidators');
+const { uploadUrlSchema, reviewUploadUrlSchema, enquiryUploadUrlSchema } = require('../validators/mediaValidators');
 const { ok } = require('../utils/response');
 
 async function getUploadUrl(req, res) {
@@ -17,4 +17,12 @@ async function getReviewUploadUrl(req, res) {
   ok(res, result);
 }
 
-module.exports = { getUploadUrl, getReviewUploadUrl };
+// Public (no auth) — Contact Us is a guest-accessible form, unlike reviews.
+// folder is hardcoded here, never taken from the request.
+async function getEnquiryUploadUrl(req, res) {
+  const { filename, contentType } = enquiryUploadUrlSchema.parse(req.body);
+  const result = await s3Service.createUploadUrl({ folder: 'enquiries', filename, contentType });
+  ok(res, result);
+}
+
+module.exports = { getUploadUrl, getReviewUploadUrl, getEnquiryUploadUrl };

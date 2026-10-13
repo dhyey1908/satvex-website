@@ -13,6 +13,10 @@ import { Shop } from './pages/Shop';
 import { ProductDetail } from './pages/ProductDetail';
 import { About } from './pages/About';
 import { Contact } from './pages/Contact';
+import { ShippingPolicy } from './pages/ShippingPolicy';
+import { ReturnsRefunds } from './pages/ReturnsRefunds';
+import { PrivacyPolicy } from './pages/PrivacyPolicy';
+import { TermsConditions } from './pages/TermsConditions';
 import { Login } from './pages/Login';
 import { Wishlist } from './pages/Wishlist';
 import { Cart } from './pages/Cart';
@@ -34,6 +38,7 @@ import { AdminOrderDetail } from './pages/admin/AdminOrderDetail';
 import { AdminShipmentIssues } from './pages/admin/AdminShipmentIssues';
 import { AdminCustomers } from './pages/admin/AdminCustomers';
 import { AdminContacts } from './pages/admin/AdminContacts';
+import { AdminContactDetail } from './pages/admin/AdminContactDetail';
 import { AdminCoupons } from './pages/admin/AdminCoupons';
 import { AdminReviews } from './pages/admin/AdminReviews';
 import { AdminBanners } from './pages/admin/AdminBanners';
@@ -64,6 +69,10 @@ export default function App() {
         <Route path="/product/:slug" element={<ProductDetail />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/shipping-policy" element={<ShippingPolicy />} />
+        <Route path="/returns-refunds" element={<ReturnsRefunds />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms-conditions" element={<TermsConditions />} />
         {/* /login stays mounted but unlinked from customer nav — it's now
             admin's own email+password entry point; customers authenticate
             exclusively via the phone+OTP popup (AuthGateContext). */}
@@ -103,6 +112,7 @@ export default function App() {
           <Route path="shipment-issues" element={<AdminShipmentIssues />} />
           <Route path="customers" element={<AdminCustomers />} />
           <Route path="contacts" element={<AdminContacts />} />
+          <Route path="contacts/:id" element={<AdminContactDetail />} />
           <Route path="coupons" element={<AdminCoupons />} />
           <Route path="reviews" element={<AdminReviews />} />
           <Route path="banners" element={<AdminBanners />} />

@@ -5,15 +5,24 @@ const env = require('../config/env');
 
 const TABLE = env.tables.contacts;
 
-async function createContact({ name, email, phone, message }) {
+// Type-specific fields the frontend always includes as '' when not
+// applicable to the selected enquiryType (so the schema can accept a flat
+// payload for any type) — strip the blanks to undefined here so they're
+// dropped by the docClient's removeUndefinedValues instead of being stored
+// as empty-string noise on every record.
+const BLANKABLE_FIELDS = ['orderId', 'returnReason', 'returnResolution', 'paymentMethod', 'transactionRef', 'cancelReason'];
+
+async function createContact(data) {
   const contact = {
     contactId: uuid(),
-    name,
-    email,
-    phone: phone || null,
-    message,
+    ...data,
+    email: data.email || null,
+    phone: data.phone || null,
     createdAt: new Date().toISOString(),
   };
+  for (const field of BLANKABLE_FIELDS) {
+    if (contact[field] === '') contact[field] = undefined;
+  }
   await docClient.send(new PutCommand({ TableName: TABLE, Item: contact }));
   return contact;
 }

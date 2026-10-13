@@ -1,8 +1,4 @@
-import { useState } from 'react';
-import { MapPin } from 'lucide-react';
-import { LocationPicker } from './LocationPicker';
 import { sanitizePhoneInput } from '../utils/validators';
-import { useToast } from '../context/ToastContext';
 
 const ADDRESS_TYPES = ['Home', 'Work', 'Other'];
 
@@ -10,28 +6,8 @@ const ADDRESS_TYPES = ['Home', 'Work', 'Other'];
 // Account > Addresses and Checkout's inline new-address form, so the two
 // never drift into two different address forms with two different sets of
 // validation/behavior. Callers own the actual form state/validation/submit;
-// this only renders the fields and the map-pin affordance.
+// this only renders the fields.
 export function AddressFormFields({ form, setField, touched, markTouched, fieldErrors, pincodeLookupState }) {
-  const [mapOpen, setMapOpen] = useState(false);
-  const { showToast } = useToast();
-
-  function handleMapConfirm(address) {
-    setMapOpen(false);
-    // Geocoding is never a substitute for real delivery serviceability —
-    // the pincode here only drives the shipping-rate lookup elsewhere in
-    // checkout, which is unaffected by this UI-only consistency check.
-    if (address.pincode && form.pincode && address.pincode !== form.pincode) {
-      showToast(
-        `The map-selected location's pincode (${address.pincode}) differs from what you entered (${form.pincode}) — please double-check your address.`,
-        'warning'
-      );
-    }
-    if (address.line1) setField('houseFlat', address.line1);
-    if (address.city) setField('city', address.city);
-    if (address.state) setField('state', address.state);
-    if (address.pincode) setField('pincode', address.pincode);
-  }
-
   return (
     <>
       <div className="field">
@@ -49,10 +25,6 @@ export function AddressFormFields({ form, setField, touched, markTouched, fieldE
           ))}
         </div>
       </div>
-
-      <button type="button" className="btn btn-outline btn-sm address-map-btn" onClick={() => setMapOpen(true)}>
-        <MapPin size={14} /> Pin Location on Map
-      </button>
 
       <div className={`field ${touched.fullName && fieldErrors.fullName ? 'invalid' : ''}`}>
         <label htmlFor="address-fullName">Full Name</label>
@@ -156,8 +128,6 @@ export function AddressFormFields({ form, setField, touched, markTouched, fieldE
         />
         {touched.country && fieldErrors.country && <p className="field-error">{fieldErrors.country}</p>}
       </div>
-
-      <LocationPicker open={mapOpen} onClose={() => setMapOpen(false)} onConfirm={handleMapConfirm} />
     </>
   );
 }

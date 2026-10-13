@@ -72,6 +72,11 @@ export function Checkout() {
   const paymentMethodAutoSet = useRef(false);
   const addressCardRef = useRef(null);
   const phoneCardRef = useRef(null);
+  // Tracks the last delivery-quote error already shown as a toast, so the
+  // quote effect re-running for an unrelated reason (coupon/payment method
+  // change) while the SAME undeliverable pincode is still entered doesn't
+  // re-toast the identical message on every fetch.
+  const lastToastedDeliveryErrorRef = useRef(null);
 
   // Matches AddressFormFields' actual top-to-bottom render order (not
   // validateAddressForm's object-key order, which lists pincode after
@@ -196,14 +201,24 @@ export function Checkout() {
         if (cancelled) return;
         setQuote(data);
         setQuoteError(null);
+        lastToastedDeliveryErrorRef.current = null;
       })
       .catch((err) => {
         if (cancelled) return;
         setQuote(null);
         // Surfaced prominently (e.g. a disabled-state pincode) rather than
         // silently dropped — the customer needs to know why the total
-        // disappeared and can't just guess.
-        setQuoteError(deliveryPincode ? err.message : null);
+        // disappeared and can't just guess. A toast catches it immediately
+        // even if they've already scrolled past the inline message below
+        // the address card.
+        const message = deliveryPincode ? err.message : null;
+        setQuoteError(message);
+        if (message && message !== lastToastedDeliveryErrorRef.current) {
+          showToast(message, 'error');
+          lastToastedDeliveryErrorRef.current = message;
+        } else if (!message) {
+          lastToastedDeliveryErrorRef.current = null;
+        }
       });
     return () => {
       cancelled = true;
@@ -332,6 +347,15 @@ export function Checkout() {
       scrollToFirstError(errors);
       return;
     }
+    // Already know this pincode/address isn't deliverable (set by the quote
+    // effect) — block right here instead of letting the customer submit
+    // into a guaranteed backend rejection. Same message already shown
+    // inline below the address card; this just makes it impossible to miss.
+    if (quoteError) {
+      showToast(quoteError, 'error');
+      scrollToElement(document.getElementById('address-pincode'));
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -381,9 +405,11 @@ export function Checkout() {
         if (!showNewAddressForm && Object.keys(serverErrors).length > 0) {
           setShowNewAddressForm(true);
         }
+        showToast('Please check your delivery address details.', 'error');
         scrollToFirstError(serverErrors);
       } else {
         setError(err.message);
+        showToast(err.message, 'error');
       }
     } finally {
       setSubmitting(false);
@@ -504,7 +530,6 @@ export function Checkout() {
               phone={confirmAddress.phone}
               verified={confirmPhoneVerified}
               onVerified={() => setConfirmPhoneVerified(true)}
-              autoSend
             />
           </div>
 
@@ -564,6 +589,8 @@ export function Checkout() {
                 </label>
               )}
             </div>
+
+            <p className="payment-trust-note">🔒 Secure payments powered by PayU</p>
 
             {error && <p className="field-error">{error}</p>}
 

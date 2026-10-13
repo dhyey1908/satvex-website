@@ -121,12 +121,15 @@ const paymentsSettingsSchema = z.object({
 });
 
 const notificationsSettingsSchema = z.object({
-  shipmentAlertEmail: z.string().trim().email().optional().or(z.literal('')),
+  // Lowercased because SES's sandbox-mode verified-recipient check is
+  // case-sensitive — a mixed-case address here can silently fail to send
+  // even when the (lowercase) identity is verified.
+  shipmentAlertEmail: z.string().trim().toLowerCase().email().optional().or(z.literal('')),
 });
 
 const updateSettingsSchema = z.object({
   contactPhone: z.string().trim().max(20).optional(),
-  contactEmail: z.string().trim().email().optional().or(z.literal('')),
+  contactEmail: z.string().trim().toLowerCase().email().optional().or(z.literal('')),
   instagramUrl: z.string().trim().url().optional().or(z.literal('')),
   brandName: z.string().trim().max(60).optional(),
   logoUrl: z.string().trim().url().optional().or(z.literal('')),

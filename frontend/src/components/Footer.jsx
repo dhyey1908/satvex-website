@@ -29,6 +29,10 @@ export function Footer() {
           <h4>Company</h4>
           <ul>
             <li><Link to="/about">About Us</Link></li>
+            <li><Link to="/shipping-policy">Shipping & Delivery</Link></li>
+            <li><Link to="/returns-refunds">Returns & Refunds</Link></li>
+            <li><Link to="/privacy-policy">Privacy Policy</Link></li>
+            <li><Link to="/terms-conditions">Terms & Conditions</Link></li>
             <li><Link to="/contact">Contact Us</Link></li>
           </ul>
         </div>

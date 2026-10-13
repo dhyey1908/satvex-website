@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Eye } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { Loader } from '../../components/Loader';
 import { ErrorState } from '../../components/ErrorState';
@@ -6,6 +8,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { Pagination } from '../../components/Pagination';
 import { usePagination } from '../../hooks/usePagination';
 import { formatDate } from '../../utils/date';
+import { ENQUIRY_TYPE_LABELS, ENQUIRY_TYPE_PILL_CLASS } from '../../utils/contactEnquiry';
 import './Admin.css';
 
 const PAGE_SIZE = 20;
@@ -30,7 +33,9 @@ export function AdminContacts() {
       (c) =>
         c.name?.toLowerCase().includes(term) ||
         c.email?.toLowerCase().includes(term) ||
-        c.message?.toLowerCase().includes(term)
+        c.message?.toLowerCase().includes(term) ||
+        c.orderId?.toLowerCase().includes(term) ||
+        ENQUIRY_TYPE_LABELS[c.enquiryType]?.toLowerCase().includes(term)
     );
   }, [contacts, search]);
 
@@ -63,20 +68,32 @@ export function AdminContacts() {
             <thead>
               <tr>
                 <th>Date</th>
+                <th>Type</th>
                 <th>Name</th>
-                <th>Email</th>
                 <th>Phone</th>
                 <th>Message</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
               {pageContacts.map((c) => (
                 <tr key={c.contactId}>
                   <td>{formatDate(c.createdAt)}</td>
+                  <td>
+                    <span className={`pill ${ENQUIRY_TYPE_PILL_CLASS[c.enquiryType] || 'pill-inactive'}`}>
+                      {ENQUIRY_TYPE_LABELS[c.enquiryType] || 'General Enquiry'}
+                    </span>
+                  </td>
                   <td>{c.name}</td>
-                  <td>{c.email}</td>
                   <td>{c.phone || '—'}</td>
-                  <td style={{ whiteSpace: 'normal', maxWidth: 400 }}>{c.message}</td>
+                  <td style={{ whiteSpace: 'normal', maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {c.message}
+                  </td>
+                  <td>
+                    <Link to={`/admin/contacts/${c.contactId}`} className="btn btn-ghost btn-sm">
+                      <Eye size={14} /> View
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>

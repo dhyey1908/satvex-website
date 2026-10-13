@@ -15,4 +15,12 @@ const reviewUploadUrlSchema = z.object({
   contentType: z.enum(['image/jpeg', 'image/png', 'image/webp', 'image/avif']),
 });
 
-module.exports = { uploadUrlSchema, reviewUploadUrlSchema };
+// Customer-facing (Contact Us attachments) — public, no login required
+// (unlike reviews above), folder fixed to 'enquiries' server-side. Allows
+// video too, since the enquiry uploader accepts photo/video evidence.
+const enquiryUploadUrlSchema = z.object({
+  filename: z.string().trim().min(1).max(200),
+  contentType: z.enum(['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'video/mp4']),
+});
+
+module.exports = { uploadUrlSchema, reviewUploadUrlSchema, enquiryUploadUrlSchema };

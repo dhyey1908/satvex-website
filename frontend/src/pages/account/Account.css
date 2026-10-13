@@ -19,8 +19,6 @@
   color: var(--color-accent);
 }
 
-.address-map-btn { margin: 2px 0 var(--space-4); width: 100%; justify-content: center; }
-
 .account-page-header-row {
   display: flex;
   align-items: center;

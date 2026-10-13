@@ -10,6 +10,7 @@ import { OrderStatusBadge } from '../../components/OrderStatusBadge';
 import { PaymentStatusBadge } from '../../components/PaymentStatusBadge';
 import { OrderTimeline } from '../../components/OrderTimeline';
 import { OrderSummary } from '../../components/OrderSummary';
+import { CopyButton } from '../../components/CopyButton';
 import { Loader } from '../../components/Loader';
 import { ErrorState } from '../../components/ErrorState';
 import { useDocumentMeta } from '../../hooks/useDocumentMeta';
@@ -114,7 +115,10 @@ export function AccountOrderDetail() {
   return (
     <div>
       <div className="account-page-header-row" style={{ marginBottom: 16 }}>
-        <h1 className="text-headline-lg">Order #{order.orderId.slice(0, 8)}</h1>
+        <h1 className="text-headline-lg" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          Order ID: #{order.orderId.slice(0, 8)}
+          <CopyButton value={order.orderId.slice(0, 8)} label="Copy order ID" />
+        </h1>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <OrderStatusBadge status={order.status} />
           <PaymentStatusBadge order={order} />

@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { orderService } from '../services/orderService';
 import { OrderSummary } from '../components/OrderSummary';
 import { OrderCelebration } from '../components/OrderCelebration';
+import { CopyButton } from '../components/CopyButton';
 import { Loader } from '../components/Loader';
 import { ErrorState } from '../components/ErrorState';
 import { useToast } from '../context/ToastContext';
@@ -256,6 +257,7 @@ export function OrderConfirmation() {
       </p>
       <p className="order-confirmation-number">
         Order Number: <strong>SATVEX-{order.orderId.slice(0, 8).toUpperCase()}</strong>
+        <CopyButton value={`SATVEX-${order.orderId.slice(0, 8).toUpperCase()}`} label="Copy order number" />
       </p>
 
       <div className="order-confirmation-grid">

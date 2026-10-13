@@ -13,7 +13,16 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SITE_URL = process.env.SITE_URL || 'https://satvex.com';
 const API_URL = process.env.VITE_API_URL || 'http://localhost:4000/api';
 
-const STATIC_PATHS = ['/', '/shop', '/about', '/contact'];
+const STATIC_PATHS = [
+  '/',
+  '/shop',
+  '/about',
+  '/contact',
+  '/shipping-policy',
+  '/returns-refunds',
+  '/privacy-policy',
+  '/terms-conditions',
+];
 
 async function fetchProductSlugs() {
   try {

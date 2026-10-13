@@ -469,8 +469,15 @@ Resources:
             TableName: !Ref OtpCodesTable
         - S3CrudPolicy:
             BucketName: !Ref MediaBucket
-        - SESCrudPolicy:
-            IdentityName: !Ref SesSenderEmail
+        # Not SESCrudPolicy (which scopes to a single identity): recipients
+        # here are admin-configurable settings (contactEmail), not just the
+        # fixed sender identity, and SES authorizes ses:SendEmail against
+        # every identity ARN a send touches — so this must cover any
+        # identity in the account, not only SesSenderEmail's.
+        - Statement:
+            - Effect: Allow
+              Action: ses:SendEmail
+              Resource: !Sub arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*
         # SNS SMS publish is account-wide (no per-topic resource — SNS
         # direct-to-phone-number publish has no ARN to scope a resource
         # policy to), per AWS's own documented pattern for this API.
@@ -571,8 +578,12 @@ Resources:
             TableName: !Ref ShipmentJobsTable
         - DynamoDBCrudPolicy:
             TableName: !Ref SettingsTable
-        - SESCrudPolicy:
-            IdentityName: !Ref SesSenderEmail
+        # Same as ApiFunction's SES policy — shipmentAlertEmail is an
+        # admin-configurable recipient, not the fixed sender identity.
+        - Statement:
+            - Effect: Allow
+              Action: ses:SendEmail
+              Resource: !Sub arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*
       Events:
         TenMinuteSweep:
           Type: Schedule
