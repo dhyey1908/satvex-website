@@ -8,6 +8,7 @@ const {
 const { v4: uuid } = require('uuid');
 const { docClient } = require('../config/dynamo');
 const env = require('../config/env');
+const { scanAll } = require('../utils/listQuery');
 const AppError = require('../utils/AppError');
 
 const TABLE = env.tables.products;
@@ -15,8 +16,7 @@ const TABLE = env.tables.products;
 // Catalog is small by design (a handful of products/variants), so a Scan here is
 // negligible in cost and avoids maintaining a GSI purely for slug lookups.
 async function listProducts({ onlyActive = false } = {}) {
-  const result = await docClient.send(new ScanCommand({ TableName: TABLE }));
-  let items = result.Items || [];
+  let items = await scanAll(docClient, TABLE);
   if (onlyActive) {
     items = items.filter((item) => item.isActive);
   }

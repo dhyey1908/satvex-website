@@ -12,6 +12,12 @@ const { checkoutSchema, quoteSchema, updateOrderStatusSchema, refundSchema } = r
 const AppError = require('../utils/AppError');
 const { ok, created } = require('../utils/response');
 const { stripOrderCost } = require('../utils/productVisibility');
+const {
+  ordersQuerySchema,
+  queryOrders,
+  syncIssuesQuerySchema,
+  querySyncIssues,
+} = require('../services/adminListQueries');
 const env = require('../config/env');
 
 // Internal cost data stored on an order for admin profit analytics is
@@ -447,10 +453,13 @@ async function reorder(req, res) {
   ok(res, { addedCount, unavailableCount });
 }
 
+// Filtering, sorting and pagination all happen here, over every order - see
+// services/adminListQueries.js.
 async function adminListOrders(req, res) {
-  const { status, search, dateFrom, dateTo, paymentMethod, shipmentStatus } = req.query;
-  const orders = await orderService.listAll({ status, search, dateFrom, dateTo, paymentMethod, shipmentStatus });
-  ok(res, { orders });
+  const query = ordersQuerySchema.parse(req.query);
+  const orders = await orderService.listEverything();
+  const { items, pagination, facets } = queryOrders(orders, query);
+  ok(res, { orders: items, pagination, facets });
 }
 
 async function adminGetOrder(req, res) {
@@ -602,9 +611,13 @@ async function adminRetryShipment(req, res) {
 // hasn't finished the Shiprocket pipeline yet, bucketed by why (still
 // retrying / exhausted retries / no job at all). See
 // shipmentService.listSyncIssues for exactly what counts.
+// `counts` always describe ALL sync issues (they drive the summary line and
+// the Retry All confirmation); the filters/sort/page only shape `issues`.
 async function adminShipmentSyncIssues(req, res) {
-  const result = await shipmentService.listSyncIssues();
-  ok(res, result);
+  const query = syncIssuesQuerySchema.parse(req.query);
+  const { issues, counts } = await shipmentService.listSyncIssues();
+  const { items, pagination, facets } = querySyncIssues(issues, query);
+  ok(res, { issues: items, counts, pagination, facets });
 }
 
 // "Retry All Failed" — reruns retryShipment for every order currently

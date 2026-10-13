@@ -19,7 +19,7 @@ import { AddressCard } from '../components/AddressCard';
 import { PhoneVerification } from '../components/PhoneVerification';
 import { AddressFormFields, ADDRESS_FORM_EMPTY, addressFormToPayload, validateAddressForm } from '../components/AddressFormFields';
 import { PageHeader } from '../components/PageHeader';
-import { Truck, Loader2, Plus, Sparkles } from 'lucide-react';
+import { Truck, Loader2, Plus, Sparkles, Lock, PackageCheck } from 'lucide-react';
 import { Loader } from '../components/Loader';
 import { Modal } from '../components/Modal';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
@@ -727,7 +727,17 @@ export function Checkout() {
               </div>
             )}
 
-            <p className="payment-trust-note">🔒 Secure payments powered by PayU</p>
+            {/* Each line restates a policy the store already publishes (PayU checkout,
+                Shipping Policy dispatch window, Returns & Refunds damaged/wrong-item
+                cover) — keep them in sync with those pages. */}
+            <ul className="payment-trust-list">
+              <li><Lock size={15} aria-hidden="true" /> Secure payments powered by PayU</li>
+              <li><Truck size={15} aria-hidden="true" /> Dispatched in 1–2 business days, tracked across India</li>
+              <li>
+                <PackageCheck size={15} aria-hidden="true" /> Damaged or wrong item? We&apos;ll replace or refund —{' '}
+                <a href="/returns-refunds" target="_blank" rel="noreferrer">see policy</a>
+              </li>
+            </ul>
 
             {error && <p className="field-error">{error}</p>}
 

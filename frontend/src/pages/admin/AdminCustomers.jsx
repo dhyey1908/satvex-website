@@ -1,45 +1,30 @@
-import { useEffect, useMemo, useState } from 'react';
 import { adminService } from '../../services/adminService';
 import { Loader } from '../../components/Loader';
 import { ErrorState } from '../../components/ErrorState';
 import { EmptyState } from '../../components/EmptyState';
 import { Pagination } from '../../components/Pagination';
-import { usePagination } from '../../hooks/usePagination';
+import { AdminSearchField, SortableTh, ResetFiltersButton, DateFilter, ResultCount } from '../../components/AdminListControls';
+import { useAdminList } from '../../hooks/useAdminList';
 import { formatDate } from '../../utils/date';
 import './Admin.css';
 
 const PAGE_SIZE = 20;
 
+const LIST_DEFAULTS = {
+  sortBy: 'createdAt',
+  sortDir: 'desc',
+  filters: { hasOrders: '', dateFrom: '', dateTo: '' },
+};
+
 export function AdminCustomers() {
-  const [customers, setCustomers] = useState(null);
-  const [error, setError] = useState(null);
-  const [search, setSearch] = useState('');
-
-  useEffect(() => {
-    adminService
-      .customers()
-      .then((data) => setCustomers(data.customers))
-      .catch((err) => setError(err.message));
-  }, []);
-
-  const visible = useMemo(() => {
-    if (!customers) return null;
-    const term = search.trim().toLowerCase();
-    if (!term) return customers;
-    return customers.filter(
-      (c) =>
-        c.name?.toLowerCase().includes(term) ||
-        c.email?.toLowerCase().includes(term) ||
-        c.phone?.toLowerCase().includes(term)
-    );
-  }, [customers, search]);
-
-  const { page, setPage, totalPages, pageItems: pageCustomers, total: totalVisible, rangeStart, rangeEnd } =
-    usePagination(visible, PAGE_SIZE);
-
-  if (error) return <ErrorState message={error} />;
-  if (!customers) return <Loader label="Loading customers…" />;
-  if (customers.length === 0) return <EmptyState title="No customers yet" />;
+  const list = useAdminList({
+    fetcher: adminService.customers,
+    resultKey: 'customers',
+    defaults: LIST_DEFAULTS,
+    pageSize: PAGE_SIZE,
+  });
+  const { items: customers, filters, setFilter } = list;
+  const sortProps = { sortBy: list.sortBy, sortDir: list.sortDir, onSort: list.toggleSort };
 
   return (
     <div>
@@ -47,50 +32,63 @@ export function AdminCustomers() {
         <h1>Customers</h1>
       </div>
 
-      <form className="admin-filters" onSubmit={(e) => e.preventDefault()}>
-        <input
-          placeholder="Search by name, email, phone…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+      <div className="admin-filters">
+        <AdminSearchField
+          value={list.searchInput}
+          onChange={list.setSearchInput}
+          placeholder="Search by name, mobile number or email…"
+          label="Search customers"
         />
-      </form>
+        <select value={filters.hasOrders} onChange={(e) => setFilter('hasOrders', e.target.value)} aria-label="Orders">
+          <option value="">All customers</option>
+          <option value="yes">With orders</option>
+          <option value="no">No orders yet</option>
+        </select>
+        <DateFilter label="Registered from" value={filters.dateFrom} max={filters.dateTo} onChange={(v) => setFilter('dateFrom', v)} />
+        <DateFilter label="to" value={filters.dateTo} min={filters.dateFrom} onChange={(v) => setFilter('dateTo', v)} />
+        <ResetFiltersButton visible={list.hasActiveFilters} onClick={list.reset} />
+      </div>
 
-      {visible.length === 0 && <EmptyState title="No customers match your search" />}
+      {list.error && <ErrorState message={list.error} onRetry={list.reload} />}
+      {!list.error && !customers && <Loader label="Loading customers…" />}
+      {!list.error && customers?.length === 0 && (
+        <EmptyState
+          title={list.hasActiveFilters ? 'No customers match these filters' : 'No customers yet'}
+          message={list.hasActiveFilters ? 'Try a different search or reset the filters.' : undefined}
+        />
+      )}
 
-      {visible.length > 0 && (
-        <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Registered</th>
-                <th>Orders</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageCustomers.map((c) => (
-                <tr key={c.userId}>
-                  <td>{c.name}</td>
-                  <td>{c.email}</td>
-                  <td>{c.phone || '—'}</td>
-                  <td>{formatDate(c.createdAt)}</td>
-                  <td>{c.orderCount}</td>
+      {!list.error && customers?.length > 0 && (
+        <>
+          <ResultCount pagination={list.pagination} loading={list.loading} label="customers" />
+          <div className={`admin-table-wrap ${list.loading ? 'is-refreshing' : ''}`}>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <SortableTh label="Name" field="name" {...sortProps} />
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <SortableTh label="Registered" field="createdAt" firstDir="desc" {...sortProps} />
+                  <SortableTh label="Orders" field="orderCount" firstDir="desc" {...sortProps} />
+                  <SortableTh label="Total Spent" field="totalSpent" firstDir="desc" {...sortProps} />
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-            total={totalVisible}
-            rangeStart={rangeStart}
-            rangeEnd={rangeEnd}
-            itemLabel="customers"
-          />
-        </div>
+              </thead>
+              <tbody>
+                {customers.map((c) => (
+                  <tr key={c.userId}>
+                    <td>{c.name || '—'}</td>
+                    <td>{c.email}</td>
+                    <td>{c.phone || '—'}</td>
+                    <td>{formatDate(c.createdAt)}</td>
+                    <td>{c.orderCount}</td>
+                    <td>₹{Number(c.totalSpent || 0).toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {list.paginationProps && <Pagination {...list.paginationProps} itemLabel="customers" />}
+          </div>
+        </>
       )}
     </div>
   );

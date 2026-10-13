@@ -3,6 +3,7 @@ const { docClient } = require('../config/dynamo');
 const env = require('../config/env');
 const productService = require('./productService');
 const AppError = require('../utils/AppError');
+const { scanAll } = require('../utils/listQuery');
 
 const TABLE = env.tables.reviews;
 const PRODUCT_INDEX = 'productId-createdAt-index';
@@ -37,9 +38,7 @@ async function hasReviewed(productId, userId) {
 // Review volume is expected to stay small for this store; Scan keeps the
 // admin review list simple, matching the Coupons/Orders admin pattern.
 async function listAllForAdmin() {
-  const result = await docClient.send(new ScanCommand({ TableName: TABLE }));
-  const items = result.Items || [];
-  return items.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  return scanAll(docClient, TABLE);
 }
 
 async function listForUserAcrossProducts(userId) {

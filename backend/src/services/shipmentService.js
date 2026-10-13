@@ -304,6 +304,8 @@ async function listSyncIssues() {
         paidAt: order.paidAt || order.createdAt,
         paymentMethod: order.paymentMethod,
         shipmentStatus: order.shipmentStatus || 'not_created',
+        courierName: order.courierName || null,
+        deliveryStatus: order.lastTrackingStatus || null,
         bucket,
         attempts: job?.attempts ?? 0,
         lastError: job?.lastError ?? null,

@@ -4,6 +4,7 @@ const couponRedemptionService = require('../services/couponRedemptionService');
 const pricingService = require('../services/pricingService');
 const { couponSchema, couponUpdateSchema, applyCouponSchema } = require('../validators/couponValidators');
 const AppError = require('../utils/AppError');
+const { couponsQuerySchema, queryCoupons } = require('../services/adminListQueries');
 const { ok, created } = require('../utils/response');
 
 async function applyToCart(req, res) {
@@ -20,8 +21,9 @@ async function applyToCart(req, res) {
 }
 
 async function adminList(req, res) {
-  const coupons = await couponService.listAll();
-  ok(res, { coupons });
+  const query = couponsQuerySchema.parse(req.query);
+  const { items, pagination } = queryCoupons(await couponService.listAll(), query);
+  ok(res, { coupons: items, pagination });
 }
 
 async function adminCreate(req, res) {

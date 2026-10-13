@@ -10,6 +10,7 @@ import { Pagination } from '../../components/Pagination';
 import { TrendChart } from '../../components/TrendChart';
 import { BarChart, ShareBars } from '../../components/BarChart';
 import { usePagination } from '../../hooks/usePagination';
+import { ResetFiltersButton } from '../../components/AdminListControls';
 import { formatDate } from '../../utils/date';
 import { buildCsv, buildXlsx, downloadFile, CSV_MIME, XLSX_MIME } from '../../utils/exportReport';
 import './Admin.css';
@@ -232,6 +233,15 @@ export function AdminAnalytics() {
     }
   }
 
+  // Back to the screen's opening view: last 30 days, nothing filtered.
+  function resetFilters() {
+    choosePreset('last30');
+    setPaymentMethod('');
+    setStatus('');
+    setBucket('');
+  }
+  const filtersChanged = preset !== 'last30' || Boolean(paymentMethod || status || bucket);
+
   const { page, setPage, totalPages, pageItems, total, rangeStart, rangeEnd } = usePagination(
     report?.orders || [],
     PAGE_SIZE
@@ -358,6 +368,7 @@ export function AdminAnalytics() {
             ))}
           </select>
           {loading && <Loader2 size={16} className="btn-spinner" aria-label="Updating" />}
+          <ResetFiltersButton visible={filtersChanged} onClick={resetFilters} />
         </div>
         <p className="analytics-basis-note">
           {meta.totalMatching} order(s) · dates are {meta.dateBasis}, {meta.timezone}

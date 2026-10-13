@@ -9,6 +9,7 @@ const contactController = require('../controllers/contactController');
 const mediaController = require('../controllers/mediaController');
 const couponController = require('../controllers/couponController');
 const reviewController = require('../controllers/reviewController');
+const productController = require('../controllers/productController');
 
 const router = express.Router();
 
@@ -30,6 +31,9 @@ router.post('/shipments/retry-all', asyncHandler(orderController.adminRetryAllSh
 router.post('/shiprocket/test-connection', asyncHandler(orderController.adminTestShiprocketConnection));
 
 router.get('/contacts', asyncHandler(contactController.adminList));
+router.put('/contacts/:id/status', asyncHandler(contactController.adminUpdateStatus));
+
+router.get('/products', asyncHandler(productController.adminList));
 
 router.get('/settings', asyncHandler(adminController.getSettings));
 router.put('/settings', asyncHandler(adminController.updateSettings));

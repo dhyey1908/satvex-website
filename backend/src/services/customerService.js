@@ -1,34 +1,23 @@
 const { ScanCommand } = require('@aws-sdk/lib-dynamodb');
 const { docClient } = require('../config/dynamo');
 const env = require('../config/env');
+const { scanAll } = require('../utils/listQuery');
+const { buildCustomerRows } = require('./adminListQueries');
 
 const USERS_TABLE = env.tables.users;
 const ORDERS_TABLE = env.tables.orders;
 
 // Customer/order volume is expected to stay modest for this store; a Scan here
 // keeps the admin views simple without maintaining extra indexes.
+// One row per customer with their order count and total spend (see
+// buildCustomerRows for what counts as spent). Search/sort/pagination run on
+// top of this in the controller, over every customer.
 async function listCustomersWithOrderCounts() {
-  const [usersResult, ordersResult] = await Promise.all([
-    docClient.send(new ScanCommand({ TableName: USERS_TABLE })),
-    docClient.send(new ScanCommand({ TableName: ORDERS_TABLE })),
+  const [users, orders] = await Promise.all([
+    scanAll(docClient, USERS_TABLE),
+    scanAll(docClient, ORDERS_TABLE),
   ]);
-
-  const orderCountByUser = {};
-  for (const order of ordersResult.Items || []) {
-    orderCountByUser[order.userId] = (orderCountByUser[order.userId] || 0) + 1;
-  }
-
-  return (usersResult.Items || [])
-    .filter((user) => user.role !== 'admin')
-    .map((user) => ({
-      userId: user.userId,
-      name: user.name,
-      email: user.email,
-      phone: user.phone || null,
-      createdAt: user.createdAt,
-      orderCount: orderCountByUser[user.userId] || 0,
-    }))
-    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  return buildCustomerRows(users, orders);
 }
 
 async function getDashboardStats() {

@@ -4,6 +4,7 @@ const { docClient } = require('../config/dynamo');
 const env = require('../config/env');
 const shiprocketService = require('./shiprocketService');
 const logger = require('../utils/logger');
+const { scanAll } = require('../utils/listQuery');
 
 const TABLE = env.tables.orders;
 const USER_INDEX = 'userId-createdAt-index';
@@ -134,9 +135,14 @@ async function listForUser(userId) {
 
 // Admin order volume is expected to stay modest for this store, so a Scan with
 // in-memory filtering avoids maintaining extra GSIs for status/search.
+// Every order, across all Scan pages (a single Scan stops at 1 MB).
+async function listEverything() {
+  const items = await scanAll(docClient, TABLE);
+  return items.map(withLegacyPaymentStatus);
+}
+
 async function listAll({ status, search, dateFrom, dateTo, paymentMethod, shipmentStatus } = {}) {
-  const result = await docClient.send(new ScanCommand({ TableName: TABLE }));
-  let items = (result.Items || []).map(withLegacyPaymentStatus);
+  let items = await listEverything();
 
   if (status) {
     items = items.filter((order) => order.status === status);
@@ -775,6 +781,7 @@ module.exports = {
   findById,
   listForUser,
   listAll,
+  listEverything,
   listExpiryCandidates,
   updateStatus,
   hasUserReceivedDeliveredProduct,

@@ -5,36 +5,46 @@ import { productService } from '../../services/productService';
 import { useToast } from '../../context/ToastContext';
 import { useConfirm } from '../../context/ConfirmContext';
 import { Loader } from '../../components/Loader';
+import { ErrorState } from '../../components/ErrorState';
 import { EmptyState } from '../../components/EmptyState';
 import { Pagination } from '../../components/Pagination';
-import { usePagination } from '../../hooks/usePagination';
+import { AdminSearchField, SortableTh, ResetFiltersButton, DateFilter, ResultCount } from '../../components/AdminListControls';
+import { useAdminList } from '../../hooks/useAdminList';
 import { formatDate } from '../../utils/date';
 import './Admin.css';
 
 const PAGE_SIZE = 20;
 
+const LIST_DEFAULTS = {
+  sortBy: 'createdAt',
+  sortDir: 'desc',
+  filters: { rating: '', productId: '', dateFrom: '', dateTo: '' },
+};
+
+// A review can only be written after the reviewer received the product (the
+// create endpoint enforces it), so every review here is a verified purchase —
+// there's nothing to sort or filter on for that.
 export function AdminReviews() {
   const { showToast } = useToast();
   const confirm = useConfirm();
-  const [reviews, setReviews] = useState(null);
-  const [productNames, setProductNames] = useState({});
+  const [products, setProducts] = useState([]);
+  const list = useAdminList({
+    fetcher: adminService.reviews,
+    resultKey: 'reviews',
+    defaults: LIST_DEFAULTS,
+    pageSize: PAGE_SIZE,
+  });
+  const { items: reviews, filters, setFilter } = list;
+  const sortProps = { sortBy: list.sortBy, sortDir: list.sortDir, onSort: list.toggleSort };
 
-  function load() {
-    adminService
-      .reviews()
-      .then((data) => setReviews(data.reviews))
-      .catch(() => setReviews([]));
-  }
-
-  useEffect(load, []);
-  const { page, setPage, totalPages, pageItems: pageReviews, total: totalReviews, rangeStart, rangeEnd } =
-    usePagination(reviews, PAGE_SIZE);
   useEffect(() => {
     productService
       .list()
-      .then((data) => setProductNames(Object.fromEntries(data.products.map((p) => [p.productId, p.name]))))
+      .then((data) => setProducts(data.products.map((p) => ({ productId: p.productId, name: p.name }))))
       .catch(() => {});
   }, []);
+
+  const productNames = Object.fromEntries(products.map((p) => [p.productId, p.name]));
 
   async function handleDelete(id) {
     const ok = await confirm({
@@ -47,7 +57,7 @@ export function AdminReviews() {
     try {
       await adminService.deleteReview(id);
       showToast('Review deleted', 'success');
-      load();
+      list.reload();
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -59,49 +69,76 @@ export function AdminReviews() {
         <h1>Reviews</h1>
       </div>
 
-      {!reviews && <Loader label="Loading reviews…" />}
-      {reviews && reviews.length === 0 && <EmptyState title="No reviews yet" />}
+      <div className="admin-filters">
+        <AdminSearchField
+          value={list.searchInput}
+          onChange={list.setSearchInput}
+          placeholder="Search by reviewer or comment…"
+          label="Search reviews"
+        />
+        <select value={filters.rating} onChange={(e) => setFilter('rating', e.target.value)} aria-label="Rating">
+          <option value="">All ratings</option>
+          {[5, 4, 3, 2, 1].map((n) => (
+            <option key={n} value={n}>{'★'.repeat(n)} ({n})</option>
+          ))}
+        </select>
+        {products.length > 1 && (
+          <select value={filters.productId} onChange={(e) => setFilter('productId', e.target.value)} aria-label="Product">
+            <option value="">All products</option>
+            {products.map((p) => (
+              <option key={p.productId} value={p.productId}>{p.name}</option>
+            ))}
+          </select>
+        )}
+        <DateFilter label="From" value={filters.dateFrom} max={filters.dateTo} onChange={(v) => setFilter('dateFrom', v)} />
+        <DateFilter label="To" value={filters.dateTo} min={filters.dateFrom} onChange={(v) => setFilter('dateTo', v)} />
+        <ResetFiltersButton visible={list.hasActiveFilters} onClick={list.reset} />
+      </div>
 
-      {reviews && reviews.length > 0 && (
-        <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>Rating</th>
-                <th>Reviewer</th>
-                <th>Comment</th>
-                <th>Date</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageReviews.map((r) => (
-                <tr key={r.reviewId}>
-                  <td>{productNames[r.productId] || r.productId}</td>
-                  <td>{'★'.repeat(r.rating)}</td>
-                  <td>{r.userName}</td>
-                  <td style={{ maxWidth: 280, whiteSpace: 'normal' }}>{r.title && <strong>{r.title}: </strong>}{r.comment}</td>
-                  <td>{formatDate(r.createdAt)}</td>
-                  <td>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => handleDelete(r.reviewId)}>
-                      <Trash2 size={14} /> Delete
-                    </button>
-                  </td>
+      {list.error && <ErrorState message={list.error} onRetry={list.reload} />}
+      {!list.error && !reviews && <Loader label="Loading reviews…" />}
+      {!list.error && reviews?.length === 0 && (
+        <EmptyState
+          title={list.hasActiveFilters ? 'No reviews match these filters' : 'No reviews yet'}
+          message={list.hasActiveFilters ? 'Try a different search or reset the filters.' : undefined}
+        />
+      )}
+
+      {!list.error && reviews?.length > 0 && (
+        <>
+          <ResultCount pagination={list.pagination} loading={list.loading} label="reviews" />
+          <div className={`admin-table-wrap ${list.loading ? 'is-refreshing' : ''}`}>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <SortableTh label="Rating" field="rating" firstDir="desc" {...sortProps} />
+                  <th>Reviewer</th>
+                  <th>Comment</th>
+                  <SortableTh label="Date" field="createdAt" firstDir="desc" {...sortProps} />
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-            total={totalReviews}
-            rangeStart={rangeStart}
-            rangeEnd={rangeEnd}
-            itemLabel="reviews"
-          />
-        </div>
+              </thead>
+              <tbody>
+                {reviews.map((r) => (
+                  <tr key={r.reviewId}>
+                    <td>{productNames[r.productId] || r.productId}</td>
+                    <td>{'★'.repeat(r.rating)}</td>
+                    <td>{r.userName}</td>
+                    <td style={{ maxWidth: 280, whiteSpace: 'normal' }}>{r.title && <strong>{r.title}: </strong>}{r.comment}</td>
+                    <td>{formatDate(r.createdAt)}</td>
+                    <td>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => handleDelete(r.reviewId)}>
+                        <Trash2 size={14} /> Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {list.paginationProps && <Pagination {...list.paginationProps} itemLabel="reviews" />}
+          </div>
+        </>
       )}
     </div>
   );

@@ -4,6 +4,7 @@ const orderService = require('../services/orderService');
 const userService = require('../services/userService');
 const { createReviewSchema } = require('../validators/reviewValidators');
 const AppError = require('../utils/AppError');
+const { reviewsQuerySchema, queryReviews } = require('../services/adminListQueries');
 const { ok, created } = require('../utils/response');
 
 async function listForProduct(req, res) {
@@ -60,8 +61,9 @@ async function update(req, res) {
 }
 
 async function adminList(req, res) {
-  const reviews = await reviewService.listAllForAdmin();
-  ok(res, { reviews });
+  const query = reviewsQuerySchema.parse(req.query);
+  const { items, pagination } = queryReviews(await reviewService.listAllForAdmin(), query);
+  ok(res, { reviews: items, pagination });
 }
 
 async function adminRemove(req, res) {

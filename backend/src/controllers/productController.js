@@ -4,6 +4,7 @@ const { productSchema, productUpdateSchema } = require('../validators/productVal
 const AppError = require('../utils/AppError');
 const { ok, created } = require('../utils/response');
 const { productForViewer } = require('../utils/productVisibility');
+const { productsQuerySchema, queryProducts } = require('../services/adminListQueries');
 
 function assignIdsIfMissing(list, prefix) {
   return (list || []).map((item) => ({ ...item, id: item.id || `${prefix}_${uuid()}` }));
@@ -15,6 +16,16 @@ async function list(req, res) {
   const isAdmin = req.user?.role === 'admin';
   const products = await productService.listProducts({ onlyActive: !isAdmin });
   ok(res, { products: products.map((p) => forViewer(p, isAdmin)) });
+}
+
+// Admin catalogue: search/filter/sort/pagination over every product (active
+// or not), with each row's listed price, best discount and stock status
+// worked out here so the screen only displays them.
+async function adminList(req, res) {
+  const query = productsQuerySchema.parse(req.query);
+  const products = await productService.listProducts({ onlyActive: false });
+  const { items, pagination, facets } = queryProducts(products, query);
+  ok(res, { products: items.map((p) => forViewer(p, true)), pagination, facets });
 }
 
 async function getById(req, res) {
@@ -56,4 +67,4 @@ async function remove(req, res) {
   ok(res, { deleted: true });
 }
 
-module.exports = { list, getById, getBySlug, create, update, remove };
+module.exports = { list, adminList, getById, getBySlug, create, update, remove };

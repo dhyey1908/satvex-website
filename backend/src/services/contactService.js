@@ -1,7 +1,8 @@
-const { PutCommand, ScanCommand } = require('@aws-sdk/lib-dynamodb');
+const { PutCommand, GetCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 const { v4: uuid } = require('uuid');
 const { docClient } = require('../config/dynamo');
 const env = require('../config/env');
+const { scanAll } = require('../utils/listQuery');
 
 const TABLE = env.tables.contacts;
 
@@ -18,6 +19,8 @@ async function createContact(data) {
     ...data,
     email: data.email || null,
     phone: data.phone || null,
+    // Resolution tracking - the admin toggles it from the enquiry page.
+    status: 'open',
     createdAt: new Date().toISOString(),
   };
   for (const field of BLANKABLE_FIELDS) {
@@ -29,8 +32,29 @@ async function createContact(data) {
 
 // Contact volume is expected to stay low; a Scan avoids an index for a rarely-listed admin view.
 async function listContacts() {
-  const result = await docClient.send(new ScanCommand({ TableName: TABLE }));
-  return (result.Items || []).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  return scanAll(docClient, TABLE);
 }
 
-module.exports = { createContact, listContacts };
+// Returns the updated record, or null when there is no such enquiry.
+async function updateStatus(contactId, status) {
+  const existing = await docClient.send(new GetCommand({ TableName: TABLE, Key: { contactId } }));
+  if (!existing.Item) return null;
+  const now = new Date().toISOString();
+  const result = await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE,
+      Key: { contactId },
+      UpdateExpression: 'SET #status = :status, resolvedAt = :resolvedAt, updatedAt = :now',
+      ExpressionAttributeNames: { '#status': 'status' },
+      ExpressionAttributeValues: {
+        ':status': status,
+        ':resolvedAt': status === 'resolved' ? now : null,
+        ':now': now,
+      },
+      ReturnValues: 'ALL_NEW',
+    })
+  );
+  return result.Attributes;
+}
+
+module.exports = { createContact, listContacts, updateStatus };

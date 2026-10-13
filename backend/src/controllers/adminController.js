@@ -3,6 +3,7 @@ const settingsService = require('../services/settingsService');
 const financialAnalyticsService = require('../services/financialAnalyticsService');
 const { updateSettingsSchema } = require('../validators/settingsValidators');
 const { financialAnalyticsQuerySchema } = require('../validators/analyticsValidators');
+const { customersQuerySchema, queryCustomers } = require('../services/adminListQueries');
 const { ok } = require('../utils/response');
 
 async function dashboard(req, res) {
@@ -11,8 +12,10 @@ async function dashboard(req, res) {
 }
 
 async function listCustomers(req, res) {
-  const customers = await customerService.listCustomersWithOrderCounts();
-  ok(res, { customers });
+  const query = customersQuerySchema.parse(req.query);
+  const rows = await customerService.listCustomersWithOrderCounts();
+  const { items, pagination } = queryCustomers(rows, query);
+  ok(res, { customers: items, pagination });
 }
 
 async function getSettings(req, res) {

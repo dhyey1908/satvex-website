@@ -1,7 +1,8 @@
-const { PutCommand, GetCommand, ScanCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
+const { PutCommand, GetCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
 const { docClient } = require('../config/dynamo');
 const env = require('../config/env');
 const AppError = require('../utils/AppError');
+const { scanAll } = require('../utils/listQuery');
 
 const TABLE = env.tables.coupons;
 
@@ -12,8 +13,7 @@ async function findByCode(code) {
 
 // Coupon volume is expected to stay small for this store; Scan keeps the admin list simple.
 async function listAll() {
-  const result = await docClient.send(new ScanCommand({ TableName: TABLE }));
-  return (result.Items || []).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  return scanAll(docClient, TABLE);
 }
 
 async function create(data) {

@@ -3,6 +3,11 @@ const settingsService = require('../services/settingsService');
 const { sendContactNotificationEmail } = require('../services/emailService');
 const { contactSchema } = require('../validators/contactValidators');
 const { ok, created } = require('../utils/response');
+const AppError = require('../utils/AppError');
+const { z } = require('zod');
+const { contactsQuerySchema, queryContacts, CONTACT_STATUSES } = require('../services/adminListQueries');
+
+const updateContactStatusSchema = z.object({ status: z.enum(CONTACT_STATUSES) });
 
 async function submit(req, res) {
   const data = contactSchema.parse(req.body);
@@ -24,8 +29,16 @@ async function submit(req, res) {
 }
 
 async function adminList(req, res) {
-  const contacts = await contactService.listContacts();
-  ok(res, { contacts });
+  const query = contactsQuerySchema.parse(req.query);
+  const { items, pagination } = queryContacts(await contactService.listContacts(), query);
+  ok(res, { contacts: items, pagination });
 }
 
-module.exports = { submit, adminList };
+async function adminUpdateStatus(req, res) {
+  const { status } = updateContactStatusSchema.parse(req.body);
+  const contact = await contactService.updateStatus(req.params.id, status);
+  if (!contact) throw new AppError('Enquiry not found.', 404, 'NOT_FOUND');
+  ok(res, { contact });
+}
+
+module.exports = { submit, adminList, adminUpdateStatus };

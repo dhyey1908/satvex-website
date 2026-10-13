@@ -80,8 +80,53 @@
 .pill-warning { background: var(--color-warning-bg, #fdf3d9); color: var(--color-warning, #8a5a10); }
 .pill-danger { background: var(--color-error-bg); color: var(--color-error); }
 
-.admin-filters { display: flex; gap: var(--space-3); margin-bottom: var(--space-4); flex-wrap: wrap; }
-.admin-filters input, .admin-filters select { padding: 9px 12px; border: var(--input-border); border-radius: var(--input-radius); background: var(--color-surface); }
+.admin-filters { display: flex; gap: var(--space-3); margin-bottom: var(--space-4); flex-wrap: wrap; align-items: center; }
+/* Not the bare input inside an .input-shell (the search box) - the shell draws
+   that field's single border. */
+.admin-filters input:not(.input-shell > input), .admin-filters select { padding: 9px 12px; border: var(--input-border); border-radius: var(--input-radius); background: var(--color-surface); }
+
+/* ---------- list controls: search, sortable headers, reset ---------- */
+.admin-search { flex: 1 1 260px; min-width: 200px; max-width: 420px; padding: 0 12px; }
+.admin-search input { padding: 9px 0; font-size: 0.9rem; }
+.admin-search-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.admin-search-clear:hover { background: var(--color-surface-container); color: var(--color-text); }
+.admin-date-filter { display: inline-flex; align-items: center; gap: 6px; }
+.admin-reset-filters { margin-left: auto; }
+.admin-result-count { margin: 0 0 var(--space-3); font-size: 0.82rem; color: var(--color-text-muted); }
+
+.admin-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+.admin-sort-btn svg { opacity: 0.45; }
+.admin-sort-btn:hover { color: var(--color-text); }
+.admin-sort-btn.active { color: var(--color-accent); }
+.admin-sort-btn.active svg { opacity: 1; }
+/* Wide tables (orders: 10 columns) - tighter cells so the date and View
+   button stay on screen at laptop widths. */
+.admin-table-compact th, .admin-table-compact td { padding: var(--space-3) 9px; }
+.admin-table-wrap.is-refreshing { opacity: 0.6; transition: opacity var(--transition-fast); }
 
 .admin-attachment-grid { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .admin-attachment-item {

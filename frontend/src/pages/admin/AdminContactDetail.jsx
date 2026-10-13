@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { X, ArrowLeft } from 'lucide-react';
+import { X, ArrowLeft, CheckCircle2, RotateCcw } from 'lucide-react';
 import { adminService } from '../../services/adminService';
+import { useToast } from '../../context/ToastContext';
 import { Loader } from '../../components/Loader';
 import { ErrorState } from '../../components/ErrorState';
 import { formatDateTime } from '../../utils/date';
@@ -24,6 +25,8 @@ export function AdminContactDetail() {
   const [contacts, setContacts] = useState(null);
   const [error, setError] = useState(null);
   const [lightbox, setLightbox] = useState(null);
+  const [savingStatus, setSavingStatus] = useState(false);
+  const { showToast } = useToast();
 
   useEffect(() => {
     adminService
@@ -39,6 +42,21 @@ export function AdminContactDetail() {
   if (!contact) return <ErrorState message="Enquiry not found." />;
 
   const attachments = contact.attachments || [];
+  const resolved = contact.status === 'resolved';
+
+  async function toggleResolved() {
+    const next = resolved ? 'open' : 'resolved';
+    setSavingStatus(true);
+    try {
+      const data = await adminService.updateContactStatus(contact.contactId, next);
+      setContacts((prev) => prev.map((c) => (c.contactId === contact.contactId ? { ...c, ...data.contact } : c)));
+      showToast(next === 'resolved' ? 'Marked as resolved' : 'Reopened', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setSavingStatus(false);
+    }
+  }
 
   return (
     <div>
@@ -49,6 +67,9 @@ export function AdminContactDetail() {
           </Link>
           Enquiry Details
         </h1>
+        <button type="button" className={`btn btn-sm ${resolved ? 'btn-outline' : 'btn-primary'}`} onClick={toggleResolved} disabled={savingStatus}>
+          {resolved ? <><RotateCcw size={14} /> Reopen</> : <><CheckCircle2 size={14} /> Mark as resolved</>}
+        </button>
       </div>
 
       <div className="admin-form-section">
@@ -57,7 +78,11 @@ export function AdminContactDetail() {
             {enquiryTypeLabel(contact.enquiryType)}
           </span>
         </h3>
-        <p>Received {formatDateTime(contact.createdAt)}</p>
+        <p>
+          Received {formatDateTime(contact.createdAt)} ·{' '}
+          <span className={`pill ${resolved ? 'pill-active' : 'pill-warning'}`}>{resolved ? 'Resolved' : 'Open'}</span>
+          {resolved && contact.resolvedAt ? ` ${formatDateTime(contact.resolvedAt)}` : ''}
+        </p>
       </div>
 
       <div className="admin-form-section">

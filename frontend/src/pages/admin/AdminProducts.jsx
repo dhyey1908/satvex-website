@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Pencil, Trash2, Power } from 'lucide-react';
+import { adminService } from '../../services/adminService';
 import { productService } from '../../services/productService';
 import { useToast } from '../../context/ToastContext';
 import { useConfirm } from '../../context/ConfirmContext';
@@ -8,43 +8,37 @@ import { Loader } from '../../components/Loader';
 import { ErrorState } from '../../components/ErrorState';
 import { EmptyState } from '../../components/EmptyState';
 import { Pagination } from '../../components/Pagination';
-import { usePagination } from '../../hooks/usePagination';
+import { AdminSearchField, SortableTh, ResetFiltersButton, ResultCount } from '../../components/AdminListControls';
+import { useAdminList } from '../../hooks/useAdminList';
+import { formatDate } from '../../utils/date';
 import './Admin.css';
 
-const STATUS_FILTERS = ['All', 'Active', 'Inactive', 'Featured'];
 const PAGE_SIZE = 20;
 
+const LIST_DEFAULTS = {
+  sortBy: 'createdAt',
+  sortDir: 'desc',
+  filters: { status: '', color: '', stock: '' },
+};
+
+const STOCK_LABELS = {
+  in_stock: 'In stock',
+  partial: 'Some colours out',
+  out_of_stock: 'Out of stock',
+};
+const STOCK_PILL = { in_stock: 'pill-active', partial: 'pill-warning', out_of_stock: 'pill-danger' };
+
 export function AdminProducts() {
-  const [products, setProducts] = useState(null);
-  const [error, setError] = useState(null);
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('All');
   const { showToast } = useToast();
   const confirm = useConfirm();
-
-  function load() {
-    setError(null);
-    productService
-      .list()
-      .then((data) => setProducts(data.products))
-      .catch((err) => setError(err.message));
-  }
-
-  useEffect(load, []);
-
-  const visible = useMemo(() => {
-    if (!products) return null;
-    let list = products;
-    if (status === 'Active') list = list.filter((p) => p.isActive);
-    else if (status === 'Inactive') list = list.filter((p) => !p.isActive);
-    else if (status === 'Featured') list = list.filter((p) => p.isFeatured);
-    const term = search.trim().toLowerCase();
-    if (term) list = list.filter((p) => p.name.toLowerCase().includes(term));
-    return list;
-  }, [products, search, status]);
-
-  const { page, setPage, totalPages, pageItems: pageProducts, total: totalVisible, rangeStart, rangeEnd } =
-    usePagination(visible, PAGE_SIZE);
+  const list = useAdminList({
+    fetcher: adminService.products,
+    resultKey: 'products',
+    defaults: LIST_DEFAULTS,
+    pageSize: PAGE_SIZE,
+  });
+  const { items: products, filters, setFilter, facets } = list;
+  const sortProps = { sortBy: list.sortBy, sortDir: list.sortDir, onSort: list.toggleSort };
 
   async function handleDelete(product) {
     const ok = await confirm({
@@ -57,7 +51,7 @@ export function AdminProducts() {
     try {
       await productService.remove(product.productId);
       showToast('Product deleted', 'success');
-      load();
+      list.reload();
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -67,7 +61,7 @@ export function AdminProducts() {
     try {
       await productService.update(product.productId, { isActive: !product.isActive });
       showToast(product.isActive ? 'Product deactivated' : 'Product activated', 'success');
-      load();
+      list.reload();
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -82,79 +76,98 @@ export function AdminProducts() {
         </Link>
       </div>
 
-      {error && <ErrorState message={error} onRetry={load} />}
-      {!error && !products && <Loader label="Loading products…" />}
-      {!error && products?.length === 0 && <EmptyState title="No products yet" />}
-
-      {!error && products?.length > 0 && (
-        <form className="admin-filters" onSubmit={(e) => e.preventDefault()}>
-          <input
-            placeholder="Search by product name…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <select value={status} onChange={(e) => setStatus(e.target.value)}>
-            {STATUS_FILTERS.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
+      <div className="admin-filters">
+        <AdminSearchField
+          value={list.searchInput}
+          onChange={list.setSearchInput}
+          placeholder="Search by product name…"
+          label="Search products"
+        />
+        <select value={filters.status} onChange={(e) => setFilter('status', e.target.value)} aria-label="Status">
+          <option value="">All statuses</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="featured">Featured</option>
+        </select>
+        <select value={filters.stock} onChange={(e) => setFilter('stock', e.target.value)} aria-label="Stock">
+          <option value="">Any stock</option>
+          <option value="in_stock">In stock</option>
+          <option value="partial">Some colours out</option>
+          <option value="out_of_stock">Out of stock</option>
+        </select>
+        {facets.colors?.length > 0 && (
+          <select value={filters.color} onChange={(e) => setFilter('color', e.target.value)} aria-label="Colour">
+            <option value="">All colours</option>
+            {facets.colors.map((c) => (
+              <option key={c} value={c}>{c}</option>
             ))}
           </select>
-        </form>
+        )}
+        <ResetFiltersButton visible={list.hasActiveFilters} onClick={list.reset} />
+      </div>
+
+      {list.error && <ErrorState message={list.error} onRetry={list.reload} />}
+      {!list.error && !products && <Loader label="Loading products…" />}
+      {!list.error && products?.length === 0 && (
+        <EmptyState
+          title={list.hasActiveFilters ? 'No products match these filters' : 'No products yet'}
+          message={list.hasActiveFilters ? 'Try a different search or reset the filters.' : undefined}
+        />
       )}
 
-      {!error && products?.length > 0 && visible?.length === 0 && (
-        <EmptyState title="No products match your search" />
-      )}
-
-      {!error && visible?.length > 0 && (
-        <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Base Price</th>
-                <th>Featured</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageProducts.map((p) => (
-                <tr key={p.productId}>
-                  <td>{p.name}</td>
-                  <td>₹{p.basePrice}</td>
-                  <td>{p.isFeatured ? 'Yes' : '—'}</td>
-                  <td>
-                    <span className={`pill ${p.isActive ? 'pill-active' : 'pill-inactive'}`}>
-                      {p.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td style={{ display: 'flex', gap: 8 }}>
-                    <Link to={`/admin/products/${p.productId}`} className="btn btn-ghost btn-sm">
-                      <Pencil size={14} /> Edit
-                    </Link>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => toggleActive(p)}>
-                      <Power size={14} /> {p.isActive ? 'Deactivate' : 'Activate'}
-                    </button>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => handleDelete(p)}>
-                      <Trash2 size={14} /> Delete
-                    </button>
-                  </td>
+      {!list.error && products?.length > 0 && (
+        <>
+          <ResultCount pagination={list.pagination} loading={list.loading} label="products" />
+          <div className={`admin-table-wrap ${list.loading ? 'is-refreshing' : ''}`}>
+            <table className="admin-table admin-table-compact">
+              <thead>
+                <tr>
+                  <SortableTh label="Name" field="name" {...sortProps} />
+                  <SortableTh label="Price" field="price" {...sortProps} />
+                  <SortableTh label="Discount" field="discount" firstDir="desc" {...sortProps} />
+                  <SortableTh label="Availability" field="availability" {...sortProps} />
+                  <th>Featured</th>
+                  <th>Status</th>
+                  <SortableTh label="Added" field="createdAt" firstDir="desc" {...sortProps} />
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-            total={totalVisible}
-            rangeStart={rangeStart}
-            rangeEnd={rangeEnd}
-            itemLabel="products"
-          />
-        </div>
+              </thead>
+              <tbody>
+                {products.map((p) => (
+                  <tr key={p.productId}>
+                    <td>{p.name}</td>
+                    <td>₹{p.listing?.price ?? p.basePrice}</td>
+                    <td>{p.listing?.discountPercent > 0 ? `${p.listing.discountPercent}% off` : '—'}</td>
+                    <td>
+                      <span className={`pill ${STOCK_PILL[p.listing?.stockStatus] || 'pill-inactive'}`}>
+                        {STOCK_LABELS[p.listing?.stockStatus] || '—'}
+                      </span>
+                    </td>
+                    <td>{p.isFeatured ? 'Yes' : '—'}</td>
+                    <td>
+                      <span className={`pill ${p.isActive ? 'pill-active' : 'pill-inactive'}`}>
+                        {p.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td>{formatDate(p.createdAt)}</td>
+                    <td style={{ display: 'flex', gap: 8 }}>
+                      <Link to={`/admin/products/${p.productId}`} className="btn btn-ghost btn-sm">
+                        <Pencil size={14} /> Edit
+                      </Link>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => toggleActive(p)}>
+                        <Power size={14} /> {p.isActive ? 'Deactivate' : 'Activate'}
+                      </button>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => handleDelete(p)}>
+                        <Trash2 size={14} /> Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {list.paginationProps && <Pagination {...list.paginationProps} itemLabel="products" />}
+          </div>
+        </>
       )}
     </div>
   );

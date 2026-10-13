@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Plus, Pencil, Trash2, Users } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { useToast } from '../../context/ToastContext';
@@ -10,7 +10,9 @@ import { EmptyState } from '../../components/EmptyState';
 import { couponCode as validateCouponCode, positiveNumber, runValidators, hasErrors } from '../../utils/validators';
 import { mapServerFieldErrors } from '../../utils/formErrors';
 import { Pagination } from '../../components/Pagination';
-import { usePagination } from '../../hooks/usePagination';
+import { ErrorState } from '../../components/ErrorState';
+import { AdminSearchField, SortableTh, ResetFiltersButton, ResultCount } from '../../components/AdminListControls';
+import { useAdminList } from '../../hooks/useAdminList';
 import './Admin.css';
 
 const EMPTY_FORM = {
@@ -20,8 +22,29 @@ const EMPTY_FORM = {
   isActive: true,
   usageLimit: '',
   oneUsePerCustomer: false,
+  expiresAt: '',
 };
 const PAGE_SIZE = 20;
+
+const LIST_DEFAULTS = {
+  sortBy: 'createdAt',
+  sortDir: 'desc',
+  filters: { status: '', discountType: '' },
+};
+
+const STATUS_LABELS = { active: 'Active', inactive: 'Inactive', expired: 'Expired', exhausted: 'Limit reached' };
+const STATUS_PILL = { active: 'pill-active', inactive: 'pill-inactive', expired: 'pill-danger', exhausted: 'pill-warning' };
+
+// The store operates in India: an expiry date means the END of that day, IST.
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+function isoToIstDate(iso) {
+  if (!iso) return '';
+  const t = new Date(iso).getTime();
+  return Number.isNaN(t) ? '' : new Date(t + IST_OFFSET_MS).toISOString().slice(0, 10);
+}
+function istEndOfDayIso(date) {
+  return new Date(`${date}T23:59:59.999+05:30`).toISOString();
+}
 
 function validate(values, { isEditing }) {
   const errors = runValidators({
@@ -38,7 +61,15 @@ function validate(values, { isEditing }) {
 export function AdminCoupons() {
   const { showToast } = useToast();
   const confirm = useConfirm();
-  const [coupons, setCoupons] = useState(null);
+  const list = useAdminList({
+    fetcher: adminService.getCoupons,
+    resultKey: 'coupons',
+    defaults: LIST_DEFAULTS,
+    pageSize: PAGE_SIZE,
+  });
+  const { items: coupons, filters, setFilter } = list;
+  const load = list.reload;
+  const sortProps = { sortBy: list.sortBy, sortDir: list.sortDir, onSort: list.toggleSort };
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCode, setEditingCode] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -48,14 +79,6 @@ export function AdminCoupons() {
   const [historyCode, setHistoryCode] = useState(null);
   const [redemptions, setRedemptions] = useState(null);
 
-  function load() {
-    adminService.getCoupons().then((data) => setCoupons(data.coupons));
-  }
-
-  useEffect(load, []);
-
-  const { page, setPage, totalPages, pageItems: pageCoupons, total: totalCoupons, rangeStart, rangeEnd } =
-    usePagination(coupons, PAGE_SIZE);
 
   function openNew() {
     setEditingCode(null);
@@ -74,6 +97,7 @@ export function AdminCoupons() {
       isActive: coupon.isActive,
       usageLimit: coupon.usageLimit || '',
       oneUsePerCustomer: coupon.oneUsePerCustomer || false,
+      expiresAt: isoToIstDate(coupon.expiresAt),
     });
     setFieldErrors({});
     setTouched({});
@@ -103,6 +127,8 @@ export function AdminCoupons() {
       isActive: form.isActive,
       oneUsePerCustomer: form.oneUsePerCustomer,
       ...(form.usageLimit ? { usageLimit: Number(form.usageLimit) } : {}),
+      // '' clears an existing expiry on edit (the API accepts it).
+      ...(form.expiresAt ? { expiresAt: istEndOfDayIso(form.expiresAt) } : editingCode ? { expiresAt: '' } : {}),
     };
     try {
       if (editingCode) {
@@ -148,8 +174,6 @@ export function AdminCoupons() {
       .catch(() => setRedemptions([]));
   }
 
-  if (!coupons) return <Loader label="Loading coupons…" />;
-
   return (
     <div>
       <div className="admin-page-header">
@@ -159,23 +183,60 @@ export function AdminCoupons() {
         </button>
       </div>
 
-      {coupons.length === 0 ? (
-        <EmptyState title="No coupons yet" />
-      ) : (
-        <div className="admin-table-wrap">
-          <table className="admin-table">
+      <div className="admin-filters">
+        <AdminSearchField
+          value={list.searchInput}
+          onChange={list.setSearchInput}
+          placeholder="Search by coupon code…"
+          label="Search coupons"
+        />
+        <select value={filters.status} onChange={(e) => setFilter('status', e.target.value)} aria-label="Status">
+          <option value="">All statuses</option>
+          {Object.entries(STATUS_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+        <select
+          value={filters.discountType}
+          onChange={(e) => setFilter('discountType', e.target.value)}
+          aria-label="Discount type"
+        >
+          <option value="">All discount types</option>
+          <option value="percentage">Percentage</option>
+          <option value="flat">Flat amount</option>
+        </select>
+        <ResetFiltersButton visible={list.hasActiveFilters} onClick={list.reset} />
+      </div>
+
+      {list.error && <ErrorState message={list.error} onRetry={list.reload} />}
+      {!list.error && !coupons && <Loader label="Loading coupons…" />}
+
+      {!list.error && coupons?.length === 0 ? (
+        <EmptyState
+          title={list.hasActiveFilters ? 'No coupons match these filters' : 'No coupons yet'}
+          message={list.hasActiveFilters ? 'Try a different search or reset the filters.' : undefined}
+        />
+      ) : null}
+
+      {!list.error && coupons?.length > 0 && (
+        <>
+        <ResultCount pagination={list.pagination} loading={list.loading} label="coupons" />
+        <div className={`admin-table-wrap ${list.loading ? 'is-refreshing' : ''}`}>
+          <table className="admin-table admin-table-compact">
             <thead>
               <tr>
-                <th>Code</th>
+                <SortableTh label="Code" field="code" {...sortProps} />
                 <th>Discount</th>
-                <th>Usage</th>
+                <SortableTh label="Usage" field="usageCount" firstDir="desc" {...sortProps} />
                 <th>Per Customer</th>
-                <th>Status</th>
+                <SortableTh label="Expires" field="expiresAt" {...sortProps} />
+                <SortableTh label="Status" field="status" {...sortProps} />
+                <SortableTh label="Created" field="createdAt" firstDir="desc" {...sortProps} />
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {pageCoupons.map((c) => (
+              {coupons.map((c) => (
                 <tr key={c.code}>
                   <td>{c.code}</td>
                   <td>{c.discountType === 'percentage' ? `${c.discountValue}%` : `₹${c.discountValue}`}</td>
@@ -185,11 +246,13 @@ export function AdminCoupons() {
                     </button>
                   </td>
                   <td>{c.oneUsePerCustomer ? 'One use' : 'Unlimited'}</td>
+                  <td>{c.expiresAt ? formatDate(c.expiresAt) : 'No expiry'}</td>
                   <td>
-                    <span className={`pill ${c.isActive ? 'pill-active' : 'pill-inactive'}`}>
-                      {c.isActive ? 'Active' : 'Inactive'}
+                    <span className={`pill ${STATUS_PILL[c.effectiveStatus] || 'pill-inactive'}`}>
+                      {STATUS_LABELS[c.effectiveStatus] || (c.isActive ? 'Active' : 'Inactive')}
                     </span>
                   </td>
+                  <td>{formatDate(c.createdAt)}</td>
                   <td style={{ display: 'flex', gap: 8 }}>
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => openHistory(c.code)}>
                       <Users size={14} /> Usage
@@ -205,16 +268,9 @@ export function AdminCoupons() {
               ))}
             </tbody>
           </table>
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-            total={totalCoupons}
-            rangeStart={rangeStart}
-            rangeEnd={rangeEnd}
-            itemLabel="coupons"
-          />
+          {list.paginationProps && <Pagination {...list.paginationProps} itemLabel="coupons" />}
         </div>
+        </>
       )}
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editingCode ? 'Edit Coupon' : 'Add Coupon'}>
@@ -268,6 +324,16 @@ export function AdminCoupons() {
               onBlur={() => markTouched('usageLimit')}
             />
             {touched.usageLimit && fieldErrors.usageLimit && <p className="field-error">{fieldErrors.usageLimit}</p>}
+          </div>
+          <div className="field">
+            <label htmlFor="coupon-expires">Expires on (optional)</label>
+            <input
+              id="coupon-expires"
+              type="date"
+              value={form.expiresAt}
+              onChange={(e) => setField('expiresAt', e.target.value)}
+            />
+            <p className="field-hint">Valid through the end of this day (IST). Leave empty for no expiry.</p>
           </div>
           <label className="checkbox-field">
             <input type="checkbox" checked={form.isActive} onChange={(e) => setField('isActive', e.target.checked)} />
