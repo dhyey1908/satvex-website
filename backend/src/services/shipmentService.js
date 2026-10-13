@@ -3,6 +3,7 @@ const shippingRateService = require('./shippingRateService');
 const orderService = require('./orderService');
 const settingsService = require('./settingsService');
 const shipmentJobService = require('./shipmentJobService');
+const { normalizeIndianPhone } = require('../utils/phone');
 const logger = require('../utils/logger');
 
 // Orchestrates the whole create-order -> assign-AWB -> schedule-pickup ->
@@ -39,6 +40,12 @@ const logger = require('../utils/logger');
 // automatic sweep, an admin's manual retry, and "Retry All" can otherwise
 // all reach this same order at once.
 async function attemptShipmentCreation(orderId) {
+  // Checked before the lock: acquireShipmentLock's conditional write fails
+  // for a missing order too, which would otherwise be misreported below as
+  // "already in progress".
+  if (!(await orderService.findById(orderId))) {
+    throw new Error(`Order ${orderId} not found.`);
+  }
   const { acquired } = await orderService.acquireShipmentLock(orderId);
   if (!acquired) {
     throw new Error('Shipment sync for this order is already in progress — try again in a minute.');
@@ -77,7 +84,28 @@ async function attemptShipmentCreationLocked(orderId) {
   }
   if (!order.shiprocketOrderId) {
     const { lengthCm, breadthCm, heightCm, weightKg } = settings.shiprocket.defaultPackage || {};
-    const [firstName, ...rest] = (order.customer?.name || '').trim().split(' ');
+
+    // Validate everything Shiprocket actually requires BEFORE making any
+    // API call. Previously, a missing/malformed field here (common on
+    // older orders predating stricter checkout validation) surfaced as a
+    // raw, cryptic crash deep inside createOrder (e.g. an undefined
+    // order.createdAt's .slice, or a malformed phone silently becoming
+    // NaN -> null and getting rejected by Shiprocket with "Phone number is
+    // in invalid format") instead of a clear, actionable message naming
+    // exactly what's wrong.
+    const missingFields = [];
+    if (!order.customer?.name?.trim()) missingFields.push('customer name');
+    if (!order.address?.line1) missingFields.push('address line 1');
+    if (!order.address?.city) missingFields.push('city');
+    if (!order.address?.state) missingFields.push('state');
+    if (!order.address?.pincode) missingFields.push('pincode');
+    if (!order.items?.length) missingFields.push('order items');
+    if (missingFields.length > 0) {
+      throw new Error(`Cannot create Shiprocket shipment — order is missing required field(s): ${missingFields.join(', ')}.`);
+    }
+    const billingPhone = normalizeIndianPhone(order.customer?.phone, 'Customer phone number');
+
+    const [firstName, ...rest] = order.customer.name.trim().split(' ');
 
     // Best-effort diagnostic only — see the KNOWN LIMITATION note above.
     // Never blocks order creation if the lookup itself fails.
@@ -98,17 +126,21 @@ async function attemptShipmentCreationLocked(orderId) {
 
     const created = await shiprocketService.createOrder({
       orderId: order.orderId,
-      orderDate: order.createdAt.slice(0, 10),
+      // Guarded even though createdAt should always be set by
+      // orderService.createOrder — a handful of very old/seed records can
+      // predate that guarantee, and this crashing here is exactly the
+      // reported "Cannot read properties of undefined (reading 'slice')".
+      orderDate: (order.createdAt || new Date().toISOString()).slice(0, 10),
       pickupLocation: settings.shiprocket.pickupLocation,
-      billingFirstName: firstName || order.customer?.name || 'Customer',
+      billingFirstName: firstName || order.customer.name,
       billingLastName: rest.join(' '),
-      billingAddress: order.address?.line1,
-      billingCity: order.address?.city,
-      billingPincode: Number(order.address?.pincode),
-      billingState: order.address?.state,
+      billingAddress: order.address.line1,
+      billingCity: order.address.city,
+      billingPincode: Number(order.address.pincode),
+      billingState: order.address.state,
       billingCountry: order.address?.country || 'India',
       billingEmail: order.customer?.email,
-      billingPhone: Number(order.customer?.phone),
+      billingPhone: Number(billingPhone),
       // Shiprocket rejects an order whose line items repeat a SKU — our own
       // items can share a productId when the same product was added with
       // different variants/colors as separate cart lines, so the line's
@@ -222,9 +254,13 @@ async function retryShipment(orderId) {
     if (existingJob) await shipmentJobService.markDone(orderId);
     return { success: true, order };
   } catch (err) {
+    // Persist THIS attempt's actual error, not just the status reset — the
+    // admin Sync Issues list otherwise kept showing a stale lastError from
+    // whatever the automatic sweep last recorded, not why the manual retry
+    // that was just clicked actually failed.
     const existingJob = await shipmentJobService.findByOrderId(orderId);
-    if (existingJob) await shipmentJobService.resetForManualRetry(orderId);
-    else await shipmentJobService.createJob(orderId);
+    if (existingJob) await shipmentJobService.resetForManualRetry(orderId, err);
+    else await shipmentJobService.createJob(orderId, err);
     return { success: false, error: err.message };
   }
 }

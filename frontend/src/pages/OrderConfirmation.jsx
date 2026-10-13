@@ -256,8 +256,8 @@ export function OrderConfirmation() {
         Thank you, {order.customer.name.split(' ')[0]}! Your order has been placed successfully.
       </p>
       <p className="order-confirmation-number">
-        Order Number: <strong>SATVEX-{order.orderId.slice(0, 8).toUpperCase()}</strong>
-        <CopyButton value={`SATVEX-${order.orderId.slice(0, 8).toUpperCase()}`} label="Copy order number" />
+        Order Number: <strong>#{order.orderId.slice(0, 8)}</strong>
+        <CopyButton value={order.orderId.slice(0, 8)} label="Copy order number" />
       </p>
 
       <div className="order-confirmation-grid">

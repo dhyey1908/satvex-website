@@ -13,7 +13,7 @@ const STATUS_INDEX = 'status-nextAttemptAt-index';
 const MAX_ATTEMPTS = 6;
 const BACKOFF_MINUTES = [5, 10, 15, 15, 15, 15];
 
-async function createJob(orderId) {
+async function createJob(orderId, initialError) {
   const now = new Date().toISOString();
   try {
     await docClient.send(
@@ -25,7 +25,7 @@ async function createJob(orderId) {
           status: 'pending',
           attempts: 0,
           nextAttemptAt: now,
-          lastError: null,
+          lastError: initialError?.message || initialError || null,
           createdAt: now,
           updatedAt: now,
         },
@@ -105,15 +105,24 @@ async function recordFailure(jobId, attemptsSoFar, error) {
 }
 
 // Admin "Retry Shipment" button — resets a failed (or still-pending) job to
-// try again immediately.
-async function resetForManualRetry(jobId) {
+// try again immediately. Called both on a SUCCESSFUL manual retry (no
+// error — just clears any stale lastError from a previous failed attempt)
+// and on one that failed again (error passed through so the Sync Issues
+// list reflects what actually just happened, not a stale message from an
+// earlier automatic-sweep failure).
+async function resetForManualRetry(jobId, error) {
   await docClient.send(
     new UpdateCommand({
       TableName: TABLE,
       Key: { jobId },
-      UpdateExpression: 'SET #status = :pending, attempts = :zero, nextAttemptAt = :now, updatedAt = :now',
+      UpdateExpression: 'SET #status = :pending, attempts = :zero, nextAttemptAt = :now, lastError = :err, updatedAt = :now',
       ExpressionAttributeNames: { '#status': 'status' },
-      ExpressionAttributeValues: { ':pending': 'pending', ':zero': 0, ':now': new Date().toISOString() },
+      ExpressionAttributeValues: {
+        ':pending': 'pending',
+        ':zero': 0,
+        ':now': new Date().toISOString(),
+        ':err': error?.message || error || null,
+      },
     })
   );
 }

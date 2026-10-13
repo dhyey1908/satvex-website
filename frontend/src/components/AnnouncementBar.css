@@ -69,6 +69,7 @@
   .announcement-bar {
     padding: 7px 12px;
     font-size: 0.72rem;
+    min-height: 5rem;
   }
   .announcement-bar-inner {
     flex-wrap: wrap;

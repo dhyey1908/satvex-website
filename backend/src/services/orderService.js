@@ -490,7 +490,11 @@ async function acquireShipmentLock(orderId) {
         TableName: TABLE,
         Key: { orderId },
         UpdateExpression: 'SET shipmentLockedAt = :now',
-        ConditionExpression: 'attribute_not_exists(shipmentLockedAt) OR shipmentLockedAt < :stale',
+        // attribute_exists(orderId) first: without it, an UpdateItem on a
+        // non-existent order passes the lock condition and silently CREATES
+        // a bare ghost record (just orderId + shipmentLockedAt), which then
+        // shows up as a ₹0.00 empty order in the admin Orders list.
+        ConditionExpression: 'attribute_exists(orderId) AND (attribute_not_exists(shipmentLockedAt) OR shipmentLockedAt < :stale)',
         ExpressionAttributeValues: { ':now': now, ':stale': now - LOCK_STALE_MS },
       })
     );
@@ -530,7 +534,9 @@ async function markShipmentSyncFailed(orderId) {
         TableName: TABLE,
         Key: { orderId },
         UpdateExpression: 'SET shipmentStatus = :failed, updatedAt = :now',
-        ConditionExpression: 'shipmentStatus <> :done',
+        // attribute_exists(orderId): never upsert a ghost record for an
+        // order that doesn't exist (see acquireShipmentLock).
+        ConditionExpression: 'attribute_exists(orderId) AND shipmentStatus <> :done',
         ExpressionAttributeValues: { ':failed': 'sync_failed', ':done': 'label_generated', ':now': new Date().toISOString() },
       })
     );
