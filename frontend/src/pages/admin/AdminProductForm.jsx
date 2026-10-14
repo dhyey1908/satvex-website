@@ -5,6 +5,7 @@ import { productService } from '../../services/productService';
 import { useToast } from '../../context/ToastContext';
 import { ImageUploader } from '../../components/ImageUploader';
 import { MediaUploader } from '../../components/MediaUploader';
+import { TestimonialVideosEditor, MAX_TESTIMONIAL_VIDEOS } from '../../components/TestimonialVideosEditor';
 import { Loader } from '../../components/Loader';
 import { minLength, slug as validateSlug, positiveNumber, runValidators, hasErrors } from '../../utils/validators';
 import { mapServerFieldErrors } from '../../utils/formErrors';
@@ -19,6 +20,7 @@ const EMPTY_PRODUCT = {
   basePrice: 0,
   images: [],
   videoUrl: '',
+  testimonialVideos: [],
   rating: 0,
   reviewCount: 0,
   variants: [],
@@ -178,6 +180,11 @@ export function AdminProductForm() {
     const payload = {
       ...form,
       basePrice: Number(form.basePrice),
+      // New videos carry a temporary client id; the server assigns the real one.
+      testimonialVideos: (form.testimonialVideos || []).slice(0, MAX_TESTIMONIAL_VIDEOS).map((v) => ({
+        ...v,
+        id: !v.id || v.id.includes('_local_') ? undefined : v.id,
+      })),
       variants: form.variants.map((v) => ({ ...v, id: v.id.includes('_local_') ? undefined : v.id })),
       sellingOptions: form.sellingOptions.map((o) => ({
         ...o,
@@ -357,6 +364,14 @@ export function AdminProductForm() {
             </div>
           ))}
           <ImageUploader folder="products" onUploaded={addProductImage} />
+        </div>
+
+        <div className="admin-form-section">
+          <h3>Customer Videos</h3>
+          <TestimonialVideosEditor
+            videos={form.testimonialVideos || []}
+            onChange={(next) => setField('testimonialVideos', next)}
+          />
         </div>
 
         <div className="admin-form-section">

@@ -9,6 +9,7 @@ import { ComboColorSelector } from '../components/ComboColorSelector';
 import { QuantitySelector } from '../components/QuantitySelector';
 import { RatingDisplay } from '../components/RatingDisplay';
 import { ProductReviews } from '../components/ProductReviews';
+import { ProductVideoSlider } from '../components/ProductVideoSlider';
 import { PriceDisplay } from '../components/PriceDisplay';
 import { PincodeCheck } from '../components/PincodeCheck';
 import { ProductGrid } from '../components/ProductGrid';
@@ -574,6 +575,15 @@ export function ProductDetail() {
             position — full-width, last, on both desktop and mobile. Placed
             here in the DOM (after .pdp-purchase) so visual order and
             keyboard/tab order agree. */}
+        {/* Customer video testimonials — its own grid area directly above
+            Reviews (see ProductDetail.css). Renders nothing when the product
+            has no videos, so the page is unchanged for those. */}
+        {product.testimonialVideos?.length > 0 && (
+          <div className="product-detail-videos">
+            <ProductVideoSlider videos={product.testimonialVideos} productName={product.name} />
+          </div>
+        )}
+
         <div className="product-detail-reviews" id="reviews">
           <h3 className="text-headline-sm">Reviews</h3>
           <ProductReviews productId={product.productId} rating={product.rating} reviewCount={product.reviewCount} />

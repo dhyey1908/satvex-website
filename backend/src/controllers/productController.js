@@ -50,6 +50,7 @@ async function create(req, res) {
   const data = productSchema.parse(req.body);
   data.variants = assignIdsIfMissing(data.variants, 'var');
   data.sellingOptions = assignIdsIfMissing(data.sellingOptions, 'opt');
+  data.testimonialVideos = assignIdsIfMissing(data.testimonialVideos, 'vid');
   const product = await productService.createProduct(data);
   created(res, { product });
 }
@@ -58,6 +59,7 @@ async function update(req, res) {
   const data = productUpdateSchema.parse(req.body);
   if (data.variants) data.variants = assignIdsIfMissing(data.variants, 'var');
   if (data.sellingOptions) data.sellingOptions = assignIdsIfMissing(data.sellingOptions, 'opt');
+  if (data.testimonialVideos) data.testimonialVideos = assignIdsIfMissing(data.testimonialVideos, 'vid');
   const product = await productService.updateProduct(req.params.id, data);
   ok(res, { product });
 }

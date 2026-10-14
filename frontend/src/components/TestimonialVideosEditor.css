@@ -1,0 +1,85 @@
+.tve-list {
+  list-style: none;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.tve-item {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.tve-thumb {
+  position: relative;
+  width: 84px;
+  aspect-ratio: 9 / 16;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--color-surface-container);
+}
+.tve-thumb img,
+.tve-thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tve-index {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-overlay);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tve-fields { min-width: 0; }
+.tve-fields .field { margin-bottom: var(--space-2); }
+.tve-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+.tve-side { display: flex; flex-direction: column; gap: 4px; }
+
+.tve-file { position: relative; cursor: pointer; }
+.tve-file input[type='file'] {
+  /* The label is the click target; keep the native input out of sight but
+     reachable by keyboard/screen readers. */
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+.tve-file:focus-within { box-shadow: var(--focus-ring); }
+.tve-file.is-disabled { opacity: 0.55; cursor: not-allowed; }
+.tve-file.is-disabled input { cursor: not-allowed; }
+
+.tve-add { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.tve-count { font-size: 0.82rem; color: var(--color-text-muted); }
+
+/* Narrow screens: thumbnail + reorder/delete share the top row, the fields
+   get the full card width underneath (nothing is squeezed beside the image). */
+@media (max-width: 560px) {
+  .tve-item {
+    grid-template-columns: 64px minmax(0, 1fr);
+    grid-template-areas:
+      'thumb side'
+      'fields fields';
+  }
+  .tve-thumb { grid-area: thumb; width: 64px; }
+  .tve-side { grid-area: side; flex-direction: row; justify-content: flex-end; align-self: start; }
+  .tve-fields { grid-area: fields; }
+  .tve-actions .btn { flex: 1 1 auto; justify-content: center; }
+}

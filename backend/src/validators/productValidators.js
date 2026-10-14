@@ -35,6 +35,29 @@ const sellingOptionSchema = z.object({
   allowDuplicateColors: z.boolean().default(false),
 });
 
+const MAX_TESTIMONIAL_VIDEOS = 20;
+
+// Only ever rendered as a media src, but still refuse non-http(s) schemes
+// (javascript:, data:, file:) so a stored value can never be anything but a
+// normal remote asset URL.
+const mediaUrl = z
+  .string()
+  .trim()
+  .url()
+  .refine((v) => /^https?:\/\//i.test(v), 'Must be an http(s) URL.');
+
+// Customer video testimonials shown in the slider above the reviews. Array
+// order IS the display order. The id is assigned server-side for new items
+// (see productController.assignIdsIfMissing).
+const testimonialVideoSchema = z.object({
+  id: z.string().min(1).optional(),
+  videoUrl: mediaUrl,
+  // Optional poster; without one the storefront shows the video's first frame.
+  thumbnailUrl: mediaUrl.optional().or(z.literal('')),
+  customerName: z.string().trim().max(60).optional().or(z.literal('')),
+  caption: z.string().trim().max(160).optional().or(z.literal('')),
+});
+
 const productSchema = z.object({
   name: z.string().trim().min(2).max(150),
   slug: z
@@ -58,10 +81,21 @@ const productSchema = z.object({
   reviewCount: z.number().int().min(0).default(0),
   variants: z.array(variantSchema).min(1, 'At least one color variant is required'),
   sellingOptions: z.array(sellingOptionSchema).min(1, 'At least one selling option is required'),
+  testimonialVideos: z
+    .array(testimonialVideoSchema)
+    .max(MAX_TESTIMONIAL_VIDEOS, `You can add up to ${MAX_TESTIMONIAL_VIDEOS} videos per product.`)
+    .default([]),
   isActive: z.boolean().default(true),
   isFeatured: z.boolean().default(false),
 });
 
 const productUpdateSchema = productSchema.partial();
 
-module.exports = { productSchema, productUpdateSchema, variantSchema, sellingOptionSchema };
+module.exports = {
+  productSchema,
+  productUpdateSchema,
+  variantSchema,
+  sellingOptionSchema,
+  testimonialVideoSchema,
+  MAX_TESTIMONIAL_VIDEOS,
+};

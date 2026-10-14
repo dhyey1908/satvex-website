@@ -1,0 +1,202 @@
+/* Customer video testimonial slider (product page, above the reviews).
+   A wrap-around carousel: the active card is centred and larger, with its
+   neighbours peeking in on both sides. Cards are positioned by their offset
+   from the active one (--pvs-offset), so moving is just a transform. */
+.pvs {
+  --pvs-card-w: clamp(200px, 22vw, 272px);
+  --pvs-gap: 22px;
+  /* Room for the active card's 1.1x scale + shadow above and below. */
+  --pvs-stage-h: calc(var(--pvs-card-w) * 16 / 9 * 1.1 + 104px);
+  padding: var(--space-6) 0 var(--space-5);
+  border-top: 1px solid var(--color-border);
+}
+
+.pvs-head { text-align: center; margin-bottom: var(--space-3); }
+.pvs-title {
+  margin: var(--space-1) 0 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 2.4vw, 1.9rem);
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.pvs-stage {
+  position: relative;
+  height: var(--pvs-stage-h);
+  overflow: hidden;
+  /* Vertical page scroll still works over the carousel; horizontal drags are
+     ours. */
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.pvs-stage.is-dragging { cursor: grabbing; }
+
+.pvs-track { margin: 0; padding: 0; list-style: none; position: absolute; inset: 0; }
+
+.pvs-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--pvs-card-w);
+  margin-left: calc(var(--pvs-card-w) / -2);
+  transform:
+    translateY(-50%)
+    translateX(calc(var(--pvs-offset) * (var(--pvs-card-w) + var(--pvs-gap)) + var(--pvs-drag, 0px)))
+    scale(0.86);
+  opacity: 0.78;
+  transition: transform 380ms var(--motion-ease), opacity 380ms var(--motion-ease);
+  will-change: transform;
+}
+.pvs-card.is-active {
+  transform: translateY(-50%) translateX(var(--pvs-drag, 0px)) scale(1.1);
+  opacity: 1;
+  z-index: 2;
+}
+.pvs-card.pvs-pos-2 { opacity: 0.5; transform:
+  translateY(-50%)
+  translateX(calc(var(--pvs-offset) * (var(--pvs-card-w) + var(--pvs-gap)) * 0.92 + var(--pvs-drag, 0px)))
+  scale(0.74); }
+.pvs-stage.is-dragging .pvs-card { transition: none; }
+
+.pvs-frame {
+  position: relative;
+  aspect-ratio: 9 / 16;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--color-surface-container);
+  box-shadow: var(--shadow-md);
+  transition: box-shadow 380ms var(--motion-ease);
+}
+.pvs-card.is-active .pvs-frame { box-shadow: var(--shadow-lg); }
+
+.pvs-open {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #fff;
+  text-align: left;
+}
+
+.pvs-poster,
+.pvs-poster-video video,
+.pvs-player {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.pvs-poster-video { background: linear-gradient(160deg, var(--color-surface-muted), var(--color-surface-container-high)); }
+
+.pvs-player { background: #000; cursor: pointer; }
+
+.pvs-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 54px;
+  height: 54px;
+  margin: -27px 0 0 -27px;
+  border-radius: var(--radius-pill);
+  background: rgba(251, 246, 240, 0.92);
+  color: var(--color-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+  transition: transform var(--transition-base), background var(--transition-fast);
+}
+.pvs-play svg { margin-left: 3px; }
+.pvs-open:hover .pvs-play { transform: scale(1.08); background: #fff; }
+/* Neighbours are tap-to-centre, so their play badge is quieter. */
+.pvs-card:not(.is-active) .pvs-play { width: 40px; height: 40px; margin: -20px 0 0 -20px; }
+
+.pvs-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-5) var(--space-3) var(--space-3);
+  background: linear-gradient(to top, rgba(36, 28, 25, 0.78), rgba(36, 28, 25, 0));
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+.pvs-caption strong { font-size: 0.86rem; font-weight: 600; }
+.pvs-caption span { opacity: 0.92; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+.pvs-controls {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  display: flex;
+  gap: 6px;
+}
+.pvs-ctrl {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: rgba(36, 28, 25, 0.62);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+.pvs-ctrl:hover { background: rgba(36, 28, 25, 0.82); }
+
+.pvs-arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  width: 44px;
+  height: 44px;
+  margin-top: -22px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast);
+}
+.pvs-arrow:hover:not(:disabled) { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
+.pvs-arrow:disabled { opacity: 0.35; cursor: not-allowed; }
+.pvs-arrow-prev { left: 8px; }
+.pvs-arrow-next { right: 8px; }
+
+.pvs-counter {
+  margin: var(--space-2) 0 0;
+  text-align: center;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 760px) {
+  .pvs { --pvs-card-w: min(60vw, 232px); --pvs-gap: 14px; padding: var(--space-5) 0 var(--space-4); }
+  .pvs-card.is-active { transform: translateY(-50%) translateX(var(--pvs-drag, 0px)) scale(1.06); }
+  /* Swiping is the primary gesture on touch; arrows just tuck to the edges. */
+  .pvs-arrow { width: 36px; height: 36px; margin-top: -18px; }
+  .pvs-arrow-prev { left: 4px; }
+  .pvs-arrow-next { right: 4px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pvs-card, .pvs-frame, .pvs-play { transition: none; }
+}
