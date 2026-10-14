@@ -9,14 +9,17 @@ const { test, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const orderService = require('../services/orderService');
 const payuService = require('../services/payuService');
+const shipmentService = require('../services/shipmentService');
 const paymentController = require('./paymentController');
 
 const originalOrderService = { ...orderService };
 const originalPayuService = { ...payuService };
+const originalShipmentService = { ...shipmentService };
 
 after(() => {
   Object.assign(orderService, originalOrderService);
   Object.assign(payuService, originalPayuService);
+  Object.assign(shipmentService, originalShipmentService);
 });
 
 function fakeRes() {
@@ -35,6 +38,7 @@ let markPaymentAttemptCalls;
 let attemptResultCalls;
 
 beforeEach(() => {
+  shipmentService.triggerShipmentIfNeeded = async () => {};
   orders = { 'ORDER-1': { orderId: 'ORDER-1', userId: 'USER-1', paymentStatus: 'awaiting_payment', total: 500 } };
   markPaidCalls = [];
   markPaymentAttemptCalls = [];

@@ -12,8 +12,7 @@
     "create-admin": "node src/scripts/createAdmin.js",
     "shiprocket-sample-rate": "node src/scripts/shiprocket-sample-rate.js",
     "test": "node --test src/**/*.test.js",
-    "deploy": "sam build && sam deploy",
-    "deploy:dev": "sam build && sam deploy --config-env dev"
+    "deploy": "sam build && sam deploy"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.658.0",

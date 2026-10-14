@@ -5,7 +5,7 @@
  * read-only listPickupAddresses call). DB write only — no Shiprocket
  * API call.
  *
- *   TABLE_SETTINGS=satvex_settings_dev AWS_PROFILE=satvex node src/scripts/fix-pickup-settings.js
+ *   TABLE_SETTINGS=satvex_settings_prod AWS_PROFILE=satvex node src/scripts/fix-pickup-settings.js
  */
 require('dotenv').config();
 const settingsService = require('../services/settingsService');

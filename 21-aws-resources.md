@@ -4,9 +4,16 @@ Snapshot of what is actually deployed, taken from the `satvex-backend-dev`
 CloudFormation stack and the AWS account on 2026-10-14. Region: **ap-south-1
 (Mumbai)**. Names only — no secrets live in this file.
 
-## 0. Two stacks
+## 0. Stacks
 
-| | `satvex-backend-dev` (test sandbox) | `satvex-backend-prod` (**live**, default deploy target) |
+> **Dev was deleted on 2026-10-14**; prod is the only environment. The dev column below is kept for history.
+> Left over from the deletion: the disabled dev media CloudFront distribution `EV1SB7L032BAT`
+> (AWS refuses to delete it while it is attached to a CloudFront pricing plan - cancel the plan in the
+> CloudFront console, then delete it), plus its empty bucket `satvex-media-dev-<account-id>`.
+> The `[dev]` samconfig block, `deploy:dev` script and `Stage=dev` were removed; widen `AllowedValues` in
+> template.yaml and add a samconfig block to bring a sandbox back.
+
+| | `satvex-backend-dev` (**DELETED 2026-10-14**) | `satvex-backend-prod` (**live**, default deploy target) |
 |---|---|---|
 | Tables | `satvex_*_dev` | `satvex_*_prod` |
 | Lambdas | `satvex-api-dev`, `satvex-expire-payments-dev`, `satvex-shipment-sweep-dev` | same names with `-prod` |
@@ -16,9 +23,7 @@ CloudFormation stack and the AWS account on 2026-10-14. Region: **ap-south-1
 | Buckets | `satvex-{frontend,media}-dev-<account-id>` | `satvex-{frontend,media}-prod-<account-id>` |
 | OTP | MiniMoth sandbox key | MiniMoth live key, no fixed-code numbers |
 
-**Prod is the default target.** Backend: `npm run deploy` (prod) / `npm run deploy:dev` (dev sandbox).
-Frontend: `npm run deploy` (prod, `deploy.config.json`) /
-`DEPLOY_CONFIG=deploy.config.dev.json npm run deploy` (dev sandbox).
+**Prod is the only target.** Backend: `npm run deploy`. Frontend: `npm run deploy` (`deploy.config.json`).
 
 Copying data between stacks: `node src/scripts/migrateStage.js --from dev --to prod
 [--dry-run] --replace <old media CDN>=<new media CDN>` (read-only on the source,
@@ -94,7 +99,7 @@ volume, revisit with indexes if orders grow into the tens of thousands.
 
 | Resource | Name / id | Purpose |
 |---|---|---|
-| S3 bucket | `satvex-frontend-dev-<account-id>` | React build (index.html, assets/) |
+| S3 bucket (deleted) | `satvex-frontend-dev-<account-id>` | React build (index.html, assets/) |
 | S3 bucket | `satvex-media-dev-<account-id>` | Product images/videos, review + enquiry uploads (`satvex/<folder>/…`) |
 | CloudFront | `E2OZRHF90V5X21` → `dnjtmuqir7yy3.cloudfront.net` | The website (deploy script invalidates `/*`) |
 | CloudFront | `EV1SB7L032BAT` | Media CDN (`CLOUDFRONT_MEDIA_URL`) |

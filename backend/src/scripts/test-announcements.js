@@ -4,8 +4,8 @@
  * settingsService, to verify the full save -> public-filter chain live.
  * Cleans itself up (removes the test announcements) when run with --clean.
  *
- *   TABLE_SETTINGS=satvex_settings_dev TABLE_COUPONS=satvex_coupons_dev AWS_PROFILE=satvex node src/scripts/test-announcements.js
- *   TABLE_SETTINGS=satvex_settings_dev TABLE_COUPONS=satvex_coupons_dev AWS_PROFILE=satvex node src/scripts/test-announcements.js --clean
+ *   TABLE_SETTINGS=satvex_settings_prod TABLE_COUPONS=satvex_coupons_prod AWS_PROFILE=satvex node src/scripts/test-announcements.js
+ *   TABLE_SETTINGS=satvex_settings_prod TABLE_COUPONS=satvex_coupons_prod AWS_PROFILE=satvex node src/scripts/test-announcements.js --clean
  */
 require('dotenv').config();
 const settingsService = require('../services/settingsService');

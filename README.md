@@ -80,11 +80,9 @@ cd backend
 npm install
 cp samconfig.toml.example samconfig.toml   # fill in profile, JwtSecret, SesSenderEmail, FrontendOrigin
 npm run deploy          # = sam build && sam deploy — the [default] section of samconfig.toml = PRODUCTION (stack satvex-backend-prod, Stage=prod)
-npm run deploy:dev      # the optional test sandbox: [dev] section = stack satvex-backend-dev (Stage=dev, sandbox OTP key)
 ```
 
-> **Production is the `default` stack.** Every table/Lambda/bucket is named `…_prod` / `…-prod`. The `dev` stack is a separate copy with its own empty-able data — use it to try risky changes (e.g. a sandbox MiniMoth key, PayU test mode) without touching real orders. Local `npm run dev` uses whatever `backend/.env` points at (currently the dev tables).
-
+> **Production is the only stack** (`default` in `samconfig.toml`, `Stage=prod`). Every table/Lambda/bucket is named `…_prod` / `…-prod`. The original `dev` stack was deleted on 2026-10-14. Local `npm run dev` needs `TABLE_*` in `backend/.env` to point at a throw-away sandbox stack — never at prod.
 - `FrontendOrigin` inside `samconfig.toml` is **comma-separated** — include every origin that will call this API (local dev, the CloudFront domain, and later your custom domain). The first deploy won't know the CloudFront domain yet; deploy once with just `http://localhost:5173`, read the `FrontendDistributionDomain` output, add `https://<that-domain>` to `FrontendOrigin` in `samconfig.toml`, and deploy again.
 - Note the stack outputs (`ApiUrl`, `FrontendBucketName`, `FrontendDistributionDomain`, `MediaBucketName`, `MediaDistributionDomain`, table names) — you'll need them below.
 
@@ -107,7 +105,7 @@ cp deploy.config.example.json deploy.config.json   # fill in apiUrl, siteUrl, s3
 npm run deploy    # builds against apiUrl, syncs dist/ to S3, invalidates CloudFront — all in one command
 ```
 
-`deploy.config.json` is the **production** site; keep a `deploy.config.dev.json` for the sandbox site and deploy it with `DEPLOY_CONFIG=deploy.config.dev.json npm run deploy`. Both are gitignored (holds account-specific values, same pattern as `samconfig.toml`). The CloudFront distribution ID (not the domain) is needed there — find it with:
+`deploy.config.json` is the **production** site (gitignored) (holds account-specific values, same pattern as `samconfig.toml`). The CloudFront distribution ID (not the domain) is needed there — find it with:
 ```bash
 aws cloudfront list-distributions --profile satvex \
   --query "DistributionList.Items[?DomainName=='<FrontendDistributionDomain-output>'].Id" --output text

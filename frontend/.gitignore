@@ -6,4 +6,3 @@ dist/
 public/sitemap.xml
 deploy.config.json
 
-deploy.config.dev.json

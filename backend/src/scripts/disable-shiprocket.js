@@ -4,7 +4,7 @@
  * as-is, just disables the feature), equivalent to unchecking the toggle in
  * the Admin Settings UI.
  *
- *   TABLE_SETTINGS=satvex_settings_dev AWS_PROFILE=satvex node src/scripts/disable-shiprocket.js
+ *   TABLE_SETTINGS=satvex_settings_prod AWS_PROFILE=satvex node src/scripts/disable-shiprocket.js
  */
 require('dotenv').config();
 const settingsService = require('../services/settingsService');

@@ -8,10 +8,11 @@ Description: >
 Parameters:
   Stage:
     Type: String
-    # prod is the live environment; dev is an optional test sandbox
-    # (samconfig.toml: [default] = prod, [dev] = dev).
+    # prod is the only environment (the original dev stack was deleted 2026-10-14).
+    # Stage still suffixes every resource name, so a throw-away sandbox can be
+    # re-created by widening AllowedValues and adding a samconfig [dev] block.
     Default: prod
-    AllowedValues: [dev, prod]
+    AllowedValues: [prod]
   FrontendOrigin:
     Type: String
     Description: >

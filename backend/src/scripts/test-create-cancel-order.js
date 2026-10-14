@@ -7,7 +7,7 @@
  * orderService.recordShiprocketOrderCreated call) since the Shiprocket
  * order is cancelled right after anyway.
  *
- *   TABLE_ORDERS=satvex_orders_dev TABLE_SETTINGS=satvex_settings_dev AWS_PROFILE=satvex node src/scripts/test-create-cancel-order.js <orderId>
+ *   TABLE_ORDERS=satvex_orders_prod TABLE_SETTINGS=satvex_settings_prod AWS_PROFILE=satvex node src/scripts/test-create-cancel-order.js <orderId>
  */
 require('dotenv').config();
 const orderService = require('../services/orderService');

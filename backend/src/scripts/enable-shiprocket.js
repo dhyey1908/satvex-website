@@ -3,7 +3,7 @@
  * rate/shipment calls in Admin Settings (pickupPincode/pickupLocation +
  * enabled), equivalent to doing it by hand in the Admin Settings UI.
  *
- *   TABLE_SETTINGS=satvex_settings_dev AWS_PROFILE=satvex node src/scripts/enable-shiprocket.js
+ *   TABLE_SETTINGS=satvex_settings_prod AWS_PROFILE=satvex node src/scripts/enable-shiprocket.js
  */
 require('dotenv').config();
 const settingsService = require('../services/settingsService');

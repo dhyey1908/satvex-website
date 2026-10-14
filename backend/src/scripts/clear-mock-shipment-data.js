@@ -4,7 +4,7 @@
  * left on a handful of orders from old stub testing, unrelated to the
  * real Shiprocket integration. DB write only — no Shiprocket API call.
  *
- *   TABLE_ORDERS=satvex_orders_dev AWS_PROFILE=satvex node src/scripts/clear-mock-shipment-data.js
+ *   TABLE_ORDERS=satvex_orders_prod AWS_PROFILE=satvex node src/scripts/clear-mock-shipment-data.js
  */
 require('dotenv').config();
 const { UpdateCommand, ScanCommand } = require('@aws-sdk/lib-dynamodb');
