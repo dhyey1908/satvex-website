@@ -8,7 +8,9 @@ Description: >
 Parameters:
   Stage:
     Type: String
-    Default: dev
+    # prod is the live environment; dev is an optional test sandbox
+    # (samconfig.toml: [default] = prod, [dev] = dev).
+    Default: prod
     AllowedValues: [dev, prod]
   FrontendOrigin:
     Type: String

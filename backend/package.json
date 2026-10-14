@@ -13,7 +13,7 @@
     "shiprocket-sample-rate": "node src/scripts/shiprocket-sample-rate.js",
     "test": "node --test src/**/*.test.js",
     "deploy": "sam build && sam deploy",
-    "deploy:prod": "sam build && sam deploy --config-env prod"
+    "deploy:dev": "sam build && sam deploy --config-env dev"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.658.0",

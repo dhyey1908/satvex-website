@@ -3,7 +3,7 @@
 # Once filled in, `npm run deploy` (= `sam build && sam deploy`) needs no flags.
 version = 0.1
 
-[default.deploy.parameters]
+[dev.deploy.parameters]
 stack_name = "satvex-backend-dev"
 resolve_s3 = true
 region = "ap-south-1"
@@ -15,7 +15,7 @@ capabilities = "CAPABILITY_IAM"
 # CloudFront domain once you have it from a first deploy's outputs).
 parameter_overrides = "Stage=dev FrontendOrigin=\"http://localhost:5173,https://REPLACE_ME.cloudfront.net\" JwtSecret=REPLACE_ME SesSenderEmail=REPLACE_ME ResetTokenExpiresMin=30"
 
-[prod.deploy.parameters]
+[default.deploy.parameters]
 stack_name = "satvex-backend-prod"
 resolve_s3 = true
 region = "ap-south-1"

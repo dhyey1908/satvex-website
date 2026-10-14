@@ -13,7 +13,8 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
-const configPath = path.join(root, 'deploy.config.json');
+// DEPLOY_CONFIG=deploy.config.prod.json npm run deploy  -> deploy to another stack.
+const configPath = path.join(root, process.env.DEPLOY_CONFIG || 'deploy.config.json');
 
 // Windows installers (winget/MSI) update the persistent PATH, but a terminal
 // that was already open won't see it until restarted. Rather than make that
