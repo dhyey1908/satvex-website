@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Loader2, CheckCircle2 } from 'lucide-react';
 import { phoneService } from '../services/phoneService';
 import { useToast } from '../context/ToastContext';
+import { OtpSenderNote } from './OtpSenderNote';
 import { useCountdown, formatClock } from '../hooks/useCountdown';
 import { describeOtpError } from '../utils/otpErrors';
 import './PhoneVerification.css';
@@ -165,6 +166,7 @@ export function PhoneVerification({ phone, verified, onVerified, autoSend = fals
           </button>
         </div>
       )}
+      {sent && <OtpSenderNote step="checkout" />}
       {sent && resendHint && <p className="phone-verify-hint">{resendHint}</p>}
       {error && (
         <p className="field-error" role="alert">

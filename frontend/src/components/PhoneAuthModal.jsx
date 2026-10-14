@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Modal } from './Modal';
+import { OtpSenderNote } from './OtpSenderNote';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/authService';
 import { useToast } from '../context/ToastContext';
@@ -162,6 +163,7 @@ export function PhoneAuthModal({ open, onClose, onVerified }) {
               {error}
             </p>
           )}
+          <OtpSenderNote step="phone" />
           <button type="submit" className="btn btn-primary btn-block" disabled={sending || phone.length !== 10}>
             {sending ? <Loader2 size={16} className="btn-spinner" /> : 'Send OTP'}
           </button>
@@ -193,6 +195,7 @@ export function PhoneAuthModal({ open, onClose, onVerified }) {
               {error}
             </p>
           )}
+          <OtpSenderNote step="code" />
           <button
             type="submit"
             className="btn btn-primary btn-block"

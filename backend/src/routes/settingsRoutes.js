@@ -3,6 +3,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { attachUserIfPresent } = require('../middleware/auth');
 const settingsService = require('../services/settingsService');
 const { ok } = require('../utils/response');
+const env = require('../config/env');
 
 const router = express.Router();
 
@@ -25,7 +26,13 @@ router.get(
     // finance holds the admin-only cost assumptions behind the profit
     // analytics (e.g. the payment-gateway fee %) — never sent to the public.
     const { payments, finance, ...publicSettings } = settings;
-    ok(res, { settings: { ...publicSettings, paymentsOnlineAvailable, announcements: activeAnnouncements } });
+    // Who actually delivers the login code, so the sign-in screens can tell
+    // customers whose name to expect on the message (MiniMoth's, not ours) —
+    // and say nothing when the SNS fallback is active.
+    const otpSenderName = env.otp.provider === 'minimoth' && env.minimoth.apiKey ? 'MiniMoth' : null;
+    ok(res, {
+      settings: { ...publicSettings, paymentsOnlineAvailable, otpSenderName, announcements: activeAnnouncements },
+    });
   })
 );
 
