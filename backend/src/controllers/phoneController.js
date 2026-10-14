@@ -17,8 +17,8 @@ async function sendOtp(req, res) {
     return ok(res, { alreadyVerified: true });
   }
 
-  await otpService.sendOtp(phone);
-  ok(res, { sent: true });
+  const sendInfo = await otpService.sendOtp(phone); // { resendAfterSeconds, sendsRemaining }
+  ok(res, { sent: true, ...sendInfo });
 }
 
 async function verifyOtp(req, res) {

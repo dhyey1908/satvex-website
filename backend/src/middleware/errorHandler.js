@@ -30,7 +30,8 @@ function errorHandler(err, req, res, next) { // eslint-disable-line no-unused-va
     logger.warn('Request error', { code, message, path: req.path });
   }
 
-  res.status(statusCode).json({ success: false, error: { code, message } });
+  const details = err.isAppError ? err.details : undefined;
+  res.status(statusCode).json({ success: false, error: { code, message, ...(details ? { details } : {}) } });
 }
 
 module.exports = { notFoundHandler, errorHandler };

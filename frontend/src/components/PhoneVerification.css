@@ -26,3 +26,11 @@
   font-size: 0.9rem;
   letter-spacing: 2px;
 }
+
+/* Countdown / "all codes used" line under the code box. */
+.phone-verify-hint {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}

@@ -1,12 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Loader2, CheckCircle2 } from 'lucide-react';
 import { phoneService } from '../services/phoneService';
 import { useToast } from '../context/ToastContext';
+import { useCountdown, formatClock } from '../hooks/useCountdown';
+import { describeOtpError } from '../utils/otpErrors';
 import './PhoneVerification.css';
 
 // key={phone} on the parent's usage resets all of this component's state
 // whenever the phone number itself changes, so a changed number can never
 // silently inherit a previous number's "sent"/"verified" UI state.
+//
+// Limits (60s between codes, 3 codes / 10 min, 5 wrong guesses per code) are
+// enforced by the server (otpService.js); the timers and counts here are
+// whatever it reports back.
 export function PhoneVerification({ phone, verified, onVerified, autoSend = false }) {
   const { showToast } = useToast();
   const [sending, setSending] = useState(false);
@@ -14,6 +20,11 @@ export function PhoneVerification({ phone, verified, onVerified, autoSend = fals
   const [code, setCode] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState(null);
+  const [codeUnusable, setCodeUnusable] = useState(false);
+  const [sendsRemaining, setSendsRemaining] = useState(null);
+  const resend = useCountdown();
+  const limit = useCountdown();
+  const inputRef = useRef(null);
 
   const validPhone = /^[0-9]{10}$/.test(phone);
 
@@ -28,7 +39,7 @@ export function PhoneVerification({ phone, verified, onVerified, autoSend = fals
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function handleSend() {
+  async function handleSend({ isResend = false } = {}) {
     setSending(true);
     setError(null);
     try {
@@ -37,10 +48,23 @@ export function PhoneVerification({ phone, verified, onVerified, autoSend = fals
         onVerified();
       } else {
         setSent(true);
-        showToast('Verification code sent to your mobile number.', 'success');
+        setCode('');
+        setCodeUnusable(false);
+        resend.start(result.resendAfterSeconds ?? 60);
+        setSendsRemaining(typeof result.sendsRemaining === 'number' ? result.sendsRemaining : null);
+        showToast(isResend ? 'A new code is on its way.' : 'Verification code sent to your mobile number.', 'success');
       }
     } catch (err) {
-      setError(err.message);
+      const info = describeOtpError(err);
+      setError(info.message);
+      if (info.kind === 'wait') {
+        resend.start(info.retryAfterSeconds);
+        if (info.canUseLatestCode) setSent(true);
+      } else if (info.kind === 'limit') {
+        limit.start(info.retryAfterSeconds);
+        setSendsRemaining(0);
+        if (info.canUseLatestCode) setSent(true);
+      }
     } finally {
       setSending(false);
     }
@@ -48,6 +72,7 @@ export function PhoneVerification({ phone, verified, onVerified, autoSend = fals
 
   async function handleVerify(e) {
     e?.preventDefault?.();
+    if (codeUnusable || code.length !== 6) return;
     setVerifying(true);
     setError(null);
     try {
@@ -57,7 +82,11 @@ export function PhoneVerification({ phone, verified, onVerified, autoSend = fals
       onVerified();
       showToast('Mobile number verified.', 'success');
     } catch (err) {
-      setError(err.message);
+      const info = describeOtpError(err);
+      setError(info.message);
+      setCode('');
+      if (info.kind === 'dead') setCodeUnusable(true);
+      else setTimeout(() => inputRef.current?.focus(), 0);
     } finally {
       setVerifying(false);
     }
@@ -73,10 +102,26 @@ export function PhoneVerification({ phone, verified, onVerified, autoSend = fals
     );
   }
 
+  const resendBlocked = sendsRemaining === 0 || limit.seconds > 0;
+  const canResendNow = resend.seconds === 0 && !resendBlocked && !sending;
+
+  let resendHint = null;
+  if (!canResendNow && !sending) {
+    if (limit.seconds > 0) {
+      resendHint = `All codes used. You can request another in ${formatClock(limit.seconds)}.`;
+    } else if (sendsRemaining === 0) {
+      resendHint = codeUnusable
+        ? 'All 3 codes used for now. Please try again in a few minutes.'
+        : 'All 3 codes used for now. Use the latest code we sent.';
+    } else if (resend.seconds > 0) {
+      resendHint = `New code in ${formatClock(resend.seconds)}`;
+    }
+  }
+
   return (
     <div className="phone-verify-box">
       {!sent ? (
-        <button type="button" className="btn btn-outline btn-sm" onClick={handleSend} disabled={sending}>
+        <button type="button" className="btn btn-outline btn-sm" onClick={() => handleSend()} disabled={sending}>
           {sending ? <Loader2 size={14} className="btn-spinner" /> : 'Verify Mobile Number'}
         </button>
       ) : (
@@ -88,10 +133,14 @@ export function PhoneVerification({ phone, verified, onVerified, autoSend = fals
         // gets the same UX without ever creating a second <form>.
         <div className="phone-verify-otp-row">
           <input
+            ref={inputRef}
             inputMode="numeric"
+            autoComplete="one-time-code"
             maxLength={6}
             placeholder="6-digit code"
+            aria-label="6-digit verification code"
             value={code}
+            disabled={codeUnusable}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleVerify(e);
@@ -102,16 +151,26 @@ export function PhoneVerification({ phone, verified, onVerified, autoSend = fals
             type="button"
             className="btn btn-primary btn-sm"
             onClick={handleVerify}
-            disabled={verifying || code.length !== 6}
+            disabled={verifying || codeUnusable || code.length !== 6}
           >
             {verifying ? <Loader2 size={14} className="btn-spinner" /> : 'Verify'}
           </button>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={handleSend} disabled={sending}>
-            {sending ? <Loader2 size={14} className="btn-spinner" /> : 'Resend'}
+          <button
+            type="button"
+            className={`btn btn-sm ${codeUnusable ? 'btn-outline' : 'btn-ghost'}`}
+            onClick={() => handleSend({ isResend: true })}
+            disabled={!canResendNow}
+          >
+            {sending ? <Loader2 size={14} className="btn-spinner" /> : codeUnusable ? 'Send new code' : 'Resend'}
           </button>
         </div>
       )}
-      {error && <p className="field-error">{error}</p>}
+      {sent && resendHint && <p className="phone-verify-hint">{resendHint}</p>}
+      {error && (
+        <p className="field-error" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

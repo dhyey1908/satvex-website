@@ -45,13 +45,32 @@ const refreshLimiter = makeLimiter({
   message: 'Too many session refresh attempts. Please log in again.',
 });
 
-// SMS costs real money per send, on top of the per-phone cooldown enforced
-// in otpService itself — this is the per-IP ceiling against someone
-// hammering the endpoint with many different numbers.
-const otpLimiter = makeLimiter({
+// Every code sent costs real money. The per-NUMBER caps (60s between sends,
+// 3 codes per 10 min, 5 wrong guesses per code) live in otpService; these two
+// are the per-IP ceilings against someone cycling through many numbers.
+//
+// Sends and verifies deliberately have SEPARATE budgets. They used to share a
+// single 10-per-15-minutes counter, so a normal customer (3 codes + a few
+// wrong guesses) could lock themselves out, and customers behind the same
+// mobile-carrier / office IP shared that one small budget.
+const otpSendLimiter = makeLimiter({
   windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: 'Too many verification code requests. Please try again later.',
+  max: 15,
+  message: 'Too many code requests from this network. Please try again in a few minutes.',
 });
 
-module.exports = { authLimiter, passwordResetLimiter, contactLimiter, uploadUrlLimiter, otpLimiter, refreshLimiter };
+const otpVerifyLimiter = makeLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  message: 'Too many verification attempts from this network. Please try again in a few minutes.',
+});
+
+module.exports = {
+  authLimiter,
+  passwordResetLimiter,
+  contactLimiter,
+  uploadUrlLimiter,
+  otpSendLimiter,
+  otpVerifyLimiter,
+  refreshLimiter,
+};

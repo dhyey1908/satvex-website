@@ -87,6 +87,22 @@ Parameters:
       platform issued). SMS to Indian numbers will not deliver without a
       registered DLT Principal Entity ID + approved template on the AWS
       account, regardless of this value — see otpService.js for details.
+  MiniMothApiKey:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: >
+      MiniMoth OTP API key (mm_live_... for production, mm_test_... for the
+      sandbox, which sends nothing and always accepts code 000000). When set,
+      login/verification codes are sent over WhatsApp with SMS fallback by
+      MiniMoth instead of AWS SNS SMS. Leave blank to keep using SNS.
+  OtpProvider:
+    Type: String
+    Default: ''
+    AllowedValues: ['', 'minimoth', 'sns']
+    Description: >
+      Force the OTP channel. Blank = MiniMoth when MiniMothApiKey is set, else
+      SNS. Set to 'sns' to roll back to SNS without removing the key.
   OtpTestPhones:
     Type: String
     Default: ''
@@ -461,6 +477,8 @@ Resources:
           TABLE_REFRESH_TOKENS: !Ref RefreshTokensTable
           SNS_SENDER_ID: !Ref SnsSenderId
           OTP_TEST_PHONES: !Ref OtpTestPhones
+          MINIMOTH_API_KEY: !Ref MiniMothApiKey
+          OTP_PROVIDER: !Ref OtpProvider
           S3_MEDIA_BUCKET: !Ref MediaBucket
           CLOUDFRONT_MEDIA_URL: !Sub https://${MediaDistribution.DomainName}
           JWT_SECRET: !Ref JwtSecret

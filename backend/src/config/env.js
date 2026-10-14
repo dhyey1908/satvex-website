@@ -40,6 +40,14 @@ const env = {
     refreshTokens: required('TABLE_REFRESH_TOKENS', 'satvex_refresh_tokens'),
   },
 
+  minimoth: {
+    // MiniMoth OTP service (WhatsApp first, SMS fallback). Server-side secret —
+    // `mm_live_...` in production, `mm_test_...` for the sandbox (no real
+    // messages; the code is always 000000). See services/minimothService.js.
+    apiKey: process.env.MINIMOTH_API_KEY || '',
+    baseUrl: (process.env.MINIMOTH_BASE_URL || 'https://api.minimoth.dev').replace(/\/$/, ''),
+  },
+
   sns: {
     // DLT-approved alphanumeric Sender ID — required for SMS to actually
     // deliver to Indian numbers (TRAI/DLT regulation), separate from AWS
@@ -113,6 +121,11 @@ const env = {
     // for the deployed Lambda, so this is double-gated against ever
     // reaching the live site.
     testMode: process.env.OTP_TEST_MODE === 'true',
+    // Which service delivers/verifies codes: 'minimoth' or 'sns' (the original
+    // AWS SNS SMS path). Unset = MiniMoth whenever a key is configured, else
+    // SNS — so adding the key is all it takes, and OTP_PROVIDER=sns is the
+    // one-line rollback that leaves the key in place.
+    provider: (process.env.OTP_PROVIDER || (process.env.MINIMOTH_API_KEY ? 'minimoth' : 'sns')).toLowerCase(),
     // Unlike testMode above, THIS one is wired into template.yaml and does
     // reach the deployed Lambda — deliberately scoped to specific numbers
     // only (not a blanket bypass) so it's safe to deploy: every number NOT

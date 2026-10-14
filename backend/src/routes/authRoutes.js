@@ -1,7 +1,7 @@
 const express = require('express');
 const asyncHandler = require('../utils/asyncHandler');
 const { requireAuth } = require('../middleware/auth');
-const { authLimiter, passwordResetLimiter, otpLimiter, refreshLimiter } = require('../middleware/rateLimit');
+const { authLimiter, passwordResetLimiter, otpSendLimiter, otpVerifyLimiter, refreshLimiter } = require('../middleware/rateLimit');
 const authController = require('../controllers/authController');
 
 const router = express.Router();
@@ -21,8 +21,8 @@ router.post('/reset-password-phone', passwordResetLimiter, asyncHandler(authCont
 // The customer-facing auth flow: phone + OTP only. request-otp also serves
 // as signup (verify-otp creates the account if the number is new) — see
 // authController.verifyOtp.
-router.post('/request-otp', otpLimiter, asyncHandler(authController.requestOtp));
-router.post('/verify-otp', otpLimiter, asyncHandler(authController.verifyOtp));
+router.post('/request-otp', otpSendLimiter, asyncHandler(authController.requestOtp));
+router.post('/verify-otp', otpVerifyLimiter, asyncHandler(authController.verifyOtp));
 router.put('/me', requireAuth, asyncHandler(authController.updateProfile));
 router.put('/me/password', requireAuth, passwordResetLimiter, asyncHandler(authController.changePassword));
 

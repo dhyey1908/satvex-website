@@ -249,8 +249,8 @@ async function requestOtp(req, res) {
   // so sending must succeed identically whether the number is new or
   // returning. There's nothing to leak by varying behavior here, since
   // both outcomes already send a code either way.
-  await otpService.sendOtp(phone);
-  ok(res, { sent: true });
+  const sendInfo = await otpService.sendOtp(phone); // { resendAfterSeconds, sendsRemaining }
+  ok(res, { sent: true, ...sendInfo });
 }
 
 async function verifyOtp(req, res) {
