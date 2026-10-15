@@ -20,7 +20,7 @@ import { formatDateTime } from '../../utils/date';
 import './Account.css';
 
 export function AccountOrderDetail() {
-  useDocumentMeta({ title: 'Order Details' });
+  useDocumentMeta({ title: 'Order Details', noindex: true });
 
   const { id } = useParams();
   const { showToast } = useToast();

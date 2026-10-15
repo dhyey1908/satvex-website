@@ -17,7 +17,7 @@ import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import './Cart.css';
 
 export function Cart() {
-  useDocumentMeta({ title: 'Cart', path: '/cart' });
+  useDocumentMeta({ title: 'Cart', path: '/cart', noindex: true });
 
   const { items, savedItems, total, loading, updateItem, removeItem, setSavedForLater, appliedCoupon } = useCart();
   const { showToast } = useToast();

@@ -15,7 +15,7 @@ function validate(values) {
 }
 
 export function AccountProfile() {
-  useDocumentMeta({ title: 'Profile', path: '/account/profile' });
+  useDocumentMeta({ title: 'Profile', path: '/account/profile', noindex: true });
 
   const { user, refreshUser } = useAuth();
   const { showToast } = useToast();

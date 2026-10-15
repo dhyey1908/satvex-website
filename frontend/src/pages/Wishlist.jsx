@@ -32,7 +32,7 @@ async function shareWishlist(showToast) {
 }
 
 export function Wishlist() {
-  useDocumentMeta({ title: 'Wishlist', path: '/wishlist' });
+  useDocumentMeta({ title: 'Wishlist', path: '/wishlist', noindex: true });
 
   const { items, loading, removeItem } = useWishlist();
   const { showToast } = useToast();

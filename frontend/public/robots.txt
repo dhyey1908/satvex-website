@@ -3,7 +3,11 @@ Allow: /
 Disallow: /admin
 Disallow: /cart
 Disallow: /checkout
+Disallow: /account
+Disallow: /order-confirmation
 Disallow: /orders
 Disallow: /profile
+Disallow: /wishlist
+Disallow: /login
 
 Sitemap: https://satvex.com/sitemap.xml

@@ -9,7 +9,7 @@ import { useDocumentMeta } from '../../hooks/useDocumentMeta';
 import './Account.css';
 
 export function AccountOverview() {
-  useDocumentMeta({ title: 'My Account', path: '/account' });
+  useDocumentMeta({ title: 'My Account', path: '/account', noindex: true });
 
   const { user } = useAuth();
   const { itemCount: wishlistCount } = useWishlist();

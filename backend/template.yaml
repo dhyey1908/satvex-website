@@ -117,6 +117,20 @@ Parameters:
       path exactly as normal, in production too. Leave blank to disable
       entirely once real delivery is live — see otpService.js isTestMode.
 
+  FrontendWebAclArn:
+    Type: String
+    Default: arn:aws:wafv2:us-east-1:311376802787:global/webacl/CreatedByCloudFront-b0510358/38aa863e-6b97-42ee-ab21-cb381c0886b8
+    Description: >
+      The web ACL attached to the storefront distribution. It was attached by
+      CloudFront when the distribution joined a flat-rate pricing plan, and
+      such a distribution cannot be updated without it ("You can't remove or
+      replace the web ACL") - so it must be restated here or every stack update
+      that touches the distribution fails and rolls back. Leave blank only if
+      the distribution is not on a pricing plan.
+
+Conditions:
+  HasFrontendWebAcl: !Not [!Equals [!Ref FrontendWebAclArn, '']]
+
 Globals:
   Function:
     Runtime: nodejs22.x
@@ -740,24 +754,120 @@ Resources:
       DistributionConfig:
         Enabled: true
         DefaultRootObject: index.html
+        WebACLId: !If [HasFrontendWebAcl, !Ref FrontendWebAclArn, !Ref 'AWS::NoValue']
         DefaultCacheBehavior:
           TargetOriginId: frontend-s3-origin
           ViewerProtocolPolicy: redirect-to-https
           CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # Managed-CachingOptimized
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt FrontendRouterFunction.FunctionARN
+            - EventType: viewer-response
+              FunctionARN: !GetAtt FrontendRouterFunction.FunctionARN
         Origins:
           - Id: frontend-s3-origin
             DomainName: !GetAtt FrontendBucket.RegionalDomainName
             OriginAccessControlId: !Ref FrontendOAC
             S3OriginConfig:
               OriginAccessIdentity: ''
-        # SPA routing: unknown paths fall back to index.html
+        # SPA routing is done by FrontendRouterFunction (known app routes ->
+        # /index.html). Anything it does not recognise - and any missing file,
+        # which S3 reports as 403 behind OAC - is a genuine HTTP 404 with the
+        # branded page, never a 200 "soft 404".
         CustomErrorResponses:
           - ErrorCode: 403
-            ResponseCode: 200
-            ResponsePagePath: /index.html
+            ResponseCode: 404
+            ResponsePagePath: /404.html
+            ErrorCachingMinTTL: 10
           - ErrorCode: 404
-            ResponseCode: 200
-            ResponsePagePath: /index.html
+            ResponseCode: 404
+            ResponsePagePath: /404.html
+            ErrorCachingMinTTL: 10
+
+  # Storefront edge function (one function, two events).
+  #  viewer-request : rewrites the SPA's real routes to /index.html and sends
+  #                   every other extension-less path to a key that cannot
+  #                   exist, so CloudFront answers a true 404 + /404.html.
+  #                   Keep the route list in step with frontend/src/App.jsx.
+  #  viewer-response: adds the security headers. They live here rather than in
+  #                   a ResponseHeadersPolicy because the distribution is on the
+  #                   CloudFront Free pricing plan, which does not allow custom
+  #                   response headers policies.
+  FrontendRouterFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: !Sub satvex-frontend-router-${Stage}
+      AutoPublish: true
+      FunctionConfig:
+        Comment: SPA route allowlist (real 404s) and security headers
+        Runtime: cloudfront-js-2.0
+      FunctionCode: !Sub |
+        var ROUTES = [
+          /^\/$/,
+          /^\/(shop|about|contact|shipping-policy|returns-refunds|privacy-policy|terms-conditions|login|wishlist|cart|checkout|profile|orders)$/,
+          /^\/product\/[^\/]+$/,
+          /^\/order-confirmation\/[^\/]+$/,
+          /^\/orders\/[^\/]+$/,
+          /^\/account(\/(orders|addresses|profile))?$/,
+          /^\/account\/orders\/[^\/]+$/,
+          /^\/admin(\/(products|products\/new|orders|analytics|shipment-issues|customers|contacts|coupons|reviews|banners|announcements|settings))?$/,
+          /^\/admin\/(products|orders|contacts)\/[^\/]+$/
+        ];
+
+        // script-src is 'self' only (Vite emits no inline scripts). Styles need
+        // 'unsafe-inline' for React style attributes. Images/media allow https:
+        // because product media comes from the media CDN. form-action is
+        // intentionally NOT set: the PayU checkout POSTs to PayU and is then
+        // redirected through bank pages, which Chrome also checks against it.
+        var CSP = [
+          "default-src 'self'",
+          "script-src 'self'",
+          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+          "font-src 'self' data: https://fonts.gstatic.com",
+          "img-src 'self' data: blob: https:",
+          "media-src 'self' blob: https:",
+          "connect-src 'self' https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com https://api.postalpincode.in https://*.s3.${AWS::Region}.amazonaws.com https://*.s3.amazonaws.com",
+          "object-src 'none'",
+          "base-uri 'self'",
+          "frame-ancestors 'none'"
+        ].join('; ');
+
+        var SECURITY_HEADERS = {
+          'strict-transport-security': 'max-age=31536000; includeSubDomains',
+          'x-content-type-options': 'nosniff',
+          'x-frame-options': 'DENY',
+          'referrer-policy': 'strict-origin-when-cross-origin',
+          'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=(self)',
+          'content-security-policy': CSP
+        };
+
+        function handler(event) {
+          if (event.response) {
+            var response = event.response;
+            for (var name in SECURITY_HEADERS) {
+              response.headers[name] = { value: SECURITY_HEADERS[name] };
+            }
+            return response;
+          }
+
+          var request = event.request;
+          var uri = request.uri;
+
+          // Files (assets, sitemap.xml, robots.txt, 404.html...) go to S3 as is.
+          if (/\.[A-Za-z0-9]{1,10}$/.test(uri)) return request;
+
+          var path = uri.length > 1 ? uri.replace(/\/+$/, '') : uri;
+          for (var i = 0; i < ROUTES.length; i++) {
+            if (ROUTES[i].test(path)) {
+              request.uri = '/index.html';
+              return request;
+            }
+          }
+
+          // Not a route: a key that cannot exist -> S3 403 -> custom 404 page.
+          request.uri = '/__not_found__';
+          return request;
+        }
 
   FrontendBucketPolicy:
     Type: AWS::S3::BucketPolicy

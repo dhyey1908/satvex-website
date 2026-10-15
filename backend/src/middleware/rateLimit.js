@@ -45,32 +45,14 @@ const refreshLimiter = makeLimiter({
   message: 'Too many session refresh attempts. Please log in again.',
 });
 
-// Every code sent costs real money. The per-NUMBER caps (60s between sends,
-// 3 codes per 10 min, 5 wrong guesses per code) live in otpService; these two
-// are the per-IP ceilings against someone cycling through many numbers.
-//
-// Sends and verifies deliberately have SEPARATE budgets. They used to share a
-// single 10-per-15-minutes counter, so a normal customer (3 codes + a few
-// wrong guesses) could lock themselves out, and customers behind the same
-// mobile-carrier / office IP shared that one small budget.
-const otpSendLimiter = makeLimiter({
-  windowMs: 15 * 60 * 1000,
-  max: 15,
-  message: 'Too many code requests from this network. Please try again in a few minutes.',
-});
-
-const otpVerifyLimiter = makeLimiter({
-  windowMs: 15 * 60 * 1000,
-  max: 60,
-  message: 'Too many verification attempts from this network. Please try again in a few minutes.',
-});
+// OTP sends/verifies are throttled per IP in middleware/ipThrottle.js (a
+// DynamoDB counter shared by every Lambda container) - an in-memory limiter
+// here would be per-container and reset on cold start.
 
 module.exports = {
   authLimiter,
   passwordResetLimiter,
   contactLimiter,
   uploadUrlLimiter,
-  otpSendLimiter,
-  otpVerifyLimiter,
   refreshLimiter,
 };

@@ -6,9 +6,11 @@ import { useToast } from '../context/ToastContext';
 import { AuthLayout } from '../components/AuthLayout';
 import { required, runValidators, hasErrors } from '../utils/validators';
 import { mapServerFieldErrors } from '../utils/formErrors';
+import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import './Auth.css';
 
 export function Login() {
+  useDocumentMeta({ title: 'Log in', path: '/login', noindex: true });
   const { login } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();

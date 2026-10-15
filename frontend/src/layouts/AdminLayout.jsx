@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { adminService } from '../services/adminService';
+import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import {
   Menu,
   ArrowLeft,
@@ -40,6 +41,7 @@ const LINKS = [
 const SYNC_ISSUE_POLL_MS = 2 * 60 * 1000;
 
 export function AdminLayout() {
+  useDocumentMeta({ title: 'Admin', noindex: true });
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [syncIssueCount, setSyncIssueCount] = useState(0);

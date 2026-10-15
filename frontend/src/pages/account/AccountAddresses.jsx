@@ -14,7 +14,7 @@ import { mapServerFieldErrors } from '../../utils/formErrors';
 import './Account.css';
 
 export function AccountAddresses() {
-  useDocumentMeta({ title: 'Addresses', path: '/account/addresses' });
+  useDocumentMeta({ title: 'Addresses', path: '/account/addresses', noindex: true });
 
   const { showToast } = useToast();
   const confirm = useConfirm();

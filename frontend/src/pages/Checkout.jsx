@@ -39,7 +39,7 @@ const CHECKOUT_SERVER_FIELD_MAP = {
 };
 
 export function Checkout() {
-  useDocumentMeta({ title: 'Checkout', path: '/checkout' });
+  useDocumentMeta({ title: 'Checkout', path: '/checkout', noindex: true });
 
   const { items, total, refresh, appliedCoupon, applyCoupon, clearCoupon } = useCart();
   const { user, refreshUser } = useAuth();

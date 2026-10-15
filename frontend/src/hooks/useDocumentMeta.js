@@ -27,7 +27,7 @@ function setCanonical(href) {
  * tab, social share previews fetched after JS runs, and canonical hygiene —
  * not a substitute for server-rendered meta for crawlers that don't execute JS.
  */
-export function useDocumentMeta({ title, description, path }) {
+export function useDocumentMeta({ title, description, path, noindex = false }) {
   useEffect(() => {
     const fullTitle = title ? `${title} — Satvex` : 'Satvex — Beauty & Fashion Accessories';
     document.title = fullTitle;
@@ -36,10 +36,16 @@ export function useDocumentMeta({ title, description, path }) {
     setMetaTag('property', 'og:title', fullTitle);
     setMetaTag('property', 'og:description', description);
 
+    // Private / transactional pages (cart, checkout, account, admin, 404) must
+    // not be indexed. The tag is reset on every page so a noindex page never
+    // leaks its directive into the next one.
+    setMetaTag('name', 'robots', noindex ? 'noindex, nofollow' : 'index, follow');
+
     if (path) {
       setCanonical(`${window.location.origin}${path}`);
     }
-  }, [title, description, path]);
+    return () => setMetaTag('name', 'robots', 'index, follow');
+  }, [title, description, path, noindex]);
 }
 
 export function setProductStructuredData(product) {

@@ -24,7 +24,7 @@ const POLL_INTERVAL_MS = 3000;
 const MAX_POLLS = 40;
 
 export function OrderConfirmation() {
-  useDocumentMeta({ title: 'Order Confirmed' });
+  useDocumentMeta({ title: 'Order Confirmed', noindex: true });
 
   const { id } = useParams();
   const { showToast } = useToast();

@@ -19,7 +19,7 @@ const STATUSES = ['All', 'Pending', 'Confirmed', 'Processing', 'Shipped', 'Deliv
 const PAGE_SIZE = 10;
 
 export function AccountOrders() {
-  useDocumentMeta({ title: 'My Orders', path: '/account/orders' });
+  useDocumentMeta({ title: 'My Orders', path: '/account/orders', noindex: true });
 
   const { showToast } = useToast();
   const confirm = useConfirm();
