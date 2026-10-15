@@ -1,4 +1,4 @@
-import { sanitizePhoneInput } from '../utils/validators';
+import { sanitizePhoneInput, personName, placeName, indiaCountry } from '../utils/validators';
 
 const ADDRESS_TYPES = ['Home', 'Work', 'Other'];
 
@@ -171,7 +171,7 @@ export function addressToForm(addr) {
 
 export function validateAddressForm(values, { required, minLength, phone: validatePhone, pincode: validatePincode }) {
   return {
-    fullName: minLength(values.fullName, 2, 'Full name'),
+    fullName: personName(values.fullName, 'Full name'),
     phone: validatePhone(values.phone, { optional: false }),
     houseFlat: required(values.houseFlat, 'House/Flat/Building'),
     // Optional, not required: reloading a saved address always sets this
@@ -182,9 +182,9 @@ export function validateAddressForm(values, { required, minLength, phone: valida
     // visible reason. line1 (which does include the full street text) is
     // still required via houseFlat above.
     areaStreet: '',
-    city: minLength(values.city, 2, 'City'),
-    state: minLength(values.state, 2, 'State'),
+    city: placeName(values.city, 'City'),
+    state: placeName(values.state, 'State'),
     pincode: validatePincode(values.pincode, { optional: false }),
-    country: required(values.country, 'Country'),
+    country: indiaCountry(values.country),
   };
 }

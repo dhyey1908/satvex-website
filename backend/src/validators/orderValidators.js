@@ -1,9 +1,10 @@
 const { z } = require('zod');
+const { deliveryMobile, personName, placeName, streetLine, indiaOnly } = require('./fieldRules');
 
 const checkoutSchema = z.object({
   customer: z.object({
-    name: z.string().trim().min(2).max(100),
-    phone: z.string().trim().regex(/^[0-9]{10}$/, 'Enter a valid 10-digit mobile number.'),
+    name: personName,
+    phone: deliveryMobile,
     // Fully optional, for both COD and Online. The email field was removed
     // from checkout UI entirely; PayU requires a non-empty email on its
     // payment form, so the controller falls back to a placeholder address
@@ -11,19 +12,25 @@ const checkoutSchema = z.object({
     email: z.string().trim().email('Invalid email address').optional().or(z.literal('')),
   }),
   address: z.object({
-    line1: z.string().trim().min(3).max(200),
+    line1: streetLine,
     landmark: z.string().trim().max(200).optional().or(z.literal('')),
-    city: z.string().trim().min(2).max(100),
-    state: z.string().trim().min(2).max(100),
+    city: placeName('City'),
+    state: placeName('State'),
     pincode: z.string().trim().regex(/^[0-9]{6}$/, 'Enter a valid 6-digit pincode.'),
-    country: z.string().trim().min(2).max(100),
+    country: indiaOnly,
   }),
-  couponCode: z.string().trim().min(1).optional(),
+  // 128 is far above any real code and keeps a hostile value from ever reaching
+  // a DynamoDB key lookup (a ~2 KB key made that call throw a 500).
+  couponCode: z.string().trim().min(1).max(64).optional(),
   paymentMethod: z.enum(['COD', 'Online']).default('COD'),
+  // The total the customer was shown and agreed to. The server still prices the
+  // order itself; this only lets it refuse (409 PRICE_CHANGED) instead of
+  // charging a different amount than the one on the customer's screen.
+  expectedTotal: z.number().nonnegative().max(10000000).optional(),
 });
 
 const quoteSchema = z.object({
-  couponCode: z.string().trim().min(1).optional(),
+  couponCode: z.string().trim().min(1).max(64).optional(),
   paymentMethod: z.enum(['COD', 'Online']).default('COD'),
   // Optional — cart-page preview before an address is chosen won't have
   // this; checkout always does. Without it, shipping uses the flat

@@ -28,6 +28,9 @@ export function Cart() {
   // stage, so the preview intentionally omits any COD charge (quoted as
   // "Online") — Checkout shows the real total once a payment method is picked.
   const [quote, setQuote] = useState(null);
+  // The inputs `quote` was computed for - see Checkout.jsx for why a quote
+  // that doesn't match the current cart must not be displayed.
+  const [quoteKey, setQuoteKey] = useState(null);
   // Default/first saved address's pincode, if any — lets the real
   // Shiprocket-rate shipping charge show as early as the cart page, not
   // just at checkout. Without a saved address, the quote still works, just
@@ -44,16 +47,31 @@ export function Cart() {
       .catch(() => {});
   }, []);
 
+  const cartQuoteKey = JSON.stringify([
+    items.map((i) => `${i.cartItemId}:${i.quantity}:${i.sellingOptionId}`),
+    appliedCoupon?.code || '',
+    defaultPincode || '',
+  ]);
+
   useEffect(() => {
     if (items.length === 0) {
       setQuote(null);
       return;
     }
     let cancelled = false;
+    const key = cartQuoteKey;
     orderService
       .quote({ couponCode: appliedCoupon?.code, paymentMethod: 'Online', pincode: defaultPincode || undefined })
-      .then((data) => !cancelled && setQuote(data))
-      .catch(() => !cancelled && setQuote(null));
+      .then((data) => {
+        if (cancelled) return;
+        setQuote(data);
+        setQuoteKey(key);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setQuote(null);
+        setQuoteKey(null);
+      });
     return () => {
       cancelled = true;
     };
@@ -127,6 +145,9 @@ export function Cart() {
 
   const discountAmount = quote?.discountAmount ?? appliedCoupon?.discountAmount ?? 0;
   const grandTotal = quote?.total ?? Number((total - discountAmount).toFixed(2));
+  // Until the server's quote for THIS cart arrives, grandTotal is just the
+  // item subtotal - without GST/shipping - so it must not be shown as "Total".
+  const quoteIsCurrent = Boolean(quote) && quoteKey === cartQuoteKey;
   const productSavings = items.reduce(
     (sum, item) => sum + (item.compareAtPrice > item.unitPrice ? (item.compareAtPrice - item.unitPrice) * item.quantity : 0),
     0
@@ -198,6 +219,7 @@ export function Cart() {
               shipping={quote?.shipping}
               prepaidDiscount={quote?.prepaidDiscount}
               total={grandTotal}
+              pending={!quoteIsCurrent}
               savingsAmount={savingsAmount}
             >
               {/* Server-computed (quote.prepaidOffer) — present only when
@@ -236,7 +258,7 @@ export function Cart() {
       {items.length > 0 && (
         <div className="cart-mobile-bar">
           <div className="cart-mobile-bar-total">
-            <span className="cart-mobile-bar-amount">₹{grandTotal.toFixed(2)}</span>
+            <span className="cart-mobile-bar-amount">{quoteIsCurrent ? `₹${grandTotal.toFixed(2)}` : '…'}</span>
             {savingsAmount > 0 && <span className="cart-mobile-bar-savings">Saved ₹{savingsAmount.toFixed(2)}</span>}
           </div>
           <Link to="/checkout" className="btn btn-primary cart-mobile-bar-cta">

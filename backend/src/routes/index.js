@@ -31,6 +31,11 @@ router.use('/coupons', couponRoutes);
 router.use('/reviews', reviewRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/shiprocket', shiprocketRoutes);
+// Same handler under a second path. Shiprocket's panel rejects webhook URLs that
+// contain brand words (shiprocket / kartrocket / sr / kr), so the one to register
+// there is  <api>/api/courier/webhook ; /shiprocket/webhook is kept so anything
+// already pointing at it keeps working.
+router.use('/courier', shiprocketRoutes);
 router.use('/delivery', deliveryRoutes);
 
 module.exports = router;

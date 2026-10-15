@@ -1,11 +1,12 @@
 const { z } = require('zod');
+const { indianMobile } = require('./fieldRules');
 
 const sendOtpSchema = z.object({
-  phone: z.string().trim().regex(/^[0-9]{10}$/, 'Enter a valid 10-digit mobile number.'),
+  phone: indianMobile,
 });
 
 const verifyOtpSchema = z.object({
-  phone: z.string().trim().regex(/^[0-9]{10}$/, 'Enter a valid 10-digit mobile number.'),
+  phone: indianMobile,
   code: z.string().trim().regex(/^[0-9]{6}$/, 'Enter the 6-digit code.'),
 });
 

@@ -70,6 +70,12 @@ export function Checkout() {
   const [paymentMethod, setPaymentMethod] = useState('COD');
   const [quote, setQuote] = useState(null);
   const [quoteError, setQuoteError] = useState(null);
+  // Which inputs (coupon, payment method, pincode) the current `quote` was
+  // computed for. A quote only counts as the customer's total when this matches
+  // the CURRENT inputs - otherwise it is stale (the old payment method's price)
+  // and must neither be shown nor submitted.
+  const [quoteKey, setQuoteKey] = useState(null);
+  const [quoteRefreshToken, setQuoteRefreshToken] = useState(0);
   // Mandatory before placing the order — gated by PhoneVerification's own
   // onVerified, which only fires once the backend actually confirms (via
   // otpService/userService.isPhoneVerified, 30-day window included). Reset
@@ -227,6 +233,8 @@ export function Checkout() {
       ? typedPincode
       : undefined;
 
+  const currentQuoteKey = JSON.stringify([appliedCoupon?.code || '', paymentMethod, deliveryPincode || '']);
+
   useEffect(() => {
     let cancelled = false;
     orderService
@@ -234,12 +242,14 @@ export function Checkout() {
       .then((data) => {
         if (cancelled) return;
         setQuote(data);
+        setQuoteKey(currentQuoteKey);
         setQuoteError(null);
         lastToastedDeliveryErrorRef.current = null;
       })
       .catch((err) => {
         if (cancelled) return;
         setQuote(null);
+        setQuoteKey(null);
         // Surfaced prominently (e.g. a disabled-state pincode) rather than
         // silently dropped — the customer needs to know why the total
         // disappeared and can't just guess. A toast catches it immediately
@@ -257,7 +267,7 @@ export function Checkout() {
     return () => {
       cancelled = true;
     };
-  }, [appliedCoupon, paymentMethod, deliveryPincode]);
+  }, [appliedCoupon, paymentMethod, deliveryPincode, quoteRefreshToken]);
 
   function setField(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -395,6 +405,16 @@ export function Checkout() {
       return;
     }
 
+    // Never place an order against a total that isn't the one for the CURRENT
+    // payment method / coupon / pincode. (The "switch to prepaid" button
+    // submits Online before the method state has caught up - its price is the
+    // server's own prepaidOffer.onlineTotal, checked below.)
+    const switchingMethod = Boolean(methodOverride) && methodOverride !== paymentMethod;
+    if (!switchingMethod && !quoteIsCurrent) {
+      showToast('Updating your total — please try again in a moment.', 'info');
+      return;
+    }
+
     // COD confirmation: once, after everything above has passed (so it never
     // interrupts a form that still has errors). Surfaces the COD charge and,
     // when prepaid is cheaper, the saving — the aim is to steer customers to
@@ -422,6 +442,9 @@ export function Checkout() {
         },
         couponCode: appliedCoupon?.code,
         paymentMethod: method,
+        // The total on the customer's screen. The server still prices the
+        // order itself and refuses (409 PRICE_CHANGED) if it would differ.
+        expectedTotal: switchingMethod ? quote?.prepaidOffer?.onlineTotal : quote?.total,
       });
 
       // The order now exists and the server has emptied the cart. From here
@@ -473,6 +496,24 @@ export function Checkout() {
         return;
       }
       setRedirecting(null);
+      if (err.code === 'PRICE_CHANGED') {
+        // Show the new price and make the customer confirm it again.
+        codConfirmedRef.current = false;
+        setCodConfirmOpen(false);
+        setQuoteKey(null);
+        setQuoteRefreshToken((n) => n + 1);
+        setError(err.message);
+        showToast(err.message, 'warning');
+        return;
+      }
+      if (err.code === 'ADDRESS_STATE_MISMATCH') {
+        setFieldErrors((prev) => ({ ...prev, state: err.message }));
+        setTouched((prev) => ({ ...prev, state: true }));
+        setShowNewAddressForm(true);
+        showToast(err.message, 'error');
+        scrollToElement(document.getElementById('address-state'));
+        return;
+      }
       const serverErrors = mapServerFieldErrors(err, CHECKOUT_SERVER_FIELD_MAP);
       if (serverErrors) {
         setFieldErrors((prev) => ({ ...prev, ...serverErrors }));
@@ -519,6 +560,11 @@ export function Checkout() {
 
   const discountAmount = quote?.discountAmount ?? appliedCoupon?.discountAmount ?? 0;
   const grandTotal = quote?.total ?? Number((total - discountAmount).toFixed(2));
+  // grandTotal above is only a layout placeholder until the server's quote for
+  // the current inputs arrives - this is what decides whether it may be SHOWN.
+  const quoteIsCurrent = Boolean(quote) && quoteKey === currentQuoteKey;
+  const totalPending = !quoteIsCurrent && !quoteError;
+  const totalLabel = quoteIsCurrent ? `₹${grandTotal.toFixed(2)}` : '…';
   // Server-computed "pay online and save" comparison (null when online
   // payment isn't available to this customer) — display only.
   const prepaidOffer = quote?.prepaidOffer ?? null;
@@ -741,8 +787,18 @@ export function Checkout() {
 
             {error && <p className="field-error">{error}</p>}
 
-            <button type="submit" className="btn btn-primary btn-block checkout-place-order" disabled={submitting}>
-              {submitting ? <Loader2 size={16} className="btn-spinner" /> : `Place Order · ₹${grandTotal.toFixed(2)}`}
+            <button
+              type="submit"
+              className="btn btn-primary btn-block checkout-place-order"
+              disabled={submitting || totalPending}
+            >
+              {submitting ? (
+                <Loader2 size={16} className="btn-spinner" />
+              ) : quoteIsCurrent ? (
+                `Place Order · ${totalLabel}`
+              ) : (
+                'Updating total…'
+              )}
             </button>
           </div>
         </form>
@@ -759,6 +815,7 @@ export function Checkout() {
             codCharge={quote?.codCharge}
             prepaidDiscount={quote?.prepaidDiscount}
             total={grandTotal}
+            pending={totalPending}
             savingsAmount={savingsAmount}
             itemCount={itemCount}
             defaultExpanded={false}
@@ -793,10 +850,15 @@ export function Checkout() {
 
       <div className="checkout-mobile-bar">
         <div className="checkout-mobile-bar-total">
-          <span className="checkout-mobile-bar-amount">₹{grandTotal.toFixed(2)}</span>
+          <span className="checkout-mobile-bar-amount">{totalLabel}</span>
           {savingsAmount > 0 && <span className="checkout-mobile-bar-savings">Saved ₹{savingsAmount.toFixed(2)}</span>}
         </div>
-        <button type="button" className="btn btn-primary checkout-mobile-bar-cta" onClick={handleSubmit} disabled={submitting}>
+        <button
+          type="button"
+          className="btn btn-primary checkout-mobile-bar-cta"
+          onClick={handleSubmit}
+          disabled={submitting || totalPending}
+        >
           {submitting ? <Loader2 size={16} className="btn-spinner" /> : 'Place Order'}
         </button>
       </div>

@@ -19,6 +19,7 @@ const {
   querySyncIssues,
 } = require('../services/adminListQueries');
 const env = require('../config/env');
+const deliveryEligibilityService = require('../services/deliveryEligibilityService');
 
 // Internal cost data stored on an order for admin profit analytics is
 // stripped from every customer-facing response (see utils/productVisibility).
@@ -144,14 +145,37 @@ async function quote(req, res) {
   ok(res, { ...customerTotals, prepaidOffer, ...stripOrderCost({ items: orderItems }) });
 }
 
+// 'Jammu & Kashmir' / 'Jammu and Kashmir' / 'jammu  kashmir' should compare equal.
+const normalizeState = (s) =>
+  String(s || '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
 async function checkout(req, res) {
-  const { customer, address, couponCode, paymentMethod } = checkoutSchema.parse(req.body);
+  const { customer, address, couponCode, paymentMethod, expectedTotal } = checkoutSchema.parse(req.body);
 
   // Step 3: reject up front if Online isn't enabled for this user — before
   // any coupon commit or DB write. The API must not trust the frontend to
   // have hidden the option, since it can be called directly.
   if (paymentMethod === 'Online' && !(await isOnlinePaymentsAvailable(req.user.id))) {
     throw new AppError('Online payment is not available right now. Please use Cash on Delivery.', 400, 'ONLINE_PAYMENTS_DISABLED');
+  }
+
+  // The state a customer typed must be the pincode's real state: it goes
+  // straight onto the courier label, and a mismatch is how orders end up
+  // undeliverable. (Skipped when delivery restrictions are off and no state is
+  // resolved - the pincode itself is still validated by the totals call below.)
+  const { state: pincodeState } = await deliveryEligibilityService.isDeliverable(address.pincode);
+  if (pincodeState && normalizeState(pincodeState) !== normalizeState(address.state)) {
+    throw new AppError(
+      `Pincode ${address.pincode} is in ${pincodeState}, but the address says ${address.state}. Please correct the state.`,
+      400,
+      'ADDRESS_STATE_MISMATCH',
+      { expectedState: pincodeState }
+    );
   }
 
   // Step 1: resolve items + compute totals (no side effects).
@@ -163,6 +187,18 @@ async function checkout(req, res) {
     userId: req.user.id,
     deliveryPincode: address.pincode,
   });
+
+  // Price integrity: never charge a different amount than the one the customer
+  // was looking at. Checked before any coupon commit or write, so refusing
+  // leaves nothing to roll back.
+  if (expectedTotal != null && Math.abs(Number(expectedTotal) - Number(totals.total)) > 0.009) {
+    throw new AppError(
+      `The total changed to \u20b9${Number(totals.total).toFixed(2)}. Please review it and place the order again.`,
+      409,
+      'PRICE_CHANGED',
+      { total: totals.total, paymentMethod }
+    );
+  }
 
   // Step 2: mint the order id up front.
   const orderId = uuid();
@@ -303,7 +339,20 @@ async function cancelMyOrder(req, res) {
     throw new AppError('This order has already been paid online. Please contact support to cancel and refund it.', 400, 'REFUND_REQUIRED');
   }
   await orderService.updateStatus(req.params.id, 'Cancelled');
-  ok(res, { updated: true, status: 'Cancelled' });
+  const released = await releaseCancelledOrder(order);
+  ok(res, { updated: true, status: 'Cancelled', shipmentCancelled: released.shipment.cancelled });
+}
+
+// Everything a cancelled order was still holding: the coupon use (so the
+// customer can use it again) and the Shiprocket shipment (so no courier is
+// sent). Shared by the customer cancel and the admin status change.
+async function releaseCancelledOrder(order) {
+  if (order.couponCode) {
+    await couponService.decrementUsage(order.couponCode).catch(() => {});
+    await couponRedemptionService.remove(order.couponCode, order.userId).catch(() => {});
+  }
+  const shipment = await shipmentService.cancelShipmentForOrder(order);
+  return { shipment };
 }
 
 // Server-to-server reconciliation, used both as the confirmation-page
@@ -504,7 +553,13 @@ async function adminUpdateStatus(req, res) {
   if (status === 'Delivered') {
     await orderService.ensureInvoiceGenerated(req.params.id);
   }
-  ok(res, { updated: true, status });
+  // Only on the transition INTO Cancelled, so re-saving a cancelled order
+  // can't release the coupon or the shipment twice.
+  let shipmentCancelled;
+  if (status === 'Cancelled' && order.status !== 'Cancelled') {
+    shipmentCancelled = (await releaseCancelledOrder(order)).shipment.cancelled;
+  }
+  ok(res, { updated: true, status, ...(shipmentCancelled !== undefined ? { shipmentCancelled } : {}) });
 }
 
 // Full-refund-only (Decision 4) — the amount is always the order's own

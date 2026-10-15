@@ -561,6 +561,21 @@ async function markShipmentSyncFailed(orderId) {
   }
 }
 
+// Set after the Shiprocket order has been cancelled because the customer/admin
+// cancelled ours. A distinct value (not 'order_created') so the admin lists and
+// the sync-issues rule can tell "nothing to ship" from "stuck".
+async function markShipmentCancelled(orderId) {
+  const now = new Date().toISOString();
+  await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE,
+      Key: { orderId },
+      UpdateExpression: 'SET shipmentStatus = :cancelled, shipmentCancelledAt = :now, updatedAt = :now',
+      ExpressionAttributeValues: { ':cancelled': 'cancelled', ':now': now },
+    })
+  );
+}
+
 async function recordShiprocketOrderCreated(orderId, { shiprocketOrderId }) {
   await docClient.send(
     new UpdateCommand({
@@ -679,6 +694,9 @@ async function recordInvoiceGenerated(orderId, { invoiceUrl }) {
 // — anything else passes through as Shiprocket's own raw string rather
 // than guessing a translation, per the project's don't-guess rule. Expand
 // this table as real webhook deliveries confirm more strings.
+// Once a parcel is Delivered or has come back (RTO) nothing later is news.
+const TERMINAL_TRACKING_STATUSES = new Set(['Delivered', 'RTO / Returned']);
+
 const SHIPROCKET_STATUS_MAP = {
   'IN TRANSIT': 'In Transit',
   'OUT FOR DELIVERY': 'Out for Delivery',
@@ -734,6 +752,15 @@ async function recordShipmentTracking(orderId, { shipmentStatus, courierName, cu
   const mappedStatus = mapShiprocketStatus(currentStatus);
   const now = new Date().toISOString();
   const event = { status: mappedStatus, courierName: courierName || null, timestamp: now };
+
+  // Shiprocket retries webhooks and doesn't guarantee order. Without this a
+  // repeated event added a second identical timeline row, and a late
+  // "In Transit" after "Delivered" dragged the tracking status backwards.
+  const current = await findById(orderId);
+  if (current && current.lastTrackingStatus) {
+    if (current.lastTrackingStatus === mappedStatus) return; // exact repeat
+    if (TERMINAL_TRACKING_STATUSES.has(current.lastTrackingStatus)) return; // stale event after the final one
+  }
 
   await docClient.send(
     new UpdateCommand({
@@ -797,6 +824,7 @@ module.exports = {
   releaseShipmentLock,
   markShipmentSyncFailed,
   recordShiprocketOrderCreated,
+  markShipmentCancelled,
   findByShiprocketOrderId,
   recordAwbAssigned,
   recordPickupScheduled,

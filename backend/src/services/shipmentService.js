@@ -58,6 +58,12 @@ async function attemptShipmentCreation(orderId) {
 }
 
 async function attemptShipmentCreationLocked(orderId) {
+  const preflight = await orderService.findById(orderId);
+  // A cancelled order must never get a courier. (The sweep can still hold a
+  // retry job for it, or a late payment callback can arrive after cancelling.)
+  if (preflight && preflight.status === 'Cancelled') {
+    throw new Error(`Order ${orderId} is cancelled - no shipment will be created.`);
+  }
   const settings = await settingsService.getSettings();
   if (!settings.shiprocket?.enabled) {
     throw new Error('Shiprocket is not enabled in settings.');
@@ -291,7 +297,18 @@ function isPaidOrConfirmed(order) {
 // filtering is simpler and cheaper than maintaining another GSI.
 async function listSyncIssues() {
   const orders = await orderService.listAll({});
-  const candidates = orders.filter((o) => isPaidOrConfirmed(o) && o.shipmentStatus !== 'label_generated');
+  const candidates = orders.filter(
+    (o) =>
+      isPaidOrConfirmed(o) &&
+      o.status !== 'Cancelled' &&
+      // Once the courier is reporting movement (tracking webhook) or the order
+      // is shipped/delivered, shipment creation obviously worked - those are
+      // not sync problems and "Retry all" must never touch them.
+      !o.lastTrackingStatus &&
+      !['Shipped', 'Delivered'].includes(o.status) &&
+      o.shipmentStatus !== 'label_generated' &&
+      o.shipmentStatus !== 'cancelled'
+  );
 
   const issues = await Promise.all(
     candidates.map(async (order) => {
@@ -323,4 +340,34 @@ async function listSyncIssues() {
   return { issues, counts };
 }
 
-module.exports = { attemptShipmentCreation, triggerShipmentIfNeeded, retryShipment, listSyncIssues };
+// Called when an order is cancelled. Cancels the matching Shiprocket order so a
+// courier can't still collect it, and closes any pending retry job. Never throws:
+// the customer's cancellation must succeed either way - if Shiprocket refuses
+// (e.g. the parcel was already picked up) the order is flagged for a human, with
+// the exact instruction, instead of failing silently.
+async function cancelShipmentForOrder(order) {
+  if (!order) return { cancelled: false, reason: 'no_order' };
+  try {
+    await shipmentJobService.markDone(order.orderId).catch(() => {});
+    if (!order.shiprocketOrderId) return { cancelled: false, reason: 'no_shipment' };
+    if (order.shipmentStatus === 'cancelled') return { cancelled: true, reason: 'already_cancelled' };
+    await shiprocketService.cancelOrder({ shiprocketOrderId: order.shiprocketOrderId });
+    await orderService.markShipmentCancelled(order.orderId);
+    return { cancelled: true };
+  } catch (err) {
+    logger.error('Could not cancel the Shiprocket order for a cancelled order', {
+      orderId: order.orderId,
+      shiprocketOrderId: order.shiprocketOrderId,
+      message: err.message,
+    });
+    await orderService
+      .flagForReview(
+        order.orderId,
+        'Order was cancelled but its Shiprocket shipment could not be cancelled automatically - cancel it in the Shiprocket panel before pickup.'
+      )
+      .catch(() => {});
+    return { cancelled: false, reason: 'shiprocket_error' };
+  }
+}
+
+module.exports = { attemptShipmentCreation, triggerShipmentIfNeeded, retryShipment, listSyncIssues, cancelShipmentForOrder };

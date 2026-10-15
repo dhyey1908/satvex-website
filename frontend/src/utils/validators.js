@@ -4,7 +4,12 @@
 // error message string, or '' when the value is valid.
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_RE = /^[0-9]{10}$/;
+// Indian mobile numbers start with 6-9. A number of one repeated digit
+// (9999999999) is never real and is rejected by the courier.
+const PHONE_RE = /^[6-9][0-9]{9}$/;
+const REPEATED_DIGIT_RE = /^(\d)\1{9}$/;
+const NAME_RE = /^[\p{L}\p{M}][\p{L}\p{M} .'-]*$/u;
+const PLACE_RE = /^[\p{L}\p{M}][\p{L}\p{M} .,'&()-]*$/u;
 const PINCODE_RE = /^[0-9]{6}$/;
 // Backend's address-book rule is looser (4-10 digits, not India-only 6) —
 // used for the account address book, while Checkout keeps the stricter
@@ -30,7 +35,31 @@ export function email(value, { optional = false } = {}) {
 export function phone(value, { optional = true } = {}) {
   const v = (value || '').trim();
   if (!v) return optional ? '' : 'Phone number is required.';
-  return PHONE_RE.test(v) ? '' : 'Enter a valid 10-digit mobile number.';
+  if (!PHONE_RE.test(v)) return 'Enter a valid 10-digit Indian mobile number (it starts with 6, 7, 8 or 9).';
+  if (REPEATED_DIGIT_RE.test(v)) return 'Please enter a real mobile number.';
+  return '';
+}
+
+// Mirrors the server's rules (backend/src/validators/fieldRules.js) so a bad
+// value is caught while typing instead of after "Place Order".
+export function personName(value, label = 'Full name') {
+  const v = (value || '').trim();
+  if (v.length < 2) return `${label} must be at least 2 characters.`;
+  if (!NAME_RE.test(v) || (v.match(/\p{L}/gu) || []).length < 2) return `${label} can only contain letters, spaces and . ' -`;
+  return '';
+}
+
+export function placeName(value, label = 'City') {
+  const v = (value || '').trim();
+  if (v.length < 2) return `${label} must be at least 2 characters.`;
+  if (!PLACE_RE.test(v)) return `${label} can only contain letters.`;
+  return '';
+}
+
+export function indiaCountry(value) {
+  const v = (value || '').trim();
+  if (!v) return 'Country is required.';
+  return /^india$/i.test(v) ? '' : 'We currently deliver only within India.';
 }
 
 // Strips anything that isn't a digit and caps at 10 chars — used as the

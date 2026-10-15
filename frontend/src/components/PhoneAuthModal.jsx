@@ -61,8 +61,8 @@ export function PhoneAuthModal({ open, onClose, onVerified }) {
   }
 
   async function requestCode({ isResend = false } = {}) {
-    if (!/^[0-9]{10}$/.test(phone)) {
-      setError('Enter a valid 10-digit mobile number.');
+    if (!/^[6-9][0-9]{9}$/.test(phone)) {
+      setError('Enter a valid 10-digit Indian mobile number (it starts with 6, 7, 8 or 9).');
       return;
     }
     setError(null);
@@ -164,7 +164,7 @@ export function PhoneAuthModal({ open, onClose, onVerified }) {
             </p>
           )}
           <OtpSenderNote step="phone" />
-          <button type="submit" className="btn btn-primary btn-block" disabled={sending || phone.length !== 10}>
+          <button type="submit" className="btn btn-primary btn-block" disabled={sending || !/^[6-9][0-9]{9}$/.test(phone)}>
             {sending ? <Loader2 size={16} className="btn-spinner" /> : 'Send OTP'}
           </button>
         </form>

@@ -27,6 +27,7 @@ const SHIPMENT_STATUSES = [
   'pickup_scheduled',
   'label_generated',
   'sync_failed',
+  'cancelled',
 ];
 
 // ---------------------------------------------------------------- orders ---

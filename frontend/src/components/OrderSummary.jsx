@@ -20,6 +20,10 @@ export function OrderSummary({
   // always-expanded behavior unless they opt in; Checkout passes false so
   // it starts as just the compact Total row.
   defaultExpanded = true,
+  // True while the server's quote for the CURRENT inputs hasn't arrived yet:
+  // the amounts above are then stale or a fallback, so they're replaced with
+  // "Calculating…" instead of showing a wrong total (or a wrong "Free").
+  pending = false,
   children,
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -44,7 +48,7 @@ export function OrderSummary({
           )}
         </span>
         <span className="order-summary-collapsed-right">
-          <span className="order-summary-collapsed-amount">₹{total.toFixed(2)}</span>
+          <span className="order-summary-collapsed-amount">{pending ? 'Calculating…' : `₹${total.toFixed(2)}`}</span>
           <ChevronDown size={18} className={expanded ? 'rotated' : ''} />
         </span>
       </button>
@@ -79,7 +83,7 @@ export function OrderSummary({
               <div className="order-summary-row">
                 <span>Shipping</span>
                 <span className="order-summary-shipping">
-                  {shipping > 0 ? `₹${shipping.toFixed(2)}` : (<><Truck size={14} /> Free</>)}
+                  {pending ? 'Calculating…' : shipping > 0 ? `₹${shipping.toFixed(2)}` : (<><Truck size={14} /> Free</>)}
                 </span>
               </div>
             )}
@@ -97,7 +101,7 @@ export function OrderSummary({
             )}
             <div className="order-summary-row order-summary-total">
               <span>Total</span>
-              <span>₹{total.toFixed(2)}</span>
+              <span>{pending ? 'Calculating…' : `₹${total.toFixed(2)}`}</span>
             </div>
           </div>
         </div>
