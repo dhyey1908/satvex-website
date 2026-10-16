@@ -7,9 +7,9 @@ import { crossfade } from '../motion';
 import { usePreloadedImage } from '../hooks/usePreloadedImage';
 import './ProductGallery.css';
 
-// Minimum horizontal drag distance (px) before a touch gesture on the main
-// image counts as a swipe rather than a tap — keeps tap-to-zoom and
-// swipe-to-change-image from fighting over the same gesture.
+// Minimum horizontal travel (px) before a touch swipe or mouse drag on the
+// main view counts as "change slide" rather than a tap/click — keeps
+// tap-to-zoom and swipe-to-change from fighting over the same gesture.
 const SWIPE_THRESHOLD = 40;
 
 export function ProductGallery({ images, activeImage, videoUrl, alt, onImageChange }) {
@@ -25,7 +25,10 @@ export function ProductGallery({ images, activeImage, videoUrl, alt, onImageChan
   const [videoFailed, setVideoFailed] = useState(false);
   const [zoomOpen, setZoomOpen] = useState(false);
   const [magnified, setMagnified] = useState(false);
-  const touchStartX = useRef(null);
+  const pointerStart = useRef(null);
+  // Set when a gesture turned out to be a swipe/drag, so the click that can
+  // follow it doesn't also open the zoom view.
+  const suppressClick = useRef(false);
   const videoRef = useRef(null);
   // activeImage (the color currently selected/previewed in the selector
   // above) normally wins over the plain index — but once the customer
@@ -103,22 +106,6 @@ export function ProductGallery({ images, activeImage, videoUrl, alt, onImageChan
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mainImage, videoVisible]);
 
-  function handleTouchStart(e) {
-    touchStartX.current = e.touches[0].clientX;
-  }
-
-  function handleTouchEnd(e) {
-    if (touchStartX.current === null || gallery.length <= 1) return;
-    const delta = e.changedTouches[0].clientX - touchStartX.current;
-    touchStartX.current = null;
-    if (Math.abs(delta) < SWIPE_THRESHOLD) return;
-    setManualOverride(true);
-    setIndex((i) => {
-      const next = delta < 0 ? i + 1 : i - 1;
-      return (next + gallery.length) % gallery.length;
-    });
-  }
-
   function selectImage(i) {
     setManualOverride(true);
     setShowVideo(false);
@@ -148,6 +135,40 @@ export function ProductGallery({ images, activeImage, videoUrl, alt, onImageChan
 
   const goPrev = () => step(-1);
   const goNext = () => step(1);
+
+  // Swipe (touch) and drag (mouse) over the main view - video slide included,
+  // and through the same step() the arrows use, so a swipe walks the exact
+  // same video -> photos sequence and wraps the same way.
+  function onPointerDown(e) {
+    if (totalSlides <= 1) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (e.target.closest?.('.gallery-nav')) return;
+    suppressClick.current = false;
+    pointerStart.current = { x: e.clientX, y: e.clientY };
+  }
+
+  function onPointerUp(e) {
+    const start = pointerStart.current;
+    pointerStart.current = null;
+    if (!start) return;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    // Mostly horizontal and far enough: a swipe, not a tap or a page scroll.
+    if (Math.abs(dx) < SWIPE_THRESHOLD || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+    suppressClick.current = true;
+    step(dx < 0 ? 1 : -1);
+  }
+
+  function onPointerCancel() {
+    pointerStart.current = null;
+  }
+
+  function onClickCapture(e) {
+    if (!suppressClick.current) return;
+    suppressClick.current = false;
+    e.preventDefault();
+    e.stopPropagation();
+  }
 
   return (
     <div className="product-gallery">
@@ -184,7 +205,13 @@ export function ProductGallery({ images, activeImage, videoUrl, alt, onImageChan
           nest another interactive control inside it. Both float over the
           shared aspect-ratio box below via this wrapper's position:relative,
           so neither view's own layout/behavior changes at all. */}
-      <div className="gallery-main-wrap">
+      <div
+        className="gallery-main-wrap"
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
+        onClickCapture={onClickCapture}
+      >
         {videoVisible ? (
           // Plain div, not the zoomable image button below — nothing here is
           // interactive, deliberately. Same gallery-main box/aspect-ratio as
@@ -208,6 +235,7 @@ export function ProductGallery({ images, activeImage, videoUrl, alt, onImageChan
               loop
               playsInline
               disablePictureInPicture
+              draggable={false}
               preload="auto"
               poster={gallery[0] || undefined}
               onError={() => setVideoFailed(true)}
@@ -223,8 +251,6 @@ export function ProductGallery({ images, activeImage, videoUrl, alt, onImageChan
               setMagnified(false);
               setZoomOpen(true);
             }}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
             aria-label="View full-size image"
           >
             <AnimatePresence>
@@ -234,6 +260,7 @@ export function ProductGallery({ images, activeImage, videoUrl, alt, onImageChan
                   src={mainImage}
                   alt={alt}
                   loading="eager"
+                  draggable={false}
                   initial={crossfade.initial}
                   animate={crossfade.animate}
                   exit={crossfade.exit}

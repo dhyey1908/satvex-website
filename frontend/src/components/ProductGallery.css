@@ -260,3 +260,23 @@
   }
   .gallery-thumb { width: 64px; height: 64px; }
 }
+
+/* Swipe / drag: horizontal gestures belong to the gallery, vertical ones still
+   scroll the page; no text selection or native image-drag ghost while a mouse
+   drag is changing the slide. */
+.gallery-main-wrap { -webkit-user-select: none; user-select: none; }
+.gallery-main img, .gallery-main video { -webkit-user-drag: none; }
+
+/* Prev / next arrows: only where there is a real mouse, and only while the
+   gallery is hovered (or the arrow has keyboard focus). Touch screens swipe
+   instead, so they never see arrows. Same behavior as the homepage hero. */
+.gallery-nav { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .gallery-nav {
+    display: inline-flex;
+    opacity: 0;
+    transition: opacity var(--transition-fast), background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+  }
+  .gallery-main-wrap:hover .gallery-nav,
+  .gallery-nav:focus-visible { opacity: 1; }
+}
