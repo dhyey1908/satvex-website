@@ -1,6 +1,17 @@
 import { useState } from 'react';
 import { Truck, BadgePercent, ChevronDown } from 'lucide-react';
 import './OrderSummary.css';
+import { BrandDots } from './BrandLoader';
+
+// Shown in place of a total/shipping figure that is still being worked out.
+function CalculatingDots() {
+  return (
+    <span className="calc-dots">
+      <BrandDots size="sm" />
+      <span className="visually-hidden">Calculating…</span>
+    </span>
+  );
+}
 
 export function OrderSummary({
   subtotal = 0,
@@ -48,7 +59,7 @@ export function OrderSummary({
           )}
         </span>
         <span className="order-summary-collapsed-right">
-          <span className="order-summary-collapsed-amount">{pending ? 'Calculating…' : `₹${total.toFixed(2)}`}</span>
+          <span className="order-summary-collapsed-amount">{pending ? <CalculatingDots /> : `₹${total.toFixed(2)}`}</span>
           <ChevronDown size={18} className={expanded ? 'rotated' : ''} />
         </span>
       </button>
@@ -83,7 +94,7 @@ export function OrderSummary({
               <div className="order-summary-row">
                 <span>Shipping</span>
                 <span className="order-summary-shipping">
-                  {pending ? 'Calculating…' : shipping > 0 ? `₹${shipping.toFixed(2)}` : (<><Truck size={14} /> Free</>)}
+                  {pending ? <CalculatingDots /> : shipping > 0 ? `₹${shipping.toFixed(2)}` : (<><Truck size={14} /> Free</>)}
                 </span>
               </div>
             )}
@@ -101,7 +112,7 @@ export function OrderSummary({
             )}
             <div className="order-summary-row order-summary-total">
               <span>Total</span>
-              <span>{pending ? 'Calculating…' : `₹${total.toFixed(2)}`}</span>
+              <span>{pending ? <CalculatingDots /> : `₹${total.toFixed(2)}`}</span>
             </div>
           </div>
         </div>

@@ -7,9 +7,11 @@ import { OrderSummary } from '../components/OrderSummary';
 import { OrderCelebration } from '../components/OrderCelebration';
 import { CopyButton } from '../components/CopyButton';
 import { Loader } from '../components/Loader';
+import { useMinimumLoading } from '../hooks/useMinimumLoading';
 import { ErrorState } from '../components/ErrorState';
 import { useToast } from '../context/ToastContext';
 import { redirectToPayuCheckout } from '../utils/payu';
+import { useActionLoader } from '../context/ActionLoaderContext';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import './OrderConfirmation.css';
 
@@ -30,12 +32,14 @@ export function OrderConfirmation() {
   const { showToast } = useToast();
   const prefersReducedMotion = useReducedMotion();
   const [order, setOrder] = useState(null);
+  const holdLoader = useMinimumLoading(!order);
   const [error, setError] = useState(null);
   const [lastAttemptStatus, setLastAttemptStatus] = useState(null);
   const [pollTimedOut, setPollTimedOut] = useState(false);
   const [pollError, setPollError] = useState(false);
   const [pollTick, setPollTick] = useState(0);
   const [retrying, setRetrying] = useState(false);
+  const { runAction } = useActionLoader();
   const [celebrationTrigger, setCelebrationTrigger] = useState(0);
   const pollCount = useRef(0);
   const consecutivePollFailures = useRef(0);
@@ -112,14 +116,21 @@ export function OrderConfirmation() {
   async function handleRetry() {
     setRetrying(true);
     try {
-      const { payuParams, alreadyPaid } = await orderService.retryPayment(id);
-      if (alreadyPaid) {
-        const { order: o } = await orderService.getById(id);
-        setOrder(o);
-        showToast('Good news — this order is already paid.', 'success');
-        return;
-      }
-      await redirectToPayuCheckout(payuParams);
+      await runAction(
+        'retry-payment',
+        async () => {
+          const { payuParams, alreadyPaid } = await orderService.retryPayment(id);
+          if (alreadyPaid) {
+            const { order: o } = await orderService.getById(id);
+            setOrder(o);
+            showToast('Good news — this order is already paid.', 'success');
+            return { redirected: false };
+          }
+          await redirectToPayuCheckout(payuParams);
+          return { redirected: true };
+        },
+        { label: 'Redirecting you to secure payment…', keepOpen: (r) => r.redirected }
+      );
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
@@ -128,7 +139,7 @@ export function OrderConfirmation() {
   }
 
   if (error) return <ErrorState message={error} />;
-  if (!order) return <Loader label="Loading order…" />;
+  if (!order || holdLoader) return <Loader label="Loading order…" />;
 
   if (pollError) {
     return (

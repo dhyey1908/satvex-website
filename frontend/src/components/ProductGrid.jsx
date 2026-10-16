@@ -1,9 +1,9 @@
 import { motion } from 'framer-motion';
 import { ProductCard } from './ProductCard';
-import { Skeleton } from './Loader';
+import { BrandLoader } from './BrandLoader';
+import { useMinimumLoading } from '../hooks/useMinimumLoading';
 import { EmptyState } from './EmptyState';
 import { fadeUp } from '../motion';
-import { getKnownProductCount } from '../utils/catalogSize';
 import './ProductGrid.css';
 
 /**
@@ -14,19 +14,10 @@ import './ProductGrid.css';
  * that wraps naturally to 3-4/2-3/2 columns as more products are added,
  * without ever looking like "one small card in a big empty area."
  */
-export function ProductGrid({ products, loading, skeletonCount, emptyTitle = 'No products found', emptyMessage }) {
-  if (loading) {
-    // Placeholders mirror the catalog size we last saw (1 for a one-product
-    // store) instead of a fixed six that then collapse into a single card —
-    // loading must never imply more products than actually exist.
-    const placeholders = skeletonCount ?? getKnownProductCount();
-    return (
-      <div className="product-grid">
-        {Array.from({ length: placeholders }).map((_, i) => (
-          <Skeleton key={i} height="380px" style={{ borderRadius: 'var(--radius-md)' }} />
-        ))}
-      </div>
-    );
+export function ProductGrid({ products, loading, emptyTitle = 'No products found', emptyMessage }) {
+  const holdLoader = useMinimumLoading(Boolean(loading));
+  if (loading || holdLoader) {
+    return <BrandLoader variant="section" label="Loading products…" />;
   }
 
   if (!products || products.length === 0) {

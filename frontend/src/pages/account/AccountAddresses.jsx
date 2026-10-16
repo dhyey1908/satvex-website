@@ -8,6 +8,7 @@ import { AddressFormFields, ADDRESS_FORM_EMPTY, addressFormToPayload, addressToF
 import { Modal } from '../../components/Modal';
 import { EmptyState } from '../../components/EmptyState';
 import { Loader } from '../../components/Loader';
+import { useMinimumLoading } from '../../hooks/useMinimumLoading';
 import { useDocumentMeta } from '../../hooks/useDocumentMeta';
 import { required, minLength, phone as validatePhone, pincode as validatePincode, runValidators, hasErrors } from '../../utils/validators';
 import { mapServerFieldErrors } from '../../utils/formErrors';
@@ -19,6 +20,7 @@ export function AccountAddresses() {
   const { showToast } = useToast();
   const confirm = useConfirm();
   const [addresses, setAddresses] = useState(null);
+  const holdLoader = useMinimumLoading(!addresses);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(ADDRESS_FORM_EMPTY);
@@ -153,7 +155,7 @@ export function AccountAddresses() {
     }
   }
 
-  if (!addresses) return <Loader label="Loading addresses…" />;
+  if (!addresses || holdLoader) return <Loader label="Loading addresses…" />;
 
   return (
     <div>

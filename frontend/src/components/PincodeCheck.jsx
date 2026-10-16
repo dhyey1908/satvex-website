@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { MapPin, CheckCircle2, XCircle, Loader2, Truck } from 'lucide-react';
 import { deliveryService } from '../services/deliveryService';
 import { useSettings } from '../context/SettingsContext';
+import { BrandDots } from './BrandLoader';
 import './PincodeCheck.css';
 
 // Standard estimate window shown once a pincode is verified — matches the
@@ -92,6 +93,12 @@ export function PincodeCheck() {
           <CheckCircle2 size={14} /> Free delivery on orders above ₹{freeDeliveryThreshold}
         </p>
       )}
+      {state === 'loading' && (
+        <p className="pincode-check-result pincode-check-loading">
+          <BrandDots size="sm" /> Checking delivery…
+        </p>
+      )}
+
       {state === 'found' && (
         <>
           <p className="pincode-check-result success">

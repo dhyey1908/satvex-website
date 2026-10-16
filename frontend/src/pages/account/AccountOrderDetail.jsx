@@ -12,9 +12,11 @@ import { OrderTimeline } from '../../components/OrderTimeline';
 import { OrderSummary } from '../../components/OrderSummary';
 import { CopyButton } from '../../components/CopyButton';
 import { Loader } from '../../components/Loader';
+import { useMinimumLoading } from '../../hooks/useMinimumLoading';
 import { ErrorState } from '../../components/ErrorState';
 import { useDocumentMeta } from '../../hooks/useDocumentMeta';
 import { redirectToPayuCheckout } from '../../utils/payu';
+import { useActionLoader } from '../../context/ActionLoaderContext';
 import { canRetryPayment } from '../../utils/paymentStatus';
 import { formatDateTime } from '../../utils/date';
 import './Account.css';
@@ -27,9 +29,11 @@ export function AccountOrderDetail() {
   const confirm = useConfirm();
   const { refresh: refreshCart } = useCart();
   const [order, setOrder] = useState(null);
+  const holdLoader = useMinimumLoading(!order);
   const [error, setError] = useState(null);
   const [reviewedProductIds, setReviewedProductIds] = useState(new Set());
   const [retrying, setRetrying] = useState(false);
+  const { runAction } = useActionLoader();
   const [refreshingTracking, setRefreshingTracking] = useState(false);
 
   function load() {
@@ -79,13 +83,20 @@ export function AccountOrderDetail() {
   async function handleRetryPayment() {
     setRetrying(true);
     try {
-      const { payuParams, alreadyPaid } = await orderService.retryPayment(id);
-      if (alreadyPaid) {
-        showToast('Good news — this order is already paid.', 'success');
-        load();
-        return;
-      }
-      await redirectToPayuCheckout(payuParams);
+      await runAction(
+        'retry-payment',
+        async () => {
+          const { payuParams, alreadyPaid } = await orderService.retryPayment(id);
+          if (alreadyPaid) {
+            showToast('Good news — this order is already paid.', 'success');
+            load();
+            return { redirected: false };
+          }
+          await redirectToPayuCheckout(payuParams);
+          return { redirected: true };
+        },
+        { label: 'Redirecting you to secure payment…', keepOpen: (r) => r.redirected }
+      );
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
@@ -107,7 +118,7 @@ export function AccountOrderDetail() {
   }
 
   if (error) return <ErrorState message={error} onRetry={load} />;
-  if (!order) return <Loader label="Loading order…" />;
+  if (!order || holdLoader) return <Loader label="Loading order…" />;
 
   const canCancel = order.status === 'Pending' || order.status === 'Confirmed';
   const showRetryPayment = canRetryPayment(order);

@@ -9,6 +9,7 @@ import { AuthGateProvider } from './context/AuthGateContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { SettingsProvider } from './context/SettingsContext';
+import { ActionLoaderProvider } from './context/ActionLoaderContext';
 import './styles/global.css';
 
 // Browsers (mobile Safari/Chrome especially) try to restore the page's
@@ -28,6 +29,7 @@ createRoot(document.getElementById('root')).render(
       <ToastProvider>
         <ConfirmProvider>
           <SettingsProvider>
+            <ActionLoaderProvider>
             <AuthProvider>
               <AuthGateProvider>
                 <CartProvider>
@@ -37,6 +39,7 @@ createRoot(document.getElementById('root')).render(
                 </CartProvider>
               </AuthGateProvider>
             </AuthProvider>
+            </ActionLoaderProvider>
           </SettingsProvider>
         </ConfirmProvider>
       </ToastProvider>

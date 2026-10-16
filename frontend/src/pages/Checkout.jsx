@@ -8,6 +8,7 @@ import { Banknote, Wallet } from 'lucide-react';
 import { addressService } from '../services/addressService';
 import { authService } from '../services/authService';
 import { redirectToPayuCheckout } from '../utils/payu';
+import { waitForMinimum } from '../utils/minimumDelay';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { EmptyState } from '../components/EmptyState';
@@ -60,6 +61,9 @@ export function Checkout() {
   // codConfirmedRef lets "Continue with COD" re-run handleSubmit past it.
   const [codConfirmOpen, setCodConfirmOpen] = useState(false);
   const codConfirmedRef = useRef(false);
+  // Synchronous guard: state updates are async, so a fast double-tap could
+  // otherwise start two orders before `submitting` is rendered as true.
+  const submitLockRef = useRef(false);
 
   const [addresses, setAddresses] = useState(null);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
@@ -426,6 +430,9 @@ export function Checkout() {
     }
     codConfirmedRef.current = false;
 
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
+    const startedAt = Date.now();
     setSubmitting(true);
     let createdOrderId = null;
     try {
@@ -456,6 +463,10 @@ export function Checkout() {
       setRedirecting(
         method === 'Online' && response.payuParams ? 'Redirecting you to secure payment…' : 'Placing your order…'
       );
+
+      // A fast order still gets a moment of the loader (success path only;
+      // every error path above/below clears it at once).
+      await waitForMinimum(startedAt);
 
       if (saveAddress && !selectedAddressId) {
         addressService.create(addressPayload).catch(() => {});
@@ -527,6 +538,7 @@ export function Checkout() {
         showToast(err.message, 'error');
       }
     } finally {
+      submitLockRef.current = false;
       setSubmitting(false);
     }
   }

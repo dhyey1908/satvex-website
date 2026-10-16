@@ -6,6 +6,7 @@ import { AccountLayout } from './layouts/AccountLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminRoute } from './components/AdminRoute';
 import { ScrollToTop } from './components/ScrollToTop';
+import { BootLoader } from './components/BootLoader';
 import { useSettings } from './context/SettingsContext';
 
 import { Home } from './pages/Home';
@@ -62,6 +63,7 @@ export default function App() {
 
   return (
     <>
+      <BootLoader />
       <ScrollToTop />
       <Routes>
       <Route element={<MainLayout />}>

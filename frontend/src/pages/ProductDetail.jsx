@@ -15,6 +15,7 @@ import { PincodeCheck } from '../components/PincodeCheck';
 import { ProductGrid } from '../components/ProductGrid';
 import { SearchOverlay } from '../components/SearchOverlay';
 import { Loader } from '../components/Loader';
+import { useMinimumLoading } from '../hooks/useMinimumLoading';
 import { ErrorState } from '../components/ErrorState';
 import { useAuth } from '../context/AuthContext';
 import { useAuthGate } from '../context/AuthGateContext';
@@ -45,6 +46,7 @@ export function ProductDetail() {
   const location = useLocation();
 
   const [product, setProduct] = useState(null);
+  const holdLoader = useMinimumLoading(!product);
   const [relatedProducts, setRelatedProducts] = useState(null);
   const [error, setError] = useState(null);
   const [sellingOptionId, setSellingOptionId] = useState(null);
@@ -201,7 +203,7 @@ export function ProductDetail() {
   }, [product]);
 
   if (error) return <ErrorState message={error} />;
-  if (!product) return <Loader label="Loading product…" />;
+  if (!product || holdLoader) return <Loader label="Loading product…" />;
 
   const sellingOption = product.sellingOptions.find((o) => o.id === sellingOptionId);
   // Single-color options: selectedColors[0] is the only possible choice.

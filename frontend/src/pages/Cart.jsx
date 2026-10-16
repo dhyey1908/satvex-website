@@ -12,6 +12,7 @@ import { FreeShippingBanner } from '../components/FreeShippingBanner';
 import { EmptyState } from '../components/EmptyState';
 import { PageHeader } from '../components/PageHeader';
 import { Loader } from '../components/Loader';
+import { useMinimumLoading } from '../hooks/useMinimumLoading';
 import { ArrowLeft, Trash2, Bookmark, ShieldCheck, RotateCcw, Lock, Sparkles } from 'lucide-react';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import './Cart.css';
@@ -20,6 +21,8 @@ export function Cart() {
   useDocumentMeta({ title: 'Cart', path: '/cart', noindex: true });
 
   const { items, savedItems, total, loading, updateItem, removeItem, setSavedForLater, appliedCoupon } = useCart();
+  const cartLoading = loading && items.length === 0 && savedItems.length === 0;
+  const holdLoader = useMinimumLoading(cartLoading);
   const { showToast } = useToast();
   const confirm = useConfirm();
 
@@ -126,7 +129,7 @@ export function Cart() {
     }
   }
 
-  if (loading && items.length === 0 && savedItems.length === 0) return <Loader label="Loading your cart…" />;
+  if (cartLoading || holdLoader) return <Loader label="Loading your cart…" />;
 
   if (items.length === 0 && savedItems.length === 0) {
     return (
