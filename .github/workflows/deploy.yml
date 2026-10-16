@@ -1,8 +1,13 @@
 name: Deploy SATVEX
 
+# MANUAL ONLY. This workflow used to deploy production on every push to main,
+# but it only passes a few of the stack's parameters (no PayU, MiniMoth, Shiprocket
+# or OTP settings, no CloudFront domain/WAF), so a successful run would reset those
+# to their empty defaults in production. It also needs the AWS_DEPLOY_ROLE_ARN
+# secret, which is not configured. Production is deployed from a trusted machine
+# with `npm run deploy` (backend/ and frontend/), which reads backend/samconfig.toml.
+# Re-enable the push trigger only after every parameter is wired in from secrets.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:

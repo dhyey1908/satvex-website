@@ -117,6 +117,19 @@ Parameters:
       path exactly as normal, in production too. Leave blank to disable
       entirely once real delivery is live — see otpService.js isTestMode.
 
+  FrontendDomainNames:
+    Type: CommaDelimitedList
+    Default: satvex.co.in,www.satvex.co.in
+    Description: >
+      Custom domain names (CloudFront aliases) the storefront is served on.
+      They were attached to the distribution in the console, so they must be
+      restated here or the next stack update would detach them and take the
+      site offline. Leave blank only to serve from the CloudFront domain.
+  FrontendCertificateArn:
+    Type: String
+    Default: arn:aws:acm:us-east-1:311376802787:certificate/c90702cf-a7be-4100-9ed6-ef61612ff925
+    Description: ACM certificate (must be in us-east-1) covering FrontendDomainNames.
+
   FrontendWebAclArn:
     Type: String
     Default: arn:aws:wafv2:us-east-1:311376802787:global/webacl/CreatedByCloudFront-b0510358/38aa863e-6b97-42ee-ab21-cb381c0886b8
@@ -129,6 +142,7 @@ Parameters:
       the distribution is not on a pricing plan.
 
 Conditions:
+  HasFrontendDomain: !Not [!Equals [!Join ['', !Ref FrontendDomainNames], '']]
   HasFrontendWebAcl: !Not [!Equals [!Ref FrontendWebAclArn, '']]
 
 Globals:
@@ -755,6 +769,13 @@ Resources:
         Enabled: true
         DefaultRootObject: index.html
         WebACLId: !If [HasFrontendWebAcl, !Ref FrontendWebAclArn, !Ref 'AWS::NoValue']
+        Aliases: !If [HasFrontendDomain, !Ref FrontendDomainNames, !Ref 'AWS::NoValue']
+        ViewerCertificate: !If
+          - HasFrontendDomain
+          - AcmCertificateArn: !Ref FrontendCertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - !Ref 'AWS::NoValue'
         DefaultCacheBehavior:
           TargetOriginId: frontend-s3-origin
           ViewerProtocolPolicy: redirect-to-https
