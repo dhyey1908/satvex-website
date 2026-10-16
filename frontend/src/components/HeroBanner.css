@@ -34,3 +34,40 @@
   transition: background var(--transition-fast), transform var(--transition-fast);
 }
 .hero-banner-dot.active { background: #fff; transform: scale(1.2); }
+
+/* Swipe / drag: horizontal gestures go to the carousel, vertical ones still
+   scroll the page. Text/image selection and native drag ghosts are off so a
+   mouse drag changes the slide instead of dragging a picture around. */
+.hero-image { touch-action: pan-y; -webkit-user-select: none; user-select: none; }
+.hero-image img, .hero-image video { -webkit-user-drag: none; }
+
+/* Prev / next arrows: desktop (a real mouse, wide screen) only, and quiet
+   until the banner is hovered. Phones swipe instead. */
+.hero-banner-arrow { display: none; }
+@media (hover: hover) and (pointer: fine) and (min-width: 861px) {
+  .hero-banner-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.82);
+    color: var(--color-text);
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+  }
+  .hero-banner-arrow-prev { left: var(--sp-sm); }
+  .hero-banner-arrow-next { right: var(--sp-sm); }
+  .hero-image:hover .hero-banner-arrow,
+  .hero-banner-arrow:focus-visible { opacity: 1; }
+  .hero-banner-arrow:hover { background: #fff; color: var(--color-accent); }
+}
