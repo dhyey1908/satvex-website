@@ -225,7 +225,7 @@ async function checkout(req, res) {
       amount: totals.total,
       productinfo: buildProductInfo(orderId),
       firstname: customer.name,
-      email: customer.email || 'customer@satvex.com', // PayU requires a non-empty email even though our checkout no longer collects one
+      email: customer.email || 'customer@satvex.co.in', // PayU requires a non-empty email even though our checkout no longer collects one
       phone: normalizedPhone,
       surl: callbackUrl,
       furl: callbackUrl,
@@ -469,7 +469,7 @@ async function retryPayment(req, res) {
     amount: order.total,
     productinfo: buildProductInfo(order.orderId),
     firstname: order.customer.name,
-    email: order.customer.email || 'customer@satvex.com',
+    email: order.customer.email || 'customer@satvex.co.in',
     phone: normalizedPhone,
     surl: callbackUrl,
     furl: callbackUrl,

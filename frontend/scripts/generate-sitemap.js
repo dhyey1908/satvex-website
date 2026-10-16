@@ -10,7 +10,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const SITE_URL = process.env.SITE_URL || 'https://satvex.com';
+const SITE_URL = process.env.SITE_URL || 'https://satvex.co.in';
 const API_URL = process.env.VITE_API_URL || 'http://localhost:4000/api';
 
 const STATIC_PATHS = [

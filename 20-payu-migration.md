@@ -43,7 +43,7 @@ never written to our DB" rollback cases that existed for Cashfree.
    as before. **Zero changes to `OrderConfirmation.jsx`'s polling logic.**
 5. **Email fallback.** PayU's form requires a non-empty email, but the
    email field was removed from checkout UI entirely in an earlier change.
-   The backend falls back to a placeholder (`customer@satvex.com`) when
+   The backend falls back to a placeholder (`customer@satvex.co.in`) when
    the customer has none on file. This is a known trade-off, not a real
    email — PayU doesn't contact customers from it, and no customer-facing
    email dispatch depends on it.

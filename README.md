@@ -146,7 +146,7 @@ Pushing to `main` automatically deploys both backend and frontend via [.github/w
    | Secret | Value |
    |---|---|
    | `AWS_DEPLOY_ROLE_ARN` | ARN from step 1 |
-   | `FRONTEND_ORIGIN` | Your production frontend URL (e.g. `https://satvex.com`) |
+   | `FRONTEND_ORIGIN` | Your production frontend URL (e.g. `https://satvex.co.in`) |
    | `JWT_SECRET` | A long random string |
    | `SES_SENDER_EMAIL` | Your verified SES sender address |
    | `SITE_URL` | Same as `FRONTEND_ORIGIN`, used for sitemap generation |

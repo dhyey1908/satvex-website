@@ -17,7 +17,7 @@ Parameters:
     Type: String
     Description: >
       Comma-separated list of exact origins the API/media bucket should allow
-      via CORS (e.g. http://localhost:5173,https://satvex.com)
+      via CORS (e.g. http://localhost:5173,https://satvex.co.in)
   JwtSecret:
     Type: String
     NoEcho: true
