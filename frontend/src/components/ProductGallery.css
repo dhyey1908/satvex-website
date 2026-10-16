@@ -231,3 +231,32 @@
   .gallery-thumbs::-webkit-scrollbar { display: none; }
   .gallery-thumb { scroll-snap-align: start; }
 }
+
+/* ---- Desktop only (>= 1025px): a larger gallery ------------------------
+   Phones and tablets keep every rule above unchanged. At desktop widths the
+   main image frame is square (the photos are 4:3, so `contain` shows the
+   whole product on a clean white card) and can grow to the viewport height
+   instead of the old short 3:2 strip, and the thumbnail rail is exactly as
+   tall as that frame so both edges line up. */
+@media (min-width: 1025px) {
+  .gallery-main {
+    aspect-ratio: 1 / 1;
+    /* Never taller than what is visible under the sticky site header, so the
+       whole image is on screen without scrolling. */
+    max-height: calc(100vh - var(--header-height) - var(--space-7));
+    background: #fff;
+  }
+  .gallery-main-video { background: var(--color-surface-muted); }
+
+  .gallery-thumbs {
+    width: 64px;
+    flex: 0 0 64px;
+    max-height: none;
+    /* Size containment: the rail contributes nothing to the row's height, so
+       it is sized by the main image and simply stretches to match it
+       (scrolling inside if there are more thumbnails than fit). */
+    contain: size;
+    scrollbar-width: thin;
+  }
+  .gallery-thumb { width: 64px; height: 64px; }
+}

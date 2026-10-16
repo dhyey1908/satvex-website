@@ -543,3 +543,16 @@
      (measured 81px tall) overlapping the last ~9px of page content. */
   .product-detail.section { padding-bottom: 96px; }
 }
+
+/* ---- Desktop only (>= 1025px): give the gallery more of the row ----------
+   Wider gallery column (the details panel keeps at least its previous
+   width), tighter gutter, and the color badge moved onto the image itself —
+   it used to sit over the first thumbnail. Below 1025px nothing changes. */
+@media (min-width: 1025px) {
+  .product-detail-grid {
+    grid-template-columns: minmax(0, 1.45fr) minmax(420px, 1fr);
+    column-gap: var(--space-6);
+  }
+  /* thumbnail rail (64px) + its gap, then the badge's usual inset */
+  .pdp-has-thumbs .pdp-color-badge { left: calc(64px + var(--space-3) + var(--space-3)); }
+}

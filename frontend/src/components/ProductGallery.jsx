@@ -94,10 +94,12 @@ export function ProductGallery({ images, activeImage, videoUrl, alt, onImageChan
   // covers every way it can change (a color selection driving activeImage,
   // a plain thumbnail click, a swipe), not just an explicit color pick.
   // Lets a caller (the PDP's color-name badge) stay truthfully in sync with
-  // the real photo. Never reported while the video view is showing instead.
+  // the real photo. While the video slide is showing there is no photo on
+  // screen, so null is reported: the caller drops the color label for the
+  // video, and gets the (current) photo's label back the moment an image
+  // slide is shown again.
   useEffect(() => {
-    if (videoVisible) return;
-    onImageChange?.(mainImage || null);
+    onImageChange?.(videoVisible ? null : mainImage || null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mainImage, videoVisible]);
 

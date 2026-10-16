@@ -390,7 +390,9 @@ export function ProductDetail() {
       <div className="product-detail-grid">
         <div className="pdp-gallery-wrap" ref={galleryColRef}>
           <div
-            className={`pdp-gallery-sticky ${galleryPinnedBottom ? 'pdp-gallery-pinned-bottom' : ''}`}
+            className={`pdp-gallery-sticky ${galleryPinnedBottom ? 'pdp-gallery-pinned-bottom' : ''} ${
+              galleryImages.length > 1 || product.videoUrl ? 'pdp-has-thumbs' : ''
+            }`}
             ref={galleryStickyRef}
           >
             <ProductGallery
