@@ -61,7 +61,9 @@ async function callback(req, res) {
   const errorMessage = body.error_Message && body.error_Message !== 'No Error' ? body.error_Message : null;
 
   if (result?.status === 'success') {
-    if (result.amount != null && result.amount !== Number(order.total)) {
+    // Compared at 2 decimals: a stored total like 224.82000000000002 must not
+    // be flagged as a mismatch against PayU's "224.82".
+    if (result.amount != null && Number(result.amount).toFixed(2) !== Number(order.total).toFixed(2)) {
       await orderService.flagForReview(order.orderId, 'Payment amount mismatch on PayU callback.');
     } else {
       await orderService.markPaid(order.orderId, { payuMihpayid: result.mihpayid, paidAt: new Date().toISOString() });

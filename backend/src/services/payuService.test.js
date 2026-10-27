@@ -20,11 +20,93 @@ after(() => {
   global.fetch = originalFetch;
 });
 
-test('buildTxnid/orderIdFromTxnid: round-trips a real UUID orderId (with its own internal hyphens) through an attempt suffix', () => {
+test('buildTxnid/orderIdFromTxnid: a real order UUID fits PayU\'s 25-character txnid limit and round-trips', () => {
   const orderId = '550e8400-e29b-41d4-a716-446655440000';
-  const txnid = payuService.buildTxnid(orderId, 3);
-  assert.equal(txnid, '550e8400-e29b-41d4-a716-446655440000-3');
-  assert.equal(payuService.orderIdFromTxnid(txnid), orderId, 'splitting on the LAST hyphen must recover the full UUID, not truncate it');
+  for (const attempt of [1, 2, 9, 10, 61, 62, 500]) {
+    const txnid = payuService.buildTxnid(orderId, attempt);
+    assert.ok(txnid.length <= 25, `${txnid} is ${txnid.length} chars`);
+    assert.match(txnid, /^[0-9A-Za-z]+$/, 'alphanumeric only');
+    assert.equal(payuService.orderIdFromTxnid(txnid), orderId);
+  }
+});
+
+test('buildTxnid: every attempt of an order has a different txnid, and different orders never collide', () => {
+  const a = '550e8400-e29b-41d4-a716-446655440000';
+  const b = '550e8400-e29b-41d4-a716-446655440001';
+  const ids = new Set([payuService.buildTxnid(a, 1), payuService.buildTxnid(a, 2), payuService.buildTxnid(a, 11), payuService.buildTxnid(b, 1), payuService.buildTxnid(b, 2)]);
+  assert.equal(ids.size, 5);
+});
+
+test('extreme UUIDs (all zeros / all f) still fit and round-trip', () => {
+  for (const orderId of ['00000000-0000-0000-0000-000000000000', 'ffffffff-ffff-ffff-ffff-ffffffffffff']) {
+    const txnid = payuService.buildTxnid(orderId, 1);
+    assert.ok(txnid.length <= 25);
+    assert.equal(payuService.orderIdFromTxnid(txnid), orderId);
+  }
+});
+
+test('orderIdFromTxnid: legacy "<uuid>-<n>" txnids (payments started before the change) still resolve to their order', () => {
+  const orderId = '550e8400-e29b-41d4-a716-446655440000';
+  assert.equal(payuService.orderIdFromTxnid(`${orderId}-3`), orderId, 'splitting on the LAST hyphen must recover the full UUID');
+});
+
+test('formatAmount: always a plain 2-decimal string', () => {
+  assert.equal(payuService.formatAmount(100), '100.00');
+  assert.equal(payuService.formatAmount(24.78), '24.78');
+  assert.equal(payuService.formatAmount(224.82000000000002), '224.82', 'float noise is rounded away');
+  assert.equal(payuService.formatAmount('149'), '149.00');
+  assert.equal(payuService.formatAmount(1), '1.00');
+});
+
+test('formatAmount: rejects 0, negatives, NaN, null, undefined, empty, commas, symbols, spaces and Infinity', () => {
+  for (const bad of [0, -5, NaN, null, undefined, '', '   ', '1,000', '₹500', '5 0', 'abc', Infinity, 0.004, 1e12]) {
+    assert.throws(() => payuService.formatAmount(bad), (e) => e.code === 'INVALID_PAYMENT_AMOUNT' && e.statusCode === 400, `should reject ${String(bad)}`);
+  }
+});
+
+test('buildPaymentParams: the amount in the form and in the hash are the same string, and a bad amount blocks the payment', () => {
+  const input = { txnid: 'abc123', productinfo: 'Order X', firstname: 'Jane', email: 'jane@example.com', phone: '9876543210' };
+  const { fields } = payuService.buildPaymentParams({ ...input, amount: 224.82000000000002 });
+  assert.equal(fields.amount, '224.82');
+  const expected = sha512(['testkey', 'abc123', '224.82', 'Order X', 'Jane', 'jane@example.com', '', '', '', '', '', '', '', '', '', '', 'testsalt'].join('|'));
+  assert.equal(fields.hash, expected);
+  assert.throws(() => payuService.buildPaymentParams({ ...input, amount: 0 }), (e) => e.code === 'INVALID_PAYMENT_AMOUNT');
+});
+
+test('buildPaymentParams: every hashed value equals the posted form value (names are cleaned BEFORE hashing)', () => {
+  const { fields } = payuService.buildPaymentParams({ txnid: 'abc123', amount: 10, productinfo: 'Order X', firstname: "Jane O'Brien-Smith 2", email: 'jane@example.com', phone: '9876543210' });
+  assert.equal(fields.firstname, 'Jane O Brien Smith');
+  const recomputed = sha512(['testkey', fields.txnid, fields.amount, fields.productinfo, fields.firstname, fields.email, '', '', '', '', '', '', '', '', '', '', 'testsalt'].join('|'));
+  assert.equal(fields.hash, recomputed);
+});
+
+test('buildPaymentParams: a pipe inside a hashed value is refused (it would shift every later field)', () => {
+  assert.throws(
+    () => payuService.buildPaymentParams({ txnid: 'abc123', amount: 10, productinfo: 'a|b', firstname: 'Jane', email: 'j@e.com', phone: '9876543210' }),
+    (e) => e.code === 'INVALID_PAYMENT_FIELD'
+  );
+});
+
+test('the salt never reaches the form fields or the debug log; the log shows the exact hash input with <SALT>', () => {
+  const lines = [];
+  const orig = console.log;
+  console.log = (l) => lines.push(String(l));
+  let fields;
+  try {
+    ({ fields } = payuService.buildPaymentParams({ txnid: 'abc123', amount: 10, productinfo: 'Order X', firstname: 'Jane', email: 'jane@example.com', phone: '9876543210' }));
+  } finally {
+    console.log = orig;
+  }
+  assert.ok(!JSON.stringify(fields).includes('testsalt'), 'salt in form fields');
+  const log = lines.find((l) => l.includes('PayU request built'));
+  assert.ok(log, 'debug log written');
+  assert.ok(!log.includes('testsalt'), 'salt in log');
+  assert.ok(!log.includes('"testkey"') && !log.includes('testkey|'), 'merchant key is masked in the log');
+  const entry = JSON.parse(log);
+  assert.equal(entry.meta.amount, '10.00');
+  assert.equal(entry.meta.txnid, 'abc123');
+  assert.equal(entry.meta.hashInput, 'te***|abc123|10.00|Order X|Jane|jane@example.com|||||||||||<SALT>');
+  assert.equal(entry.meta.hash, fields.hash);
 });
 
 test('orderIdFromTxnid: a txnid with no hyphen at all is returned unchanged (legacy/malformed input, never crashes)', () => {

@@ -65,10 +65,13 @@ const env = {
   // hosted checkout is a classic hashed HTML form POST (see payuService.js).
   // 'test' | 'production' — controls which PayU host is used, both for the
   // payment form action and the verify/refund post-service calls.
+  // Trimmed/normalized on purpose: a stray space or newline in the key or salt
+  // silently changes the hash, and "Production " would not equal 'production'
+  // and quietly send a live key to the TEST host.
   payu: {
-    key: process.env.PAYU_MERCHANT_KEY,
-    salt: process.env.PAYU_MERCHANT_SALT,
-    env: process.env.PAYU_ENV || 'test',
+    key: (process.env.PAYU_MERCHANT_KEY || '').trim() || undefined,
+    salt: (process.env.PAYU_MERCHANT_SALT || '').trim() || undefined,
+    env: (process.env.PAYU_ENV || 'test').trim().toLowerCase(),
   },
 
   // Real Shiprocket account — no sandbox/live split on Shiprocket's own

@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const env = require('../config/env');
 const AppError = require('../utils/AppError');
+const logger = require('../utils/logger');
 
 // PayU's hosted checkout has no session/order-create API call (unlike
 // Cashfree) — the payment request itself IS a hashed HTML form POST
@@ -18,21 +19,88 @@ function sha512(input) {
   return crypto.createHash('sha512').update(input).digest('hex');
 }
 
-// A unique PayU txnid per payment ATTEMPT (not per order) — PayU's merchant
-// dashboard's QuickSearch looks transactions up by this exact "merchant
-// reference" value (confirmed: docs.payu.in's transaction-search help), so
-// reusing one txnid across retries would mean every attempt on an order
-// shares the same searchable reference and an admin can't tell them apart
-// there. The order id is still recoverable from any txnid by stripping the
-// trailing "-N" — orderId is a UUID (fixed hyphen positions), so splitting
-// on the LAST hyphen is safe regardless of the UUID's own internal hyphens.
+// A unique PayU txnid per payment ATTEMPT (not per order) - PayU's dashboard
+// looks transactions up by it, so reusing one across retries would make every
+// attempt on an order indistinguishable there.
+//
+// PayU documents txnid as at most 25 characters. The old format was
+// "<36-char order UUID>-<attempt>" (38 chars): PayU's TEST host accepts that,
+// but the LIVE host is stricter. The new format packs the same two facts into
+// 23-24 plain alphanumeric characters:
+//   22 chars = the order UUID's 128 bits in base62, then the attempt in base62.
+// orderIdFromTxnid still understands the old hyphenated format, so payments
+// started before this change keep resolving to their order.
+const B62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+const UUID_B62_LEN = 22; // 62^22 > 2^128, so every UUID fits in 22 chars
+const UUID_HEX = /^[0-9a-f]{32}$/i;
+
+function toBase62(n) {
+  let x = BigInt(n);
+  if (x === 0n) return '0';
+  let out = '';
+  while (x > 0n) {
+    out = B62[Number(x % 62n)] + out;
+    x /= 62n;
+  }
+  return out;
+}
+
+function fromBase62(str) {
+  let x = 0n;
+  for (const ch of str) {
+    const i = B62.indexOf(ch);
+    if (i === -1) return null;
+    x = x * 62n + BigInt(i);
+  }
+  return x;
+}
+
 function buildTxnid(orderId, attemptNumber) {
-  return `${orderId}-${attemptNumber}`;
+  const hex = String(orderId).replace(/-/g, '');
+  if (!UUID_HEX.test(hex)) return `${orderId}-${attemptNumber}`; // not a UUID: legacy shape
+  return toBase62(BigInt(`0x${hex}`)).padStart(UUID_B62_LEN, '0') + toBase62(attemptNumber);
 }
 
 function orderIdFromTxnid(txnid) {
-  const i = txnid.lastIndexOf('-');
-  return i === -1 ? txnid : txnid.slice(0, i);
+  const t = String(txnid || '');
+  if (t.includes('-')) {
+    // legacy "<uuid>-<attempt>": the UUID has its own hyphens, so split on the LAST one
+    return t.slice(0, t.lastIndexOf('-'));
+  }
+  if (t.length > UUID_B62_LEN) {
+    const n = fromBase62(t.slice(0, UUID_B62_LEN));
+    if (n !== null && n < 1n << 128n) {
+      const hex = n.toString(16).padStart(32, '0');
+      return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+    }
+  }
+  return t;
+}
+
+// ---- amount ----------------------------------------------------------------
+// The ONE place an amount becomes the string PayU sees. Always "123.45":
+// digits, one dot, exactly two decimals - no commas, currency symbols or
+// spaces - and never zero, negative, NaN, null, undefined or empty. The same
+// returned string is what is hashed AND what is posted, so they cannot differ.
+function formatAmount(amount) {
+  const bad = () =>
+    new AppError('The payment amount is invalid. Please refresh your cart and try again.', 400, 'INVALID_PAYMENT_AMOUNT');
+  if (amount === null || amount === undefined || (typeof amount === 'string' && amount.trim() === '')) throw bad();
+  const n = typeof amount === 'string' ? Number(amount.trim()) : amount;
+  if (typeof n !== 'number' || !Number.isFinite(n) || n <= 0) throw bad();
+  const out = Number(n).toFixed(2);
+  if (!/^\d{1,9}\.\d{2}$/.test(out) || Number(out) <= 0) throw bad();
+  return out;
+}
+
+// PayU rejects names with punctuation/symbols. Letters and spaces only, 60 max.
+function cleanFirstname(name) {
+  const cleaned = String(name || '')
+    .replace(/[^\p{L}\p{M} ]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 60);
+  return cleaned || 'Customer';
 }
 
 // Request hash, confirmed from PayU's official "Prebuilt Checkout Page
@@ -40,11 +108,14 @@ function orderIdFromTxnid(txnid) {
 // udf1|udf2|udf3|udf4|udf5||||||SALT) — six empty pipe-delimited slots
 // between udf5 and SALT (reserved fields PayU's formula always includes,
 // even when nothing uses them), udf1-5 as empty strings when unused.
-function buildRequestHash({ txnid, amount, productinfo, firstname, email, udf1 = '', udf2 = '', udf3 = '', udf4 = '', udf5 = '' }) {
-  const raw = [env.payu.key, txnid, amount, productinfo, firstname, email, udf1, udf2, udf3, udf4, udf5, '', '', '', '', '', env.payu.salt].join(
-    '|'
-  );
-  return sha512(raw);
+function requestHashParts(f, salt) {
+  return [f.key, f.txnid, f.amount, f.productinfo, f.firstname, f.email, f.udf1 || '', f.udf2 || '', f.udf3 || '', f.udf4 || '', f.udf5 || '', '', '', '', '', '', salt];
+}
+
+// Built from the very `fields` object that is posted, so every hashed value is
+// identical to its form field by construction.
+function buildRequestHash(fields) {
+  return sha512(requestHashParts(fields, env.payu.salt).join('|'));
 }
 
 // Reverse hash for the surl/furl response, confirmed from the same docs:
@@ -59,26 +130,40 @@ function buildResponseHash({ status, txnid, amount, productinfo, firstname, emai
 }
 
 // Builds every field the frontend needs to auto-submit a hidden form
-// straight to PayU — no network call here, just local hash computation, so
-// (unlike Cashfree's createOrder) this can never itself fail/need rollback.
+// straight to PayU - no network call here, just local hash computation. The
+// salt stays on the server: it is only ever used inside buildRequestHash.
 function buildPaymentParams({ txnid, amount, productinfo, firstname, email, phone, surl, furl }) {
   if (!env.payu.key || !env.payu.salt) {
     throw new AppError('Online payment is not configured.', 500, 'PAYU_NOT_CONFIGURED');
   }
-  // PayU's amount field is a plain decimal string (not paise/smallest-unit).
-  const amountStr = Number(amount).toFixed(2);
   const fields = {
     key: env.payu.key,
     txnid,
-    amount: amountStr,
+    amount: formatAmount(amount), // formatted once; used for the hash and the form
     productinfo,
-    firstname,
-    email,
+    firstname: cleanFirstname(firstname),
+    email: String(email || '').trim(),
     phone,
     surl,
     furl,
   };
-  fields.hash = buildRequestHash({ txnid, amount: amountStr, productinfo, firstname, email });
+  // A pipe inside any hashed value would shift every later field in the hash.
+  for (const k of ['txnid', 'productinfo', 'firstname', 'email']) {
+    if (String(fields[k]).includes('|')) throw new AppError('Invalid payment details.', 400, 'INVALID_PAYMENT_FIELD');
+  }
+  fields.hash = buildRequestHash(fields);
+
+  // TEMPORARY DEBUG LOG - compare against the Network tab payload, then remove.
+  // Never contains the salt (shown as <SALT>) and masks the merchant key.
+  logger.info('PayU request built [TEMPORARY debug]', {
+    mode: env.payu.env,
+    actionUrl: PAYMENT_ACTION_URL,
+    txnid,
+    txnidLength: String(txnid).length,
+    amount: fields.amount,
+    hashInput: requestHashParts({ ...fields, key: `${String(fields.key).slice(0, 2)}***` }, '<SALT>').join('|'),
+    hash: fields.hash,
+  });
   return { actionUrl: PAYMENT_ACTION_URL, fields };
 }
 
@@ -180,6 +265,7 @@ module.exports = {
   buildTxnid,
   orderIdFromTxnid,
   buildPaymentParams,
+  formatAmount,
   verifyResponseHash,
   verifyPayment,
   initiateRefund,

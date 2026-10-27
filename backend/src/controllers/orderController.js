@@ -394,7 +394,7 @@ async function getPaymentStatus(req, res) {
   const result = await payuService.verifyPayment(txnid).catch(() => null);
 
   if (result?.status === 'success') {
-    if (result.amount != null && result.amount !== Number(order.total)) {
+    if (result.amount != null && Number(result.amount).toFixed(2) !== Number(order.total).toFixed(2)) {
       await orderService.flagForReview(order.orderId, 'Payment amount mismatch on reconciliation.');
     } else {
       await orderService.markPaid(order.orderId, { payuMihpayid: result.mihpayid, paidAt: new Date().toISOString() });
