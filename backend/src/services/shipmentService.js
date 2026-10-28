@@ -5,6 +5,7 @@ const settingsService = require('./settingsService');
 const shipmentJobService = require('./shipmentJobService');
 const { normalizeIndianPhone } = require('../utils/phone');
 const logger = require('../utils/logger');
+const AppError = require('../utils/AppError');
 
 // Orchestrates the whole create-order -> assign-AWB -> schedule-pickup ->
 // generate-label sequence for one order, called both from the immediate
@@ -59,6 +60,9 @@ async function attemptShipmentCreation(orderId) {
 
 async function attemptShipmentCreationLocked(orderId) {
   const preflight = await orderService.findById(orderId);
+  // Booked by hand in the Shiprocket panel: nothing to create (and creating one
+  // here would make a duplicate order at the courier).
+  if (preflight?.shipmentManuallyLinked) return preflight;
   // A cancelled order must never get a courier. (The sweep can still hold a
   // retry job for it, or a late payment callback can arrive after cancelling.)
   if (preflight && preflight.status === 'Cancelled') {
@@ -271,6 +275,31 @@ async function retryShipment(orderId) {
   }
 }
 
+// "Shipped manually": the admin created the shipment in the Shiprocket panel
+// after the automatic booking failed, and tells us its Shiprocket order id (and
+// optionally AWB/courier). We store that so tracking webhooks reach this order,
+// close the retry job, and stop it showing as a sync issue. Never creates
+// anything at Shiprocket.
+async function linkManualShipment(orderId, { shiprocketOrderId, awbCode, courierName, note }) {
+  const order = await orderService.findById(orderId);
+  if (!order) throw new AppError('Order not found.', 404, 'NOT_FOUND');
+  if (order.status === 'Cancelled') throw new AppError('This order is cancelled.', 400, 'ORDER_CANCELLED');
+  if (['label_generated', 'cancelled'].includes(order.shipmentStatus) || order.lastTrackingStatus) {
+    throw new AppError('This order already has a working shipment, so there is nothing to link.', 409, 'SHIPMENT_ALREADY_SYNCED');
+  }
+  // Wait out an automatic attempt that is mid-flight rather than racing it.
+  const { acquired } = await orderService.acquireShipmentLock(orderId);
+  if (!acquired) throw new AppError('An automatic shipment attempt is running for this order — try again in a minute.', 409, 'SHIPMENT_IN_PROGRESS');
+  try {
+    await orderService.recordManualShipment(orderId, { shiprocketOrderId, awbCode, courierName, note });
+    // Close the retry job so the sweep never re-attempts it.
+    if (await shipmentJobService.findByOrderId(orderId)) await shipmentJobService.markDone(orderId);
+  } finally {
+    await orderService.releaseShipmentLock(orderId);
+  }
+  return orderService.findById(orderId);
+}
+
 // An order counts as "paid/confirmed" for sync-issue purposes if money has
 // genuinely changed hands and is still with us: COD orders confirm on
 // placement (no payment gate), Online orders only once paymentStatus is
@@ -307,7 +336,9 @@ async function listSyncIssues() {
       !o.lastTrackingStatus &&
       !['Shipped', 'Delivered'].includes(o.status) &&
       o.shipmentStatus !== 'label_generated' &&
-      o.shipmentStatus !== 'cancelled'
+      o.shipmentStatus !== 'cancelled' &&
+      // The admin already booked it by hand in Shiprocket and linked it here.
+      !o.shipmentManuallyLinked
   );
 
   const issues = await Promise.all(
@@ -370,4 +401,4 @@ async function cancelShipmentForOrder(order) {
   }
 }
 
-module.exports = { attemptShipmentCreation, triggerShipmentIfNeeded, retryShipment, listSyncIssues, cancelShipmentForOrder };
+module.exports = { attemptShipmentCreation, triggerShipmentIfNeeded, retryShipment, linkManualShipment, listSyncIssues, cancelShipmentForOrder };

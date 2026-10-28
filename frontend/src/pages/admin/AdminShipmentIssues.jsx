@@ -5,6 +5,7 @@ import { adminService } from '../../services/adminService';
 import { useToast } from '../../context/ToastContext';
 import { useConfirm } from '../../context/ConfirmContext';
 import { Loader } from '../../components/Loader';
+import { LinkShipmentModal } from '../../components/LinkShipmentModal';
 import { ErrorState } from '../../components/ErrorState';
 import { EmptyState } from '../../components/EmptyState';
 import { Pagination } from '../../components/Pagination';
@@ -52,6 +53,8 @@ export function AdminShipmentIssues() {
   const sortProps = { sortBy: list.sortBy, sortDir: list.sortDir, onSort: list.toggleSort };
   const [retryingId, setRetryingId] = useState(null);
   const [retryingAll, setRetryingAll] = useState(false);
+  // The order whose "Shipped manually" dialog is open.
+  const [linkingId, setLinkingId] = useState(null);
 
   async function handleRetryOne(orderId) {
     setRetryingId(orderId);
@@ -108,7 +111,8 @@ export function AdminShipmentIssues() {
         <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: 'var(--space-5)' }}>
           {counts.total} order(s) paid/confirmed but not yet shipped to Shiprocket — {counts.retrying} still retrying
           automatically, {counts.failed} exhausted retries and need action, {counts.noJob} never got a sync job queued
-          (e.g. Shiprocket was disabled when the order was paid).
+          (e.g. Shiprocket was disabled when the order was paid). Already booked one yourself in the Shiprocket
+          panel? Use <strong>Shipped manually</strong> on that row so it stops showing here and is not booked twice.
         </p>
       )}
 
@@ -211,6 +215,9 @@ export function AdminShipmentIssues() {
                       disabled={retryingId === i.orderId || retryingAll}
                     >
                       {retryingId === i.orderId ? 'Retrying…' : 'Retry Shipment'}
+                    </button>{' '}
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setLinkingId(i.orderId)} disabled={retryingAll}>
+                      Shipped manually
                     </button>
                   </td>
                 </tr>
@@ -221,6 +228,8 @@ export function AdminShipmentIssues() {
         </div>
         </>
       )}
+
+      <LinkShipmentModal open={Boolean(linkingId)} onClose={() => setLinkingId(null)} orderId={linkingId} onLinked={load} />
     </div>
   );
 }

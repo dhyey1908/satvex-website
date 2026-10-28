@@ -7,6 +7,7 @@ import { useConfirm } from '../../context/ConfirmContext';
 import { Loader } from '../../components/Loader';
 import { ErrorState } from '../../components/ErrorState';
 import { OrderSummary } from '../../components/OrderSummary';
+import { LinkShipmentModal } from '../../components/LinkShipmentModal';
 import { effectivePaymentStatus } from '../../utils/paymentStatus';
 import { formatDateTime } from '../../utils/date';
 import './Admin.css';
@@ -83,6 +84,8 @@ export function AdminOrderDetail() {
       setRefunding(false);
     }
   }
+
+  const [linkingShipment, setLinkingShipment] = useState(false);
 
   async function handleRetryShipment() {
     setRetryingShipment(true);
@@ -239,6 +242,7 @@ export function AdminOrderDetail() {
           <span className={`pill ${order.shipmentStatus === 'sync_failed' ? 'pill-danger' : 'pill-inactive'}`}>
             {order.shipmentStatus === 'sync_failed' ? 'Sync Failed — Needs Action' : order.shipmentStatus || 'not_created'}
           </span>
+          {order.shipmentManuallyLinked && <span className="pill pill-inactive" style={{ marginLeft: 8 }}>Shipped manually</span>}
         </p>
         {order.awbCode && (
           <p>
@@ -264,11 +268,18 @@ export function AdminOrderDetail() {
             Last Tracking Update: <strong>{order.lastTrackingStatus}</strong>
           </p>
         )}
-        {order.shipmentStatus !== 'label_generated' && (
-          <button type="button" className="btn btn-secondary btn-sm" onClick={handleRetryShipment} disabled={retryingShipment}>
-            {retryingShipment ? 'Retrying…' : 'Retry Shipment'}
-          </button>
+        {order.shipmentStatus !== 'label_generated' && !order.shipmentManuallyLinked && (
+          <>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={handleRetryShipment} disabled={retryingShipment}>
+              {retryingShipment ? 'Retrying…' : 'Retry Shipment'}
+            </button>{' '}
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setLinkingShipment(true)}>
+              Shipped manually
+            </button>
+          </>
         )}
+        {order.manualShipmentNote && <p>Note: {order.manualShipmentNote}</p>}
+        <LinkShipmentModal open={linkingShipment} onClose={() => setLinkingShipment(false)} orderId={id} onLinked={load} />
       </div>
 
       <div className="admin-form-section">

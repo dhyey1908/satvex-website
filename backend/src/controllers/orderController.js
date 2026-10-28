@@ -1,4 +1,5 @@
 const { v4: uuid } = require('uuid');
+const { z } = require('zod');
 const cartService = require('../services/cartService');
 const orderService = require('../services/orderService');
 const couponService = require('../services/couponService');
@@ -663,6 +664,27 @@ async function refreshTracking(req, res) {
 // last succeeded rather than re-doing completed steps. Bookkeeping lives in
 // shipmentService.retryShipment, shared with the bulk "Retry All" endpoint
 // below.
+const linkShipmentSchema = z.object({
+  // Shiprocket's own order id (shown in the panel); it is what lets Shiprocket's
+  // tracking webhook find this order.
+  shiprocketOrderId: z.string().trim().regex(/^\d{4,15}$/, 'Enter the Shiprocket order id (digits only).'),
+  awbCode: z.string().trim().regex(/^[A-Za-z0-9-]{5,40}$/, 'AWB looks wrong.').optional().or(z.literal('')),
+  courierName: z.string().trim().max(60).optional().or(z.literal('')),
+  note: z.string().trim().max(300).optional().or(z.literal('')),
+});
+
+// "Shipped manually": record a shipment the admin created by hand in Shiprocket.
+async function adminLinkManualShipment(req, res) {
+  const input = linkShipmentSchema.parse(req.body);
+  const order = await shipmentService.linkManualShipment(req.params.id, {
+    shiprocketOrderId: input.shiprocketOrderId,
+    awbCode: input.awbCode || undefined,
+    courierName: input.courierName || undefined,
+    note: input.note || undefined,
+  });
+  ok(res, { order });
+}
+
 async function adminRetryShipment(req, res) {
   const order = await orderService.findById(req.params.id);
   if (!order) {
@@ -732,6 +754,7 @@ module.exports = {
   adminUpdateStatus,
   adminRefund,
   adminRetryShipment,
+  adminLinkManualShipment,
   adminShipmentSyncIssues,
   adminRetryAllShipments,
   adminTestShiprocketConnection,

@@ -667,6 +667,37 @@ async function recordAwbAssigned(orderId, { awbCode, courierName, shiprocketShip
   await advanceStatusIfEligible(orderId, 'Processing', ['Pending', 'Confirmed']);
 }
 
+// The admin booked this shipment by hand in the Shiprocket panel (because the
+// automatic booking failed). Stores Shiprocket's order id - which is what lets
+// Shiprocket's tracking webhook find this order - plus the AWB/courier when
+// known, and flags it so the automatic booking, the retry sweep and "Retry all"
+// never create a second Shiprocket order for it.
+async function recordManualShipment(orderId, { shiprocketOrderId, awbCode, courierName, note }) {
+  await recordShiprocketOrderCreated(orderId, { shiprocketOrderId });
+  if (awbCode) {
+    await recordAwbAssigned(orderId, { awbCode, courierName: courierName || null, shiprocketShipmentId: null });
+  } else if (courierName) {
+    await docClient.send(
+      new UpdateCommand({
+        TableName: TABLE,
+        Key: { orderId },
+        UpdateExpression: 'SET courierName = :courier, updatedAt = :now',
+        ExpressionAttributeValues: { ':courier': courierName, ':now': new Date().toISOString() },
+      })
+    );
+  }
+  await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE,
+      Key: { orderId },
+      UpdateExpression: 'SET shipmentManuallyLinked = :true, manualShipmentAt = :now, manualShipmentNote = :note, updatedAt = :now',
+      ExpressionAttributeValues: { ':true': true, ':now': new Date().toISOString(), ':note': note || null },
+    })
+  );
+  // A confirmed order with a real shipment is "Processing" from here on.
+  await advanceStatusIfEligible(orderId, 'Processing', ['Pending', 'Confirmed']);
+}
+
 async function recordPickupScheduled(orderId) {
   await docClient.send(
     new UpdateCommand({
@@ -838,6 +869,7 @@ module.exports = {
   releaseShipmentLock,
   markShipmentSyncFailed,
   recordShiprocketOrderCreated,
+  recordManualShipment,
   markShipmentCancelled,
   findByShiprocketOrderId,
   recordAwbAssigned,
