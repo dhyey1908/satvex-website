@@ -23,9 +23,9 @@
   cursor: pointer;
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
-.color-swatch:hover:not(:disabled) { box-shadow: 0 0 0 1.5px var(--color-accent); }
+.color-swatch:hover:not(:disabled) { box-shadow: 0 0 0 1.5px var(--color-primary); }
 .color-swatch.selected {
-  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-primary);
 }
 .color-swatch:disabled { opacity: 0.35; cursor: not-allowed; }
 
@@ -62,8 +62,8 @@
   position: absolute;
   bottom: -6px;
   right: -6px;
-  background: var(--color-accent);
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
   font-size: 0.65rem;
   font-weight: 700;
   min-width: 16px;

@@ -31,8 +31,8 @@
   cursor: pointer;
   transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
-.shop-pill:hover { background: var(--color-surface-muted); }
-.shop-pill.active { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+.shop-pill:hover { background: var(--color-surface-alt); }
+.shop-pill.active { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-primary-contrast); }
 
 .shop-pill-dot {
   width: 7px;
@@ -41,7 +41,7 @@
   background: var(--color-success);
   flex-shrink: 0;
 }
-.shop-pill.active .shop-pill-dot { background: #fff; }
+.shop-pill.active .shop-pill-dot { background: var(--color-surface); }
 
 .shop-color-picker { position: relative; }
 .shop-color-dropdown {
@@ -72,8 +72,8 @@
   text-align: left;
   color: var(--color-text);
 }
-.shop-color-option:hover { background: var(--color-surface-muted); }
-.shop-color-option.selected { background: var(--color-primary-light); font-weight: 600; }
+.shop-color-option:hover { background: var(--color-surface-alt); }
+.shop-color-option.selected { background: var(--color-primary-soft); font-weight: 600; }
 
 .shop-color-dot {
   width: 15px;
@@ -107,9 +107,9 @@
   gap: 5px;
   padding: 4px 10px;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--color-accent);
-  background: var(--color-accent-light);
-  color: var(--color-accent-dark);
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-hover);
   font-size: 0.75rem;
   cursor: pointer;
 }

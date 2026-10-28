@@ -73,7 +73,7 @@ export function AdminBanners() {
 
         {banners.map((banner, index) => (
           <div key={banner.id} className="repeatable-row" style={{ alignItems: 'center' }}>
-            <div style={{ width: 88, height: 56, background: 'var(--color-surface-muted)', borderRadius: 'var(--radius-sm)', overflow: 'hidden', flexShrink: 0 }}>
+            <div style={{ width: 88, height: 56, background: 'var(--color-surface-alt)', borderRadius: 'var(--radius-sm)', overflow: 'hidden', flexShrink: 0 }}>
               {banner.type === 'video' ? (
                 <video src={banner.mediaUrl} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
@@ -137,7 +137,7 @@ export function AdminBanners() {
             onUploaded={(url) => setNewBanner((prev) => ({ ...prev, mediaUrl: url }))}
           />
           {newBanner.mediaUrl && (
-            <div style={{ marginTop: 12, width: 160, height: 100, background: 'var(--color-surface-muted)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+            <div style={{ marginTop: 12, width: 160, height: 100, background: 'var(--color-surface-alt)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
               {newBanner.type === 'video' ? (
                 <video src={newBanner.mediaUrl} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (

@@ -7,7 +7,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  background: var(--color-surface-muted);
+  background: var(--color-surface-alt);
   color: var(--color-text-muted);
 }
 .image-placeholder svg { opacity: 0.6; }

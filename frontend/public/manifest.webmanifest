@@ -1,0 +1,10 @@
+{
+  "name": "Satvex",
+  "short_name": "Satvex",
+  "description": "Modern women-focused essentials.",
+  "start_url": "/",
+  "display": "browser",
+  "theme_color": "#6b4fa0",
+  "background_color": "#faf7fd",
+  "icons": [{ "src": "/assets/placeholders/logo.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

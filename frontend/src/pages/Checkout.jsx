@@ -4,7 +4,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { orderService } from '../services/orderService';
-import { Banknote, Wallet } from 'lucide-react';
+import { Banknote, Wallet, Smartphone, CreditCard, Landmark, ChevronDown } from 'lucide-react';
 import { addressService } from '../services/addressService';
 import { authService } from '../services/authService';
 import { redirectToPayuCheckout } from '../utils/payu';
@@ -19,7 +19,10 @@ import { FreeShippingBanner } from '../components/FreeShippingBanner';
 import { AddressCard } from '../components/AddressCard';
 import { PhoneVerification } from '../components/PhoneVerification';
 import { AddressFormFields, ADDRESS_FORM_EMPTY, addressFormToPayload, validateAddressForm } from '../components/AddressFormFields';
-import { PageHeader } from '../components/PageHeader';
+import { SummaryItems } from '../components/SummaryItems';
+import { useCatalog } from '../hooks/useCatalog';
+import { useStickyBarHeight } from '../hooks/useStickyBarHeight';
+import { STOREFRONT } from '../config/storefront';
 import { Truck, Loader2, Plus, Sparkles, Lock, PackageCheck } from 'lucide-react';
 import { Loader } from '../components/Loader';
 import { Modal } from '../components/Modal';
@@ -64,6 +67,12 @@ export function Checkout() {
   // Synchronous guard: state updates are async, so a fast double-tap could
   // otherwise start two orders before `submitting` is rendered as true.
   const submitLockRef = useRef(false);
+
+  const catalog = useCatalog();
+  // Mobile: the collapsed "Order summary" bar at the top of the page.
+  const [summaryBarOpen, setSummaryBarOpen] = useState(false);
+  const mobileBarRef = useRef(null);
+  useStickyBarHeight(mobileBarRef);
 
   const [addresses, setAddresses] = useState(null);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
@@ -366,6 +375,12 @@ export function Checkout() {
     }
   }
 
+  // REQUIRE_OTP_FOR_PREPAID: the mobile-OTP step applies to Cash on Delivery
+  // orders; prepaid orders skip it unless the storefront flag says otherwise.
+  function otpRequiredFor(method) {
+    return method === 'COD' || STOREFRONT.checkout.requireOtpForPrepaid;
+  }
+
   async function handleApplyCoupon(code) {
     const result = await applyCoupon(code);
     setCouponCelebrationTrigger((n) => n + 1);
@@ -382,7 +397,7 @@ export function Checkout() {
     // Sole enforcement point now that there's no step left to skip past —
     // the Place Order button is already disabled until this is true, but
     // this catches a forced bypass (e.g. devtools re-enabling the button).
-    if (!confirmPhoneVerified) {
+    if (otpRequiredFor(method) && !confirmPhoneVerified) {
       showToast('Please verify your mobile number before placing the order.', 'warning');
       scrollToCard(phoneCardRef);
       return;
@@ -571,7 +586,9 @@ export function Checkout() {
   }
 
   const discountAmount = quote?.discountAmount ?? appliedCoupon?.discountAmount ?? 0;
-  const grandTotal = quote?.total ?? Number((total - discountAmount).toFixed(2));
+  // Placeholder only until the server's quote for the current inputs arrives -
+  // it is never shown (see totalPending / quoteIsCurrent below).
+  const grandTotal = quote?.total ?? 0;
   // grandTotal above is only a layout placeholder until the server's quote for
   // the current inputs arrives - this is what decides whether it may be SHOWN.
   const quoteIsCurrent = Boolean(quote) && quoteKey === currentQuoteKey;
@@ -592,12 +609,38 @@ export function Checkout() {
     setPaymentMethod('Online');
     handleSubmit(null, 'Online');
   }
-  const productSavings = items.reduce(
-    (sum, item) => sum + (item.compareAtPrice > item.unitPrice ? (item.compareAtPrice - item.unitPrice) * item.quantity : 0),
-    0
+  // Computed by the backend (MRP markdown + coupon), shown as received.
+  const savingsAmount = quote?.savingsAmount ?? 0;
+  const itemCount = items.length;
+  const otpNeeded = otpRequiredFor(paymentMethod);
+  // The COD fee as the server reports it (on the COD quote, or from the
+  // prepaid-vs-COD comparison while Online is selected), else the store setting.
+  const codFee = quote?.codCharge > 0 ? quote.codCharge : prepaidOffer?.codCharge ?? (settings?.cod?.enabled ? settings?.cod?.charge ?? 0 : 0);
+  const placeLabel =
+    paymentMethod === 'Online' ? `Pay ₹${grandTotal.toFixed(2)} securely` : 'Place order (COD)';
+
+  // The one summary both placements render (sidebar on desktop; top bar and
+  // before the Place Order area on mobile) - same data, same component.
+  const summaryNode = (
+    <OrderSummary
+      subtotal={quote?.subtotal ?? 0}
+      discountAmount={discountAmount}
+      couponCode={appliedCoupon?.code}
+      gstPercent={quote?.gstPercent}
+      gstAmount={quote?.gstAmount}
+      pricesIncludeGst={quote?.pricesIncludeGst}
+      shippingEnabled={quote?.shippingEnabled}
+      shipping={quote?.shipping}
+      codCharge={quote?.codCharge}
+      prepaidDiscount={quote?.prepaidDiscount}
+      total={grandTotal}
+      pending={totalPending}
+      savingsAmount={savingsAmount}
+      itemCount={itemCount}
+      defaultExpanded
+      itemsSlot={<SummaryItems items={items} catalog={catalog} />}
+    />
   );
-  const savingsAmount = productSavings + discountAmount;
-  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   // Feeds PhoneVerification's phone prop — either the saved address the
   // customer picked, or a live preview built from the still-unsaved
   // new-address form so it never lags behind what will actually be
@@ -609,9 +652,26 @@ export function Checkout() {
 
   return (
     <div className="container section checkout-page">
-      <Link to="/cart" className="checkout-return-link text-label-sm">← Return to Bag</Link>
-      <PageHeader title="Secure Checkout" />
+      <h1 className="visually-hidden">Checkout</h1>
       <FreeShippingBanner quote={quote} />
+
+      {/* Mobile: collapsed "Order summary" bar (item count + total); tap to expand. */}
+      <div className="checkout-summary-bar">
+        <button
+          type="button"
+          className="checkout-summary-bar-toggle"
+          aria-expanded={summaryBarOpen}
+          aria-controls="checkout-summary-bar-panel"
+          onClick={() => setSummaryBarOpen((v) => !v)}
+        >
+          <span>Order summary · {itemCount} item{itemCount === 1 ? '' : 's'}</span>
+          <span className="checkout-summary-bar-total">
+            {quoteIsCurrent ? `₹${grandTotal.toFixed(2)}` : '…'}
+            <ChevronDown size={18} className={summaryBarOpen ? 'rotated' : ''} aria-hidden="true" />
+          </span>
+        </button>
+        {summaryBarOpen && <div id="checkout-summary-bar-panel" className="checkout-summary-bar-panel">{summaryNode}</div>}
+      </div>
 
       <div className="checkout-layout">
         <form className="checkout-form" onSubmit={handleSubmit} noValidate>
@@ -622,10 +682,10 @@ export function Checkout() {
               <>
                 <AddressCard address={selectedAddress} selected />
                 <div className="checkout-address-actions">
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowAddressList(true)}>
+                  <button type="button" className="btn btn-outline btn-sm" onClick={() => setShowAddressList(true)}>
                     Change
                   </button>
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={startNewAddress}>
+                  <button type="button" className="btn btn-outline btn-sm" onClick={startNewAddress}>
                     <Plus size={14} /> Add New
                   </button>
                 </div>
@@ -645,7 +705,7 @@ export function Checkout() {
                     />
                   ))}
                 </div>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={startNewAddress} style={{ marginTop: 12 }}>
+                <button type="button" className="btn btn-outline btn-sm checkout-address-add" onClick={startNewAddress}>
                   <Plus size={16} /> Add New Address
                 </button>
               </>
@@ -681,6 +741,7 @@ export function Checkout() {
 
           {quoteError && <p className="field-error checkout-delivery-error">{quoteError}</p>}
 
+          {otpNeeded && (
           <div className="checkout-section card" ref={phoneCardRef}>
             <h3 className="checkout-section-title">Verify Mobile Number</h3>
             <PhoneVerification
@@ -696,24 +757,26 @@ export function Checkout() {
               }}
             />
           </div>
+          )}
 
           <div className="checkout-section card">
             <h3 className="checkout-section-title">Delivery Method</h3>
-            <div className="checkout-delivery-card">
-              <Truck size={20} />
-              <div>
-                <p className="checkout-delivery-name">Standard Delivery</p>
-                <p className="checkout-delivery-meta">Dispatched within 1-2 business days</p>
-              </div>
-              <span className="checkout-delivery-price">
-                {quote && quote.shippingEnabled && quote.shipping > 0 ? `₹${quote.shipping.toFixed(2)}` : 'Free'}
+            <div className="checkout-info-row">
+              <Truck size={20} aria-hidden="true" />
+              <p>Standard Delivery, dispatched within 1-2 business days</p>
+              <span className="checkout-info-row-price">
+                {quote && quote.shippingEnabled && quote.shipping > 0 ? `₹${quote.shipping.toFixed(2)}` : 'FREE'}
               </span>
             </div>
           </div>
 
-          <div className="checkout-section card">
-            <h3 className="checkout-section-title">Have a Coupon?</h3>
-            <CouponInput appliedCoupon={appliedCoupon} onApply={handleApplyCoupon} onClear={clearCoupon} />
+          <div className="checkout-section card checkout-coupon-card">
+            <CouponInput
+              appliedCoupon={appliedCoupon}
+              onApply={handleApplyCoupon}
+              onClear={clearCoupon}
+              chips={STOREFRONT.checkout.couponChips}
+            />
           </div>
 
           <div className="checkout-section card">
@@ -727,13 +790,13 @@ export function Checkout() {
                   checked={paymentMethod === 'COD'}
                   onChange={() => setPaymentMethod('COD')}
                 />
-                <Banknote size={16} />
+                <Banknote size={18} aria-hidden="true" />
                 <div>
-                  <p className="payment-method-name">Cash on Delivery</p>
-                  <p className="payment-method-meta">
-                    Pay on delivery.
-                    {quote?.codCharge > 0 && ` +₹${quote.codCharge.toFixed(2)} COD charge.`}
+                  <p className="payment-method-name">
+                    Cash on Delivery
+                    {codFee > 0 && <span className="payment-fee-tag">+₹{codFee.toFixed(2)} COD fee</span>}
                   </p>
+                  <p className="payment-method-meta">Pay on delivery</p>
                 </div>
               </label>
               {settings?.paymentsOnlineAvailable && (
@@ -745,7 +808,7 @@ export function Checkout() {
                     checked={paymentMethod === 'Online'}
                     onChange={() => setPaymentMethod('Online')}
                   />
-                  <Wallet size={16} />
+                  <Wallet size={18} aria-hidden="true" />
                   <div>
                     <p className="payment-method-name">
                       Online Payment
@@ -755,7 +818,12 @@ export function Checkout() {
                         </span>
                       )}
                     </p>
-                    <p className="payment-method-meta">UPI / Cards · secure online payment</p>
+                    <p className="payment-method-meta">Secure online payment</p>
+                    <ul className="payment-icons" aria-label="Accepted: UPI, cards, net banking">
+                      <li><Smartphone size={14} aria-hidden="true" /> UPI</li>
+                      <li><CreditCard size={14} aria-hidden="true" /> Cards</li>
+                      <li><Landmark size={14} aria-hidden="true" /> Net banking</li>
+                    </ul>
                     {/* The offer itemised, right on the option — not just one
                         combined "Save" figure. */}
                     {(prepaidOffer?.codCharge > 0 || prepaidOffer?.prepaidDiscount > 0) && (
@@ -789,25 +857,39 @@ export function Checkout() {
                 Shipping Policy dispatch window, Returns & Refunds damaged/wrong-item
                 cover) — keep them in sync with those pages. */}
             <ul className="payment-trust-list">
-              <li><Lock size={15} aria-hidden="true" /> Secure payments powered by PayU</li>
-              <li><Truck size={15} aria-hidden="true" /> Dispatched in 1–2 business days, tracked across India</li>
+              <li><Lock size={15} aria-hidden="true" /><span>Secure payments powered by PayU</span></li>
+              <li><Truck size={15} aria-hidden="true" /><span>Dispatched in 1–2 business days, tracked across India</span></li>
               <li>
-                <PackageCheck size={15} aria-hidden="true" /> Damaged or wrong item? We&apos;ll replace or refund —{' '}
-                <a href="/returns-refunds" target="_blank" rel="noreferrer">see policy</a>
+                <PackageCheck size={15} aria-hidden="true" />
+                <span>
+                  Damaged or wrong item? We&apos;ll replace or refund —{' '}
+                  <a href="/returns-refunds" target="_blank" rel="noreferrer">see policy</a>
+                </span>
               </li>
             </ul>
 
             {error && <p className="field-error">{error}</p>}
 
+            {/* Mobile only: the full summary sits right before the Place Order area. */}
+            <div className="checkout-summary-inline">{summaryNode}</div>
+
+            <p className="checkout-terms checkout-terms-inline">
+              By placing this order you agree to our{' '}
+              <a href="/terms-conditions" target="_blank" rel="noreferrer">Terms</a>,{' '}
+              <a href="/privacy-policy" target="_blank" rel="noreferrer">Privacy Policy</a> and{' '}
+              <a href="/returns-refunds" target="_blank" rel="noreferrer">Refund Policy</a>
+            </p>
+
             <button
               type="submit"
               className="btn btn-primary btn-block checkout-place-order"
               disabled={submitting || totalPending}
+              aria-busy={submitting}
             >
               {submitting ? (
                 <Loader2 size={16} className="btn-spinner" />
               ) : quoteIsCurrent ? (
-                `Place Order · ${totalLabel}`
+                placeLabel
               ) : (
                 'Updating total…'
               )}
@@ -815,52 +897,16 @@ export function Checkout() {
           </div>
         </form>
 
-        <div className="checkout-summary-col">
-          <OrderSummary
-            subtotal={quote?.subtotal ?? total}
-            discountAmount={discountAmount}
-            couponCode={appliedCoupon?.code}
-            gstPercent={quote?.gstPercent}
-            gstAmount={quote?.gstAmount}
-            shippingEnabled={quote?.shippingEnabled}
-            shipping={quote?.shipping}
-            codCharge={quote?.codCharge}
-            prepaidDiscount={quote?.prepaidDiscount}
-            total={grandTotal}
-            pending={totalPending}
-            savingsAmount={savingsAmount}
-            itemCount={itemCount}
-            defaultExpanded={false}
-            itemsSlot={
-              <div className="checkout-summary-items">
-                {items.map((item) => (
-                  <div key={item.cartItemId} className="checkout-summary-item">
-                    <img
-                      className="checkout-summary-item-image"
-                      src={item.productImage}
-                      alt={item.productName}
-                      loading="lazy"
-                    />
-                    <span className="checkout-summary-item-info">
-                      <span className="checkout-summary-item-name">
-                        {item.productName} · {item.sellingOptionName} × {item.quantity}
-                      </span>
-                      {item.selectedColorDetails?.length > 0 && (
-                        <span className="checkout-summary-item-colors">
-                          {item.selectedColorDetails.map((c) => c.colorName).join(', ')}
-                        </span>
-                      )}
-                    </span>
-                    <span className="checkout-summary-item-price">₹{item.subtotal.toFixed(2)}</span>
-                  </div>
-                ))}
-              </div>
-            }
-          />
-        </div>
+        <div className="checkout-summary-col">{summaryNode}</div>
       </div>
 
-      <div className="checkout-mobile-bar">
+      <div className="checkout-mobile-bar" ref={mobileBarRef}>
+        <p className="checkout-terms checkout-terms-bar">
+          By placing this order you agree to our{' '}
+          <a href="/terms-conditions" target="_blank" rel="noreferrer">Terms</a>,{' '}
+          <a href="/privacy-policy" target="_blank" rel="noreferrer">Privacy Policy</a> and{' '}
+          <a href="/returns-refunds" target="_blank" rel="noreferrer">Refund Policy</a>
+        </p>
         <div className="checkout-mobile-bar-total">
           <span className="checkout-mobile-bar-amount">{totalLabel}</span>
           {savingsAmount > 0 && <span className="checkout-mobile-bar-savings">Saved ₹{savingsAmount.toFixed(2)}</span>}
@@ -871,7 +917,7 @@ export function Checkout() {
           onClick={handleSubmit}
           disabled={submitting || totalPending}
         >
-          {submitting ? <Loader2 size={16} className="btn-spinner" /> : 'Place Order'}
+          {submitting ? <Loader2 size={16} className="btn-spinner" /> : paymentMethod === 'Online' ? 'Pay securely' : 'Place order (COD)'}
         </button>
       </div>
 

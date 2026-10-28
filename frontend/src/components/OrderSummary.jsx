@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Truck, BadgePercent, ChevronDown } from 'lucide-react';
 import './OrderSummary.css';
 import { BrandDots } from './BrandLoader';
@@ -13,12 +13,17 @@ function CalculatingDots() {
   );
 }
 
+// Every figure is shown exactly as the backend quote returned it - nothing is
+// added, subtracted or rounded here.
 export function OrderSummary({
   subtotal = 0,
   discountAmount = 0,
   couponCode,
   gstPercent = 0,
   gstAmount = 0,
+  // PRICES_INCLUDE_GST: the listed prices already contain GST, so GST is shown
+  // as an "Includes GST" line rather than as an extra charge.
+  pricesIncludeGst = false,
   shippingEnabled = true,
   shipping = 0,
   codCharge = 0,
@@ -28,8 +33,7 @@ export function OrderSummary({
   itemCount,
   itemsSlot,
   // Cart/OrderConfirmation/AccountOrderDetail keep their current
-  // always-expanded behavior unless they opt in; Checkout passes false so
-  // it starts as just the compact Total row.
+  // always-expanded behavior unless they opt in.
   defaultExpanded = true,
   // True while the server's quote for the CURRENT inputs hasn't arrived yet:
   // the amounts above are then stale or a fallback, so they're replaced with
@@ -38,6 +42,7 @@ export function OrderSummary({
   children,
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const panelId = useId();
 
   return (
     <div className="order-summary">
@@ -48,7 +53,7 @@ export function OrderSummary({
         className="order-summary-collapsed-row"
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
-        aria-controls="order-summary-expanded"
+        aria-controls={panelId}
       >
         <span className="order-summary-collapsed-left">
           <span className="order-summary-collapsed-label">Total</span>
@@ -65,12 +70,12 @@ export function OrderSummary({
       </button>
 
       {expanded && (
-        <div id="order-summary-expanded" className="order-summary-expanded">
+        <div id={panelId} className="order-summary-expanded">
           {itemsSlot}
           {savingsAmount > 0 && (
             <div className="order-summary-savings">
               <BadgePercent size={15} />
-              <span>You're saving ₹{savingsAmount.toFixed(2)} on this order</span>
+              <span>You're saving ₹{savingsAmount.toFixed(2)}</span>
             </div>
           )}
           <div className="order-summary-breakdown">
@@ -80,11 +85,11 @@ export function OrderSummary({
             </div>
             {discountAmount > 0 && (
               <div className="order-summary-row order-summary-discount">
-                <span>Discount {couponCode && `(${couponCode})`}</span>
+                <span>Coupon discount {couponCode && `(${couponCode})`}</span>
                 <span>−₹{discountAmount.toFixed(2)}</span>
               </div>
             )}
-            {gstAmount > 0 && (
+            {!pricesIncludeGst && gstAmount > 0 && (
               <div className="order-summary-row">
                 <span>GST ({gstPercent}%)</span>
                 <span>₹{gstAmount.toFixed(2)}</span>
@@ -100,7 +105,7 @@ export function OrderSummary({
             )}
             {codCharge > 0 && (
               <div className="order-summary-row">
-                <span>COD Charge</span>
+                <span>COD fee</span>
                 <span>₹{codCharge.toFixed(2)}</span>
               </div>
             )}
@@ -114,6 +119,12 @@ export function OrderSummary({
               <span>Total</span>
               <span>{pending ? <CalculatingDots /> : `₹${total.toFixed(2)}`}</span>
             </div>
+            {pricesIncludeGst && (
+              <p className="order-summary-tax-note">
+                {gstAmount > 0 && <>Includes GST ({gstPercent}%): ₹{gstAmount.toFixed(2)}. </>}
+                Inclusive of all taxes
+              </p>
+            )}
           </div>
         </div>
       )}

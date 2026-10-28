@@ -1,6 +1,8 @@
 import { useSettings } from '../context/SettingsContext';
 
-export function BrandLogo({ height = 28, className, light = false }) {
+// cropTagline: on phones the logo image's tiny tagline line is unreadable, so
+// below 480px the image is cropped to the wordmark (see .brand-logo-crop in global.css).
+export function BrandLogo({ height = 28, className, light = false, cropTagline = false }) {
   const { settings } = useSettings();
 
   if (settings?.logoUrl) {
@@ -9,7 +11,7 @@ export function BrandLogo({ height = 28, className, light = false }) {
         src={settings.logoUrl}
         alt={settings.brandName || 'Satvex'}
         height={height}
-        className={className}
+        className={[className, cropTagline ? 'brand-logo-crop' : ''].filter(Boolean).join(' ') || undefined}
         style={light ? { filter: 'brightness(0) invert(1)' } : undefined}
       />
     );

@@ -10,6 +10,8 @@ import { OrderStatusBadge } from '../../components/OrderStatusBadge';
 import { PaymentStatusBadge } from '../../components/PaymentStatusBadge';
 import { OrderTimeline } from '../../components/OrderTimeline';
 import { OrderSummary } from '../../components/OrderSummary';
+import { useCatalog } from '../../hooks/useCatalog';
+import { itemImage } from '../../utils/itemImage';
 import { CopyButton } from '../../components/CopyButton';
 import { Loader } from '../../components/Loader';
 import { useMinimumLoading } from '../../hooks/useMinimumLoading';
@@ -23,6 +25,7 @@ import './Account.css';
 
 export function AccountOrderDetail() {
   useDocumentMeta({ title: 'Order Details', noindex: true });
+  const catalog = useCatalog();
 
   const { id } = useParams();
   const { showToast } = useToast();
@@ -233,6 +236,7 @@ export function AccountOrderDetail() {
           couponCode={order.couponCode}
           gstPercent={order.gstPercent}
           gstAmount={order.gstAmount}
+          pricesIncludeGst={order.pricesIncludeGst}
           shipping={order.shipping}
           codCharge={order.codCharge}
           prepaidDiscount={order.prepaidDiscount}
@@ -241,7 +245,7 @@ export function AccountOrderDetail() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8 }}>
               {order.items.map((item, i) => (
                 <div key={i} className="order-card-item" style={{ padding: '6px 0' }}>
-                  <img src={item.productImage} alt={item.productName} />
+                  <img src={itemImage(item, catalog)} alt={item.productName} loading="lazy" decoding="async" />
                   <div style={{ flex: 1 }}>
                     <p className="order-card-item-name">{item.productName}</p>
                     <p className="order-card-item-meta">

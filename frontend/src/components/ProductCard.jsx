@@ -106,7 +106,7 @@ export function ProductCard({ product }) {
     <Link to={`/product/${product.slug}`} className="product-card">
       <div className="product-card-image">
         {product.images?.[0] ? (
-          <img src={product.images[0]} alt={product.name} loading="lazy" />
+          <img src={product.images[0]} alt={product.name} loading="lazy" decoding="async" width="600" height="500" />
         ) : (
           <ImagePlaceholder />
         )}
@@ -145,7 +145,7 @@ export function ProductCard({ product }) {
 
         <div className="product-card-price">
           {showFrom && <span className="product-card-from">From</span>}
-          <PriceDisplay price={startingPrice} compareAtPrice={compareAtPrice} size="md" />
+          <PriceDisplay price={startingPrice} compareAtPrice={compareAtPrice} offer={startingOption?.offer} size="md" />
         </div>
 
         {activeVariants.length > 0 && (

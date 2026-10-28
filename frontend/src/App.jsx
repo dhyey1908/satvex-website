@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { MainLayout } from './layouts/MainLayout';
 import { AdminLayout } from './layouts/AdminLayout';
 import { AccountLayout } from './layouts/AccountLayout';
+import { CheckoutLayout } from './layouts/CheckoutLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminRoute } from './components/AdminRoute';
 import { ScrollToTop } from './components/ScrollToTop';
@@ -84,7 +85,6 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/cart" element={<Cart />} />
-          <Route path="/checkout" element={<Checkout />} />
           <Route path="/order-confirmation/:id" element={<OrderConfirmation />} />
 
           {/* Old routes redirect to their /account/* equivalents so no existing link breaks. */}
@@ -102,6 +102,13 @@ export default function App() {
         </Route>
 
         <Route path="*" element={<NotFound />} />
+      </Route>
+
+      {/* Checkout gets its own minimal frame (no announcement bar/search/menu). */}
+      <Route element={<ProtectedRoute />}>
+        <Route element={<CheckoutLayout />}>
+          <Route path="/checkout" element={<Checkout />} />
+        </Route>
       </Route>
 
       <Route element={<AdminRoute />}>

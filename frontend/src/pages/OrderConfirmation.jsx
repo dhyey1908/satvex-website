@@ -4,6 +4,8 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import { orderService } from '../services/orderService';
 import { OrderSummary } from '../components/OrderSummary';
+import { SummaryItems } from '../components/SummaryItems';
+import { useCatalog } from '../hooks/useCatalog';
 import { OrderCelebration } from '../components/OrderCelebration';
 import { CopyButton } from '../components/CopyButton';
 import { Loader } from '../components/Loader';
@@ -27,6 +29,7 @@ const MAX_POLLS = 40;
 
 export function OrderConfirmation() {
   useDocumentMeta({ title: 'Order Confirmed', noindex: true });
+  const catalog = useCatalog();
 
   const { id } = useParams();
   const { showToast } = useToast();
@@ -278,22 +281,12 @@ export function OrderConfirmation() {
           couponCode={order.couponCode}
           gstPercent={order.gstPercent}
           gstAmount={order.gstAmount}
+          pricesIncludeGst={order.pricesIncludeGst}
           shipping={order.shipping}
           codCharge={order.codCharge}
           prepaidDiscount={order.prepaidDiscount}
           total={order.total}
-          itemsSlot={
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8 }}>
-              {order.items.map((item, i) => (
-                <div key={i} className="checkout-summary-item order-confirmation-item">
-                  <span className="order-confirmation-item-name">
-                    {item.productName} · {item.sellingOptionName} × {item.quantity}
-                  </span>
-                  <span className="order-confirmation-item-price">₹{item.subtotal.toFixed(2)}</span>
-                </div>
-              ))}
-            </div>
-          }
+          itemsSlot={<SummaryItems items={order.items} catalog={catalog} />}
         />
 
         <div className="card order-confirmation-address">

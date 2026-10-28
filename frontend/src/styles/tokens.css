@@ -1,43 +1,6 @@
+@import './theme.css';
+
 :root {
-  /* Color palette — v4 "Premium Feminine": warm ivory/cream base, soft
-     blush/champagne supporting tones, deep burgundy as the single strong
-     accent. Color is used for emotion/emphasis (CTAs, price, active
-     states) — most of the page stays ivory/white/soft-brown, never a
-     full-bleed pink wash. See 19-premium-redesign.md. */
-  --color-bg: #fbf6f0;
-  --color-surface: #ffffff;
-  --color-surface-muted: #f6eae6;
-  --color-surface-container: #efdcd6;
-  --color-surface-container-high: #e7cec6;
-  --color-surface-container-highest: #ddbcb2;
-  --color-champagne: #e7d9be;
-  --color-text: #3a2e2a;
-  --color-text-muted: #7a6b64;
-  --color-border: #e8dcd6;
-  --color-outline: #a8968e;
-
-  --color-primary: #3a2e2a;
-  --color-primary-dark: #241c19;
-  --color-primary-light: #efdcd6;
-
-  --color-accent: #6b2737;
-  --color-accent-dark: #4e1c28;
-  --color-accent-light: #e7cec6;
-
-  --color-accent-gold: #b08d57;
-
-  --color-outline-variant: #ddc9c2;
-
-  --color-success: #3f7d4e;
-  --color-success-bg: #e7f1e5;
-  --color-error: #a13a2f;
-  --color-error-dark: #7c2113;
-  --color-error-bg: #f6e2dc;
-  --color-warning: #8a5a10;
-  --color-warning-bg: #fdf3d9;
-
-  --color-overlay: rgba(58, 46, 42, 0.65);
-
   /* Typography — Playfair Display (elegant high-contrast serif) for
      headings, Poppins (soft geometric sans) for nav/UI/product/forms. */
   --font-display: 'Playfair Display', 'Georgia', serif;
@@ -62,22 +25,15 @@
   --radius-lg: 16px;
   --radius-pill: 999px;
 
-  /* Shadows — soft, subtle ambient elevation instead of hard offsets or
-     heavy blur. Depth comes mostly from borders/contrast; shadow is a
-     light finishing touch, not the main signal. */
-  --shadow-sm: 0 1px 2px rgba(20, 19, 15, 0.05), 0 1px 1px rgba(20, 19, 15, 0.04);
-  --shadow-md: 0 6px 16px rgba(20, 19, 15, 0.08), 0 2px 6px rgba(20, 19, 15, 0.05);
-  --shadow-lg: 0 16px 40px rgba(20, 19, 15, 0.12), 0 4px 12px rgba(20, 19, 15, 0.06);
-
   /* Focus ring — used for :focus-visible instead of the browser default.
      Kept deliberately light (2px, low opacity) so it reads as a subtle
      acknowledgement, not a heavy colored box. */
-  --focus-ring: 0 0 0 2px rgba(107, 39, 55, 0.18);
+  --focus-ring: 0 0 0 2px color-mix(in srgb, var(--color-primary) 35%, transparent);
 
   /* One border + corner radius for every text input/select, so a field
      looks the same wherever it appears (search, coupon, checkout, OTP,
      contact, admin) — see the .field and .input-shell rules in global.css. */
-  --input-border: 1.5px solid var(--color-outline-variant);
+  --input-border: 1.5px solid var(--color-outline);
   --input-radius: var(--radius-button);
 
   --transition-fast: 120ms ease;

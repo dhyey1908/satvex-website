@@ -3,13 +3,13 @@
    must read as the strongest, most immediate value, with MRP trailing as a
    smaller reference, not the other way around. */
 .price-display { display: inline-flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.price-current { font-weight: 600; font-family: var(--font-body); color: var(--color-accent); }
+.price-current { font-weight: 600; font-family: var(--font-body); color: var(--color-primary); }
 .price-compare { color: var(--color-text-muted); text-decoration: line-through; font-weight: 400; }
 .price-discount-badge {
   align-self: center;
   font-weight: 600;
-  color: var(--color-accent);
-  background: var(--color-accent-light);
+  color: var(--color-primary-dark);
+  background: var(--color-primary-soft);
   padding: 2px 9px;
   border-radius: var(--radius-pill);
   font-size: 0.75rem;
@@ -21,3 +21,4 @@
 .price-lg .price-current { font-size: 1.9rem; }
 .price-lg .price-compare { font-size: 1.1rem; }
 .price-lg .price-discount-badge { font-size: 0.85rem; padding: 3px 9px; }
+.price-per-piece { flex-basis: 100%; font-size: 0.8rem; color: var(--color-text-muted); }

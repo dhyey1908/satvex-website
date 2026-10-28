@@ -30,9 +30,9 @@
    connecting line's fixed `top` anchor below — every dot stays the same
    layout size regardless of done/current state. */
 .order-timeline-step.current .order-timeline-dot {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 4px var(--color-primary-light);
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px var(--color-primary-soft);
 }
 
 .order-timeline-label {
@@ -46,7 +46,7 @@
   word-break: break-word;
 }
 .order-timeline-step.done .order-timeline-label { color: var(--color-text); font-weight: 600; }
-.order-timeline-step.current .order-timeline-label { color: var(--color-accent); font-weight: 700; }
+.order-timeline-step.current .order-timeline-label { color: var(--color-primary); font-weight: 700; }
 
 .order-timeline-line {
   position: absolute;
@@ -67,7 +67,7 @@
   color: var(--color-text);
   text-align: center;
 }
-.order-timeline-current-label strong { color: var(--color-accent); }
+.order-timeline-current-label strong { color: var(--color-primary); }
 
 .order-timeline-cancelled {
   display: flex;

@@ -38,7 +38,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--color-accent);
+  background: var(--color-primary);
   flex-shrink: 0;
 }
 
@@ -71,9 +71,9 @@
   gap: var(--sp-md);
   padding: var(--sp-md);
   border-radius: var(--radius-md);
-  background: var(--color-surface-container);
+  background: var(--color-surface-alt);
 }
-.checkout-delivery-card svg { color: var(--color-accent); flex-shrink: 0; }
+.checkout-delivery-card svg { color: var(--color-primary); flex-shrink: 0; }
 /* The name/meta block is a plain flex child — without flex:1/min-width:0 a
    longer delivery-method name or ETA string can't shrink/wrap and pushes
    the price (and the card) wider than the viewport on a narrow phone. */
@@ -98,10 +98,10 @@
   cursor: pointer;
   transition: border-color var(--transition-fast), background var(--transition-fast);
 }
-.payment-method-option:hover { border-color: var(--color-outline-variant); }
-.payment-method-option.selected { border-color: var(--color-primary); background: var(--color-surface-container); }
+.payment-method-option:hover { border-color: var(--color-border); }
+.payment-method-option.selected { border-color: var(--color-primary); background: var(--color-surface-alt); }
 .payment-method-option input { margin: 0; width: auto; flex-shrink: 0; }
-.payment-method-option svg { color: var(--color-accent); flex-shrink: 0; }
+.payment-method-option svg { color: var(--color-primary); flex-shrink: 0; }
 /* The text block is a plain <div> flex item — without min-width: 0 a flex
    item's default min-width is its content's intrinsic width, not zero, so
    at narrow widths (COD's charge note especially) it could push the card
@@ -118,7 +118,7 @@
   padding: var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: #e9e9e9;
+  background: var(--color-surface-alt);
 }
 .payment-trust-list li {
   display: flex;
@@ -128,8 +128,8 @@
   line-height: 1.4;
   color: var(--color-text-muted);
 }
-.payment-trust-list svg { flex-shrink: 0; margin-top: 2px; color: var(--color-accent); }
-.payment-trust-list a { color: var(--color-accent); text-decoration: underline; }
+.payment-trust-list svg { flex-shrink: 0; margin-top: 2px; color: var(--color-primary); }
+.payment-trust-list a { color: var(--color-primary); text-decoration: underline; }
 
 .checkout-summary-col {
   position: sticky;
@@ -155,7 +155,7 @@
   height: 40px;
   border-radius: var(--radius-sm);
   object-fit: contain;
-  background: var(--color-surface-muted);
+  background: var(--color-surface-alt);
   flex-shrink: 0;
 }
 .checkout-summary-item-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -179,7 +179,7 @@
 
   /* Page needs bottom clearance so the sticky bar never covers the last
      card's content. */
-  .checkout-page { padding-bottom: 84px; }
+  .checkout-page { padding-bottom: calc(var(--sticky-bar-h, 84px) + var(--space-3)); }
 
   /* The sticky bottom bar replaces the inline "Place Order" button on
      mobile — keeping both visible is redundant. Scoped to .checkout-form
@@ -301,3 +301,102 @@
 .payment-offer-list-modal li { font-size: 0.85rem; }
 .cod-confirm-newtotal { margin: 8px 0 0; font-size: 0.9rem; color: var(--color-text); }
 .cod-confirm-newtotal s { margin-left: 8px; color: var(--color-text-muted); font-weight: 400; }
+
+/* ---- section cards: tighter top padding, border-token edges ---- */
+.checkout-section { padding: var(--space-4) var(--sp-lg) var(--sp-lg); border: 1px solid var(--color-border); box-shadow: none; }
+.checkout-section-title { margin-bottom: var(--space-3); }
+.checkout-coupon-card { padding-block: var(--space-2); }
+
+.checkout-address-actions .btn,
+.checkout-address-add { min-height: 44px; }
+.checkout-address-add { margin-top: var(--space-3); }
+
+/* ---- delivery method: a single option is plain information, not a card ---- */
+.checkout-info-row { display: flex; align-items: center; gap: var(--space-3); }
+.checkout-info-row svg { color: var(--color-primary); flex-shrink: 0; }
+.checkout-info-row p { flex: 1; min-width: 0; margin: 0; color: var(--color-text); font-size: 0.9rem; }
+.checkout-info-row-price { flex-shrink: 0; font-weight: 700; font-size: 0.82rem; letter-spacing: 0.06em; color: var(--color-success); }
+
+/* ---- payment method: 44px rows, 24px radios, soft selected state ---- */
+.payment-method-option { min-height: 44px; padding: 12px 14px; gap: var(--space-3); border-color: var(--color-border); background: var(--color-surface); }
+.payment-method-option:hover { border-color: var(--color-primary); }
+.payment-method-option.selected { border: 2px solid var(--color-primary); background: var(--color-primary-soft); padding: 11px 13px; }
+.payment-method-option input[type='radio'] { width: 24px; height: 24px; flex-shrink: 0; accent-color: var(--color-primary); }
+.payment-method-name { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.payment-method-meta { color: var(--color-text-muted); }
+.payment-fee-tag {
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.payment-method-option.selected .payment-fee-tag { background: var(--color-surface); }
+.payment-icons { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 6px 0 0; padding: 0; }
+.payment-icons li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.payment-icons svg { color: var(--color-primary); }
+
+/* info box: text and the policy link stay in one inline sentence */
+.payment-trust-list { background: var(--color-surface-alt); }
+.payment-trust-list li > span { flex: 1; min-width: 0; }
+
+.checkout-terms { margin: 0 0 var(--space-3); font-size: 0.8rem; color: var(--color-text-muted); }
+.checkout-terms a { color: var(--color-primary); text-decoration: underline; text-underline-offset: 2px; }
+.checkout-terms a:hover { color: var(--color-primary-hover); }
+
+.checkout-place-order { min-height: 48px; }
+
+/* ---- summary placements: sidebar on desktop; top bar + inline on mobile ---- */
+.checkout-summary-bar,
+.checkout-summary-inline { display: none; }
+.checkout-summary-bar { margin-top: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.checkout-summary-bar-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 48px;
+  padding: 0 var(--space-3);
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+.checkout-summary-bar-total { display: inline-flex; align-items: center; gap: 6px; color: var(--color-text); font-weight: 700; }
+.checkout-summary-bar-total svg.rotated { transform: rotate(180deg); }
+.checkout-summary-bar-panel { padding: 0 var(--space-3) var(--space-3); }
+.checkout-summary-bar-panel .order-summary { border: none; padding: 0; }
+.checkout-summary-bar-panel .order-summary > h3 { display: none; }
+
+@media (max-width: 860px) {
+  .checkout-summary-bar { display: block; }
+  .checkout-summary-inline { display: block; margin-bottom: var(--space-3); }
+  .checkout-summary-col { display: none; }
+}
+
+/* The terms line sits just above whichever Place Order button is showing: in the
+   form on desktop, in the sticky bar on mobile (where the inline button is hidden). */
+.checkout-terms-bar { display: none; }
+@media (max-width: 860px) {
+  .checkout-terms-inline { display: none; }
+  .checkout-mobile-bar { flex-wrap: wrap; }
+  .checkout-terms-bar { display: block; flex-basis: 100%; margin: 0; font-size: 0.7rem; line-height: 1.35; }
+}

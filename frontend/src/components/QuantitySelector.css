@@ -1,23 +1,26 @@
 .quantity-selector {
   display: inline-flex;
   align-items: center;
-  border: 1.5px solid var(--color-border);
+  border: 1.5px solid var(--color-outline);
   border-radius: var(--radius-sm);
   overflow: hidden;
 }
+/* 44x44 minimum tap target. */
 .quantity-selector button {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border: none;
   background: transparent;
   cursor: pointer;
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   color: var(--color-text);
 }
-.quantity-selector button:hover:not(:disabled) { background: var(--color-surface-muted); }
-.quantity-selector button:disabled { opacity: 0.35; cursor: not-allowed; }
+.quantity-selector button:hover:not(:disabled) { background: var(--color-surface-alt); }
+/* Disabled keeps >= 4.5:1 text contrast (no opacity fade) — it is shown as
+   disabled by the muted colour, the not-allowed cursor and aria-disabled. */
+.quantity-selector button:disabled { color: var(--color-text-muted); background: var(--color-surface-alt); cursor: not-allowed; }
 .quantity-selector span {
-  min-width: 32px;
+  min-width: 40px;
   text-align: center;
   font-weight: 600;
   font-size: 0.95rem;

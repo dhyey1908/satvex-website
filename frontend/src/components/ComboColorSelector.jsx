@@ -1,49 +1,44 @@
-import { useEffect, useRef, useState } from 'react';
-import { Minus, Plus } from 'lucide-react';
+import { Minus } from 'lucide-react';
 import './ComboColorSelector.css';
 
 /**
- * The single color-selection control for a product's selling option — a
- * compact, scrollable list of rows (swatch + name + minus/qty/plus), one
- * per active variant. `selectedIds` is a flat array with one entry per
- * selected unit (e.g. ['var_1','var_1','var_2'] = 2x var_1 + 1x var_2) —
- * each row's own count is just how many times its id appears in it. A row
- * can go above 1 only when allowDuplicateColors is true; the running total
- * across all rows can never exceed requiredCount (the combo limit) or an
- * out-of-stock variant.
+ * The colour-selection control for a selling option: a grid of circular
+ * swatches showing every active colour at once (no inner scroll box).
+ * `selectedIds` is a flat array with one entry per selected unit (e.g.
+ * ['var_1','var_1','var_2'] = 2x var_1 + 1x var_2) — a swatch's quantity badge
+ * is just how many times its id appears. A colour can be picked more than once
+ * only when allowDuplicateColors is true, the total can never exceed
+ * requiredCount (the combo size), and an out-of-stock colour can never be
+ * selected. For a single-piece option, tapping another colour swaps the pick.
+ *
+ * `onBlocked(message)` is called when a tap can't change the selection (combo
+ * already full, colour already used once) so the page can explain why inline.
  */
-export function ComboColorSelector({ variants, requiredCount, allowDuplicateColors, selectedIds, onChange }) {
+export function ComboColorSelector({ variants, requiredCount, allowDuplicateColors, selectedIds, onChange, onBlocked }) {
   const activeVariants = variants.filter((v) => v.isActive);
-  const isCombo = requiredCount > 1;
   const perRowMax = allowDuplicateColors ? requiredCount : 1;
   const totalSelected = selectedIds.length;
-  const remaining = requiredCount - totalSelected;
 
-  const listRef = useRef(null);
-  const [canScroll, setCanScroll] = useState(false);
+  const countOf = (id) => selectedIds.filter((s) => s === id).length;
 
-  useEffect(() => {
-    const el = listRef.current;
-    if (!el) return undefined;
-    const check = () => setCanScroll(el.scrollHeight > el.clientHeight + 1);
-    check();
-    const ro = new ResizeObserver(check);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [activeVariants.length]);
-
-  function countOf(id) {
-    return selectedIds.filter((s) => s === id).length;
-  }
-
-  function increment(variant) {
+  function add(variant) {
     if (variant.inStock === false) return;
-    if (totalSelected >= requiredCount) return;
-    if (countOf(variant.id) >= perRowMax) return;
+    if (requiredCount === 1) {
+      onChange([variant.id]);
+      return;
+    }
+    if (countOf(variant.id) >= perRowMax) {
+      onBlocked?.(`${variant.colorName} is already selected — pick a different colour.`);
+      return;
+    }
+    if (totalSelected >= requiredCount) {
+      onBlocked?.(`You've chosen all ${requiredCount} colours — remove one to change your selection.`);
+      return;
+    }
     onChange([...selectedIds, variant.id]);
   }
 
-  function decrement(variant) {
+  function remove(variant) {
     const idx = selectedIds.lastIndexOf(variant.id);
     if (idx === -1) return;
     const next = [...selectedIds];
@@ -53,45 +48,46 @@ export function ComboColorSelector({ variants, requiredCount, allowDuplicateColo
 
   return (
     <div className="combo-color-selector">
-      <div className="combo-list" ref={listRef}>
+      <div className="swatch-grid" role="group" aria-label="Colours">
         {activeVariants.map((variant) => {
           const count = countOf(variant.id);
           const outOfStock = variant.inStock === false;
-          const plusDisabled = outOfStock || totalSelected >= requiredCount || count >= perRowMax;
+          const selected = count > 0;
           return (
-            <div key={variant.id} className={`combo-row ${outOfStock ? 'out-of-stock' : ''}`}>
-              <span className="combo-row-swatch" style={{ '--swatch-color': variant.colorCode }} />
-              <span className="combo-row-name">{variant.colorName}</span>
-              {outOfStock ? (
-                <span className="combo-row-oos">Out of stock</span>
-              ) : (
-                <div className="combo-row-stepper">
+            <div key={variant.id} className={`swatch-cell ${outOfStock ? 'out-of-stock' : ''} ${selected && !outOfStock ? 'selected' : ''}`}>
+              <div className="swatch-wrap">
+                <button
+                  type="button"
+                  className={`swatch-btn ${selected ? 'selected' : ''}`}
+                  style={{ '--swatch-color': variant.colorCode }}
+                  onClick={() => add(variant)}
+                  disabled={outOfStock}
+                  aria-pressed={selected}
+                  aria-label={
+                    outOfStock
+                      ? `${variant.colorName}, out of stock`
+                      : `${variant.colorName}${selected ? `, ${count} selected` : ''}`
+                  }
+                >
+                  {count > 0 && requiredCount > 1 && <span className="swatch-qty">{count}</span>}
+                </button>
+                {selected && requiredCount > 1 && (
                   <button
                     type="button"
-                    className="combo-row-step-btn"
-                    onClick={() => decrement(variant)}
-                    disabled={count === 0}
+                    className="swatch-remove"
+                    onClick={() => remove(variant)}
                     aria-label={`Remove one ${variant.colorName}`}
                   >
-                    <Minus size={13} />
+                    <Minus size={12} strokeWidth={3} />
                   </button>
-                  <span className="combo-row-qty">{count}</span>
-                  <button
-                    type="button"
-                    className="combo-row-step-btn"
-                    onClick={() => increment(variant)}
-                    disabled={plusDisabled}
-                    aria-label={`Add one ${variant.colorName}`}
-                  >
-                    <Plus size={13} />
-                  </button>
-                </div>
-              )}
+                )}
+              </div>
+              <span className="swatch-name">{variant.colorName}</span>
+              {outOfStock && <span className="swatch-oos">Out of stock</span>}
             </div>
           );
         })}
       </div>
-      {canScroll && <p className="combo-scroll-hint">Scroll for more colors ↓</p>}
     </div>
   );
 }

@@ -10,7 +10,7 @@ import './OrderCelebration.css';
 // confetti, to read as SATVEX's own premium, feminine accessory brand
 // rather than a generic "success!" burst.
 const PARTICLE_COUNT = 42;
-const COLORS = ['var(--color-accent)', 'var(--color-accent-gold)', 'var(--color-accent-light)', '#ffffff'];
+const COLORS = ['var(--color-primary)', 'var(--color-star)', 'var(--color-primary-soft)', 'var(--color-surface)'];
 const VISIBLE_MS = 2800;
 const ICONS = { heart: Heart, flower: Flower2, star: Star };
 const ICON_KEYS = Object.keys(ICONS);

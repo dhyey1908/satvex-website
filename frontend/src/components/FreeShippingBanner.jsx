@@ -43,7 +43,7 @@ export function FreeShippingBanner({ quote }) {
           {qualifies ? <CheckCircle2 size={18} /> : <Truck size={18} />}
           <span>
             {qualifies
-              ? "🎉 Congratulations! You've unlocked FREE shipping!"
+              ? "Congratulations! You've unlocked FREE shipping!"
               : `Add ₹${quote.amountToFreeShipping.toFixed(2)} more for free shipping.`}
           </span>
         </div>
@@ -66,7 +66,7 @@ export function FreeShippingBanner({ quote }) {
           </motion.div>
         </div>
       </div>
-      <CouponCelebration trigger={celebrationTrigger} message="🎉 You've unlocked FREE shipping!" />
+      <CouponCelebration trigger={celebrationTrigger} message="You've unlocked FREE shipping!" />
     </>
   );
 }

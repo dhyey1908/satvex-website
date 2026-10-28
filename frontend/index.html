@@ -10,6 +10,7 @@
     />
     <meta name="robots" content="index, follow" />
     <meta property="og:site_name" content="Satvex" />
+    <meta name="twitter:card" content="summary" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Satvex — Designed for Her. Made to Move." />
     <meta
@@ -23,9 +24,47 @@
       rel="stylesheet"
     />
     <link rel="icon" href="/assets/placeholders/logo.svg" />
+    <meta name="theme-color" content="#6b4fa0" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <style>
+      /* Copy of the tokens in src/styles/theme.css (this document loads before the app). */
+      :root {
+        --color-bg: #faf7fd;
+        --color-surface-alt: #efe6f8;
+        --color-border: #e0d2ee;
+        --color-primary: #6b4fa0;
+        --color-primary-hover: #583e8a;
+        --color-primary-contrast: #ffffff;
+        --color-text: #2e2338;
+        --color-text-muted: #66596f;
+      }
+      body { margin: 0; background: var(--color-bg); color: var(--color-text); }
+      .app-skeleton { max-width: 1280px; margin: 0 auto; padding: 0 20px 40px; }
+      .sk-bar { display: flex; align-items: center; justify-content: space-between; height: 68px; }
+      .sk-block { display: block; background: linear-gradient(90deg, var(--color-surface-alt) 25%, var(--color-border) 50%, var(--color-surface-alt) 75%); background-size: 200% 100%; border-radius: 8px; animation: sk-shimmer 1.4s ease-in-out infinite; }
+      .sk-logo { width: 96px; height: 28px; }
+      .sk-nav { width: 160px; height: 20px; }
+      .sk-hero { display: grid; grid-template-columns: 1fr; gap: 24px; margin-top: 16px; }
+      .sk-image { width: 100%; aspect-ratio: 1 / 1; max-height: 560px; }
+      .sk-text { display: flex; flex-direction: column; gap: 14px; }
+      .sk-line { height: 16px; width: 100%; }
+      .sk-title { height: 32px; width: 70%; }
+      .sk-short { width: 45%; }
+      .sk-btn { height: 48px; width: 100%; margin-top: 10px; }
+      .sk-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+      @media (min-width: 860px) { .sk-hero { grid-template-columns: 1.3fr 1fr; } .sk-btn { width: 220px; } }
+      @media (prefers-reduced-motion: reduce) { .sk-block { animation: none; } }
+      @keyframes sk-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+    </style>
   </head>
   <body>
-    <div id="root"><div class="brand-loader brand-loader--full" role="status" aria-live="polite"><span class="brand-loader__wordmark">SATVEX</span><span class="brand-dots brand-dots--lg" aria-hidden="true"><span class="brand-dot" style="--dot-color:#F5A9C6;--dot-i:0"></span><span class="brand-dot" style="--dot-color:#800020;--dot-i:1"></span><span class="brand-dot" style="--dot-color:#B285D1;--dot-i:2"></span><span class="brand-dot" style="--dot-color:#E06666;--dot-i:3"></span><span class="brand-dot" style="--dot-color:#F7E7CE;--dot-i:4"></span><span class="brand-dot" style="--dot-color:#F4D35E;--dot-i:5"></span><span class="brand-dot" style="--dot-color:#F5F5F5;--dot-i:6"></span><span class="brand-dot" style="--dot-color:#2B2B2B;--dot-i:7"></span></span><span class="visually-hidden">Loading Satvex…</span><p class="brand-loader__tagline">A little detail makes all the difference.</p></div></div>
+    <div id="root"><!--app-skeleton--><div class="app-skeleton" role="status" aria-busy="true" aria-live="polite">
+      <div class="sk-bar"><span class="sk-block sk-logo"></span><span class="sk-block sk-nav"></span></div>
+      <div class="sk-hero"><span class="sk-block sk-image"></span>
+        <div class="sk-text"><span class="sk-block sk-line sk-title"></span><span class="sk-block sk-line"></span><span class="sk-block sk-line sk-short"></span><span class="sk-block sk-btn"></span></div>
+      </div>
+      <span class="sk-sr">Loading page</span>
+    </div><!--/app-skeleton--></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

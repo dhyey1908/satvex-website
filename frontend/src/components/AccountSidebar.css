@@ -20,13 +20,13 @@
   transition: background var(--transition-fast), color var(--transition-fast);
   overflow: hidden;
 }
-.account-sidebar a:hover { background: var(--color-surface-muted); color: var(--color-text); }
+.account-sidebar a:hover { background: var(--color-surface-alt); color: var(--color-text); }
 .account-sidebar a.active { color: var(--color-primary-dark); font-weight: 600; }
 
 .account-sidebar-indicator {
   position: absolute;
   inset: 0;
-  background: var(--color-primary-light);
+  background: var(--color-primary-soft);
   border-radius: var(--radius-sm);
   z-index: 0;
 }

@@ -6,6 +6,17 @@
     <meta name="robots" content="noindex, nofollow" />
     <title>Page not found — Satvex</title>
     <style>
+      /* Copy of the tokens in src/styles/theme.css (this document loads before the app). */
+      :root {
+        --color-bg: #faf7fd;
+        --color-surface-alt: #efe6f8;
+        --color-border: #e0d2ee;
+        --color-primary: #6b4fa0;
+        --color-primary-hover: #583e8a;
+        --color-primary-contrast: #ffffff;
+        --color-text: #2e2338;
+        --color-text-muted: #66596f;
+      }
       html, body { height: 100%; margin: 0; }
       body {
         display: flex;
@@ -13,24 +24,25 @@
         justify-content: center;
         padding: 24px;
         box-sizing: border-box;
-        background: #faf7f5;
-        color: #1c1917;
+        background: var(--color-bg);
+        color: var(--color-text);
         font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
         text-align: center;
       }
       main { max-width: 420px; }
       .code { font-size: 64px; font-weight: 700; letter-spacing: 0.04em; margin: 0; }
       h1 { font-size: 20px; margin: 8px 0 12px; }
-      p { margin: 0 0 24px; color: #57534e; line-height: 1.5; }
+      p { margin: 0 0 24px; color: var(--color-text-muted); line-height: 1.5; }
       a {
         display: inline-block;
         padding: 12px 24px;
-        background: #1c1917;
-        color: #fff;
+        background: var(--color-primary);
+        color: var(--color-primary-contrast);
         text-decoration: none;
         font-weight: 600;
       }
-      a:focus-visible { outline: 3px solid #a8a29e; outline-offset: 2px; }
+      a:hover { background: var(--color-primary-hover); }
+      a:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
     </style>
   </head>
   <body>

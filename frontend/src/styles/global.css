@@ -29,7 +29,7 @@ body {
    without needing custom-built replacements. */
 input[type='checkbox'],
 input[type='radio'] {
-  accent-color: var(--color-accent);
+  accent-color: var(--color-primary);
 }
 
 h1, h2, h3, h4 {
@@ -77,13 +77,33 @@ ul {
    default browser outline. Follows whatever border-radius the focused
    element already has, so it never clashes with pill/circular controls. */
 :focus-visible {
-  /* Not `outline: none` — a transparent outline is invisible normally but is
-     still drawn (in a system colour) in Windows forced-colors/high-contrast
-     mode, where box-shadow is dropped. Without it keyboard focus would
-     vanish for those users. */
-  outline: 2px solid transparent;
-  box-shadow: var(--focus-ring);
+  /* A real outline (not just a box-shadow) so keyboard focus also survives
+     Windows forced-colors / high-contrast mode. */
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
+
+/* Text selection, placeholder and thin lilac scrollbars. */
+::selection { background: var(--color-primary-soft); color: var(--color-text); }
+::placeholder { color: var(--color-text-muted); opacity: 1; }
+* { scrollbar-width: thin; scrollbar-color: var(--color-border) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: var(--radius-pill); }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* Links inside running text: primary, underlined, darker on hover. */
+p a,
+.field-hint a,
+.field-error a,
+.policy-page a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+p a:hover,
+.field-hint a:hover,
+.field-error a:hover,
+.policy-page a:hover { color: var(--color-primary-hover); }
 
 .app-shell {
   min-height: 100vh;
@@ -138,7 +158,7 @@ ul {
   font-size: 0.72rem;
   letter-spacing: 0.24em;
   text-transform: uppercase;
-  color: var(--color-accent);
+  color: var(--color-primary);
   font-weight: 700;
   margin-bottom: var(--space-2);
 }
@@ -154,10 +174,10 @@ ul {
   width: 7px;
   height: 7px;
   border-radius: 0;
-  background: var(--color-accent);
+  background: var(--color-primary);
   flex-shrink: 0;
 }
-.eyebrow-dot span { font-family: var(--font-body); font-size: 0.72rem; letter-spacing: 0.24em; text-transform: uppercase; color: var(--color-accent); font-weight: 700; }
+.eyebrow-dot span { font-family: var(--font-body); font-size: 0.72rem; letter-spacing: 0.24em; text-transform: uppercase; color: var(--color-primary); font-weight: 700; }
 
 /* Typographic scale used across pages independent of h1-h4 tag defaults —
    the "Ink & Rust" system mixes display/body scales freely per section. */
@@ -221,50 +241,65 @@ ul {
   white-space: nowrap;
 }
 .btn:active { transform: translateY(1px); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+/* Disabled: soft lilac fill with muted text (not just faded). A button that is
+   disabled because it is busy (shows a spinner) keeps its own colours. */
+.btn:disabled,
+.btn.btn-primary:disabled,
+.btn.btn-outline:disabled,
+.btn.btn-ghost:disabled,
+.btn.btn-danger:disabled {
+  background: var(--color-surface-alt);
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+.btn.btn-primary:disabled:has(.btn-spinner) { background: var(--color-primary); border-color: var(--color-primary-hover); color: var(--color-primary-contrast); opacity: 0.85; cursor: progress; }
+.btn.btn-outline:disabled:has(.btn-spinner) { background: var(--color-surface); border-color: var(--color-primary); color: var(--color-primary); opacity: 0.85; cursor: progress; }
 
 .btn-primary {
-  background: var(--color-accent);
-  border-color: var(--color-accent-dark);
-  color: #fff;
+  background: var(--color-primary);
+  border-color: var(--color-primary-hover);
+  color: var(--color-primary-contrast);
 }
 .btn-primary:hover:not(:disabled) {
-  background: var(--color-accent-dark);
+  background: var(--color-primary-hover);
   box-shadow: var(--shadow-sm);
   transform: translateY(-1px);
 }
 
 .btn-outline {
-  background: transparent;
-  color: var(--color-accent);
-  border-color: var(--color-accent);
+  background: var(--color-surface);
+  color: var(--color-primary);
+  border: 1.5px solid var(--color-primary);
 }
 .btn-outline:hover:not(:disabled) {
-  background: var(--color-accent);
-  color: #fff;
-  border-color: var(--color-accent);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
   box-shadow: var(--shadow-sm);
   transform: translateY(-1px);
 }
 
 .btn-ghost {
   background: transparent;
-  color: var(--color-text-muted);
+  color: var(--color-primary);
   padding: 9px 16px;
-  border-color: var(--color-outline-variant);
+  border-color: transparent;
 }
 .btn-ghost:hover:not(:disabled) {
-  color: var(--color-accent);
-  background: var(--color-surface-muted);
-  border-color: var(--color-accent);
+  color: var(--color-primary-hover);
+  background: var(--color-surface-alt);
+  border-color: transparent;
 }
 
 .btn-danger {
   background: var(--color-error);
-  border-color: var(--color-error-dark);
-  color: #fff;
+  border-color: var(--color-error);
+  color: var(--color-primary-contrast);
 }
-.btn-danger:hover:not(:disabled) { background: var(--color-error-dark); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
+.btn-danger:hover:not(:disabled) { background: var(--color-error); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
 
 .btn-block { width: 100%; }
 .btn-sm { padding: 10px 20px; font-size: 0.72rem; }
@@ -308,12 +343,12 @@ ul {
 .field input:focus-visible,
 .field textarea:focus-visible,
 .field select:focus-visible {
-  border-color: var(--color-accent);
+  border-color: var(--color-primary);
 }
 .field input:disabled,
 .field textarea:disabled,
 .field select:disabled {
-  background: var(--color-surface-muted);
+  background: var(--color-surface-alt);
   color: var(--color-text-muted);
   cursor: not-allowed;
 }
@@ -345,13 +380,12 @@ ul {
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 .input-shell:focus-within {
-  border-color: var(--color-accent);
-  box-shadow: var(--focus-ring);
-  /* forced-colors mode drops box-shadow — keep a drawn indicator there. */
-  outline: 2px solid transparent;
+  border-color: var(--color-primary);
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 .input-shell.invalid { border-color: var(--color-error); }
-.input-shell:has(input:disabled) { background: var(--color-surface-muted); cursor: not-allowed; }
+.input-shell:has(input:disabled) { background: var(--color-surface-alt); cursor: not-allowed; }
 /* :where() keeps this at zero specificity so a component can size its own
    input (padding, font-size) without depending on stylesheet order. */
 :where(.input-shell) > input {
@@ -386,7 +420,7 @@ ul {
   transition: background var(--transition-fast);
 }
 .password-strength-bar.filled.weak { background: var(--color-error); }
-.password-strength-bar.filled.fair { background: #b8860b; }
+.password-strength-bar.filled.fair { background: var(--color-warning); }
 .password-strength-bar.filled.strong { background: var(--color-success); }
 .password-strength-label {
   font-size: 0.75rem;
@@ -404,7 +438,7 @@ ul {
 
 /* Skeleton */
 .skeleton {
-  background: linear-gradient(90deg, var(--color-surface-muted) 25%, #ddd5c2 37%, var(--color-surface-muted) 63%);
+  background: linear-gradient(90deg, var(--color-surface-alt) 25%, var(--color-border) 37%, var(--color-surface-alt) 63%);
   background-size: 400% 100%;
   animation: skeleton-loading 1.4s ease infinite;
   border-radius: var(--radius-sm);
@@ -473,12 +507,12 @@ ul {
   border-radius: var(--radius-sm);
   transition: color var(--transition-fast), background var(--transition-fast);
 }
-.toast-close:hover { color: var(--color-text); background: var(--color-surface-muted); }
+.toast-close:hover { color: var(--color-text); background: var(--color-surface-alt); }
 
 .toast.success { --toast-accent: var(--color-success); --toast-accent-bg: var(--color-success-bg); }
 .toast.error { --toast-accent: var(--color-error); --toast-accent-bg: var(--color-error-bg); }
-.toast.warning { --toast-accent: #a6600b; --toast-accent-bg: #f7e8d2; }
-.toast.info { --toast-accent: var(--color-primary); --toast-accent-bg: var(--color-primary-light); }
+.toast.warning { --toast-accent: var(--color-warning); --toast-accent-bg: var(--color-warning-bg); }
+.toast.info { --toast-accent: var(--color-primary); --toast-accent-bg: var(--color-primary-soft); }
 
 @keyframes toast-in {
   from { opacity: 0; transform: translateX(16px); }
@@ -502,7 +536,7 @@ ul {
   height: 56px;
   border-radius: var(--radius-md);
   border: 1.5px solid var(--color-border);
-  background: var(--color-surface-container);
+  background: var(--color-surface-alt);
   color: var(--color-text-muted);
   display: flex;
   align-items: center;
@@ -517,7 +551,7 @@ ul {
   height: 28px;
   border-radius: 50%;
   border: 2.5px solid var(--color-border);
-  border-top-color: var(--color-accent);
+  border-top-color: var(--color-primary);
   animation: spin 700ms linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -533,4 +567,10 @@ ul {
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+/* The logo image carries a tiny tagline under the wordmark that is unreadable on
+   phones: below 480px show just the wordmark, a little larger. */
+@media (max-width: 480px) {
+  .brand-logo-crop { height: 44px; width: auto; clip-path: inset(0 0 27% 0); margin-bottom: -12px; }
 }

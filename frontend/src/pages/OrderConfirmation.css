@@ -81,7 +81,7 @@
 }
 
 .order-confirmation-verifying-icon {
-  color: var(--color-accent);
+  color: var(--color-primary);
   margin: 0 auto var(--space-4);
   display: block;
 }

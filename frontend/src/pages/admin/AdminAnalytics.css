@@ -9,7 +9,7 @@
 .analytics-chip {
   padding: 7px 14px;
   border-radius: var(--radius-pill);
-  border: 1.5px solid var(--color-outline-variant);
+  border: 1.5px solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text-muted);
   font-size: 0.82rem;
@@ -17,11 +17,11 @@
   cursor: pointer;
   transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
 }
-.analytics-chip:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.analytics-chip:hover { border-color: var(--color-primary); color: var(--color-primary); }
 .analytics-chip.active {
-  border-color: var(--color-accent);
-  background: var(--color-accent);
-  color: #fff;
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
 }
 .analytics-basis-note { margin: var(--space-2) 0 0; font-size: 0.8rem; color: var(--color-text-muted); }
 
@@ -86,15 +86,15 @@
 /* ---------- charts (BarChart / ShareBars) ---------- */
 .bar-chart { width: 100%; height: auto; display: block; }
 .bar-chart-axis { stroke: var(--color-border); stroke-width: 1; }
-.bar-chart-bar { fill: var(--color-accent); }
+.bar-chart-bar { fill: var(--color-primary); }
 .bar-chart-bar-negative { fill: var(--color-error); }
 .bar-chart-label { font-size: 10px; fill: var(--color-text-muted); }
 
 .share-bars { display: flex; flex-direction: column; gap: var(--space-3); }
 .share-bars-head { display: flex; justify-content: space-between; gap: var(--space-3); font-size: 0.85rem; margin-bottom: 5px; }
 .share-bars-head span { color: var(--color-text-muted); }
-.share-bars-track { height: 10px; border-radius: var(--radius-pill); background: var(--color-surface-container); overflow: hidden; }
-.share-bars-fill { height: 100%; border-radius: var(--radius-pill); background: linear-gradient(90deg, var(--color-accent-gold), var(--color-accent)); }
+.share-bars-track { height: 10px; border-radius: var(--radius-pill); background: var(--color-surface-alt); overflow: hidden; }
+.share-bars-fill { height: 100%; border-radius: var(--radius-pill); background: linear-gradient(90deg, var(--color-star), var(--color-primary)); }
 
 /* ---------- responsive ---------- */
 @media (max-width: 860px) {
@@ -111,7 +111,7 @@
   margin: 0;
   padding: var(--space-3);
   border-radius: var(--radius-md);
-  background: var(--color-surface-muted);
+  background: var(--color-surface-alt);
   color: var(--color-text-muted);
   font-size: 0.88rem;
   line-height: 1.5;

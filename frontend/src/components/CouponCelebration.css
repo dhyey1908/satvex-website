@@ -35,7 +35,7 @@
   background: currentColor;
   box-shadow: 0 0 7px 2px currentColor;
 }
-.coupon-celebration-particle.shape-icon { filter: drop-shadow(0 0 3px rgba(176, 141, 87, 0.5)); }
+.coupon-celebration-particle.shape-icon { filter: drop-shadow(0 0 3px color-mix(in srgb, var(--color-star) 50%, transparent)); }
 
 .coupon-celebration-message {
   position: relative;
@@ -45,11 +45,11 @@
   padding: 14px 26px;
   border-radius: var(--radius-pill);
   background: var(--color-primary-dark);
-  color: #fff;
+  color: var(--color-primary-contrast);
   font-weight: 600;
   font-size: 0.95rem;
   letter-spacing: 0.01em;
-  box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 16px 36px -10px color-mix(in srgb, var(--color-footer-bg) 40%, transparent);
 }
 
 /* Soft expanding halo behind the pill on entrance — reinforces the "pop"
@@ -58,13 +58,13 @@
   position: absolute;
   inset: -14px;
   border-radius: var(--radius-pill);
-  background: radial-gradient(circle, var(--color-accent-gold) 0%, transparent 70%);
+  background: radial-gradient(circle, var(--color-star) 0%, transparent 70%);
   z-index: -1;
 }
 
 .coupon-celebration-icon {
   display: inline-flex;
-  color: var(--color-accent-gold);
+  color: var(--color-star);
   flex-shrink: 0;
 }
 

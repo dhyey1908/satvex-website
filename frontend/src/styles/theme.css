@@ -1,0 +1,43 @@
+/* ==========================================================================
+   Theme: Lavender & Lilac — the ONLY place colour values live.
+   Every stylesheet and component reads these tokens (var(--color-*)); no
+   component may use a raw hex / rgb / hsl value. To retheme (or add dark mode
+   later), change or override the values below — nothing else needs to change.
+   ========================================================================== */
+:root {
+  --color-bg: #faf7fd;              /* page background (lilac-tinted cream) */
+  --color-surface: #ffffff;         /* cards, inputs, modals, sticky bar */
+  --color-surface-alt: #efe6f8;     /* search bar, image card, delivery box, info sections */
+  --color-border: #e0d2ee;
+  --color-outline: #857596;         /* borders of controls (inputs, steppers): >= 3:1 on bg/surface/surface-alt */
+
+  --color-primary: #6b4fa0;         /* main buttons, links, selected borders, cart badge */
+  --color-primary-hover: #583e8a;
+  --color-primary-dark: #4f3680;    /* text on soft backgrounds (badges, prices, headings in boxes) */
+  --color-primary-soft: #e6daf4;    /* selected combo/swatch background, discount badges */
+  --color-primary-contrast: #ffffff;/* text on primary */
+  --color-accent: #d9c4f0;          /* light lilac: decorative borders only (never body text) */
+  --color-star: #9b6fd1;            /* rating stars (decorative only) */
+
+  --color-text: #2e2338;
+  --color-text-muted: #66596f;
+
+  --color-success: #2f6b48;  --color-success-bg: #e6f2ea;
+  --color-warning: #8a5a12;  --color-warning-bg: #fbf0da;
+  --color-error: #b3261e;    --color-error-bg: #fbe5e3;
+
+  --color-announcement-bg: #6b4fa0;
+  --color-announcement-text: #faf7fd;
+
+  --color-footer-bg: #2a2033;       /* deep plum */
+  --color-footer-text: #f0e8f5;
+  --color-footer-muted: #bfb2cc;
+  --color-footer-border: #3e3250;
+
+  --color-overlay: rgba(46, 35, 56, 0.5);
+
+  /* Shadows are warm plum, never grey or black. */
+  --shadow-sm: 0 1px 2px rgba(46, 35, 56, 0.08), 0 1px 1px rgba(46, 35, 56, 0.08);
+  --shadow-md: 0 6px 16px rgba(46, 35, 56, 0.12), 0 2px 6px rgba(46, 35, 56, 0.08);
+  --shadow-lg: 0 16px 40px rgba(46, 35, 56, 0.16), 0 4px 12px rgba(46, 35, 56, 0.08);
+}

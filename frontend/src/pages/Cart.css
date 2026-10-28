@@ -62,14 +62,14 @@
   color: var(--color-text-muted);
   margin-bottom: var(--space-4);
 }
-.cart-saved-section h3 svg { color: var(--color-accent); }
+.cart-saved-section h3 svg { color: var(--color-primary); }
 
 .cart-trust-section {
   margin-top: var(--space-4);
   padding: var(--sp-md);
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
-  background: var(--color-surface-container);
+  background: var(--color-surface-alt);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -81,7 +81,7 @@
   font-size: 0.82rem;
   color: var(--color-text-muted);
 }
-.cart-trust-item svg { color: var(--color-accent); flex-shrink: 0; }
+.cart-trust-item svg { color: var(--color-primary); flex-shrink: 0; }
 
 /* Mobile sticky checkout bar — hidden above the tablet breakpoint, where the
    order summary's own Checkout button is already visible in the layout. */
@@ -92,7 +92,7 @@
 
   /* Page needs bottom clearance so the sticky bar never covers the last
      saved-for-later item or the trust section. */
-  .cart-page { padding-bottom: 84px; }
+  .cart-page { padding-bottom: calc(var(--sticky-bar-h, 84px) + var(--space-3)); }
 
   /* The sticky bottom bar below replaces this inline Checkout button on
      mobile — keeping both would be redundant. */
@@ -149,3 +149,15 @@
 }
 .prepaid-offer-note svg { flex-shrink: 0; margin-top: 2px; }
 .prepaid-offer-note p { margin: 0; font-size: 0.85rem; line-height: 1.45; }
+
+/* ---- coupon row, delivery estimate, trust row, also-like, empty state ---- */
+.cart-coupon-card { margin-bottom: var(--space-3); padding: var(--space-1) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.cart-delivery-estimate { display: flex; align-items: center; gap: 8px; margin: 0 0 var(--space-3); font-size: 0.85rem; color: var(--color-text-muted); }
+.cart-delivery-estimate svg { color: var(--color-primary); flex-shrink: 0; }
+.cart-trust-section { flex-direction: row; }
+.cart-trust-section .trust-row { margin: 0; width: 100%; }
+.cart-also-like { margin-top: var(--space-7); padding-top: var(--space-5); border-top: 1px solid var(--color-border); }
+.cart-also-like h2 { margin-bottom: var(--space-4); }
+.cart-empty-actions { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); }
+.cart-empty-wishlist { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--color-primary); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.cart-empty-wishlist:hover { color: var(--color-primary-hover); }

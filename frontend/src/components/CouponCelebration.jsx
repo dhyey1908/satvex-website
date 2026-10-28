@@ -4,7 +4,7 @@ import { Sparkles, Star, Sparkle } from 'lucide-react';
 import './CouponCelebration.css';
 
 const PARTICLE_COUNT = 30;
-const COLORS = ['var(--color-accent)', 'var(--color-accent-gold)', 'var(--color-accent-light)', '#ffffff'];
+const COLORS = ['var(--color-primary)', 'var(--color-star)', 'var(--color-primary-soft)', 'var(--color-surface)'];
 const VISIBLE_MS = 2200;
 const ICONS = { star: Star, sparkle: Sparkle };
 

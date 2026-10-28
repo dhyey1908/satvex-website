@@ -2,24 +2,11 @@ import { useState } from 'react';
 import { MapPin, CheckCircle2, XCircle, Loader2, Truck } from 'lucide-react';
 import { deliveryService } from '../services/deliveryService';
 import { useSettings } from '../context/SettingsContext';
+import { estimateWindow } from '../utils/deliveryEstimate';
 import { BrandDots } from './BrandLoader';
 import './PincodeCheck.css';
 
-// Standard estimate window shown once a pincode is verified — matches the
-// same "Dispatched within 1-2 business days" fact Checkout.jsx states, plus
-// a typical transit allowance. Not tied to any per-pincode backend data, so
-// it's presented as a plain estimate, never a guaranteed date.
-const DISPATCH_DAYS = 2;
-const TRANSIT_DAYS = 5;
-
-function formatEstimate() {
-  const fmt = (d) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-  const from = new Date();
-  from.setDate(from.getDate() + DISPATCH_DAYS);
-  const to = new Date();
-  to.setDate(to.getDate() + DISPATCH_DAYS + TRANSIT_DAYS);
-  return `${fmt(from)} – ${fmt(to)}`;
-}
+const formatEstimate = estimateWindow;
 
 /**
  * Self-contained "check delivery to your area" widget for the PDP — a
@@ -36,6 +23,7 @@ function formatEstimate() {
 export function PincodeCheck() {
   const { settings } = useSettings();
   const freeDeliveryThreshold = settings?.shipping?.freeThreshold ?? 0;
+  const codEnabled = settings?.cod?.enabled !== false;
   const [pincode, setPincode] = useState('');
   const [state, setState] = useState('idle'); // idle | loading | found | not-deliverable | not-found
   const [area, setArea] = useState(null);
@@ -79,6 +67,7 @@ export function PincodeCheck() {
         <input
           type="text"
           inputMode="numeric"
+          aria-label="Delivery pincode (6 digits)"
           placeholder="Enter pincode"
           value={pincode}
           onChange={handleChange}
@@ -88,11 +77,6 @@ export function PincodeCheck() {
           {state === 'loading' ? <Loader2 size={14} className="btn-spinner" /> : 'Check'}
         </button>
       </form>
-      {freeDeliveryThreshold > 0 && (
-        <p className="pincode-check-free-delivery">
-          <CheckCircle2 size={14} /> Free delivery on orders above ₹{freeDeliveryThreshold}
-        </p>
-      )}
       {state === 'loading' && (
         <p className="pincode-check-result pincode-check-loading">
           <BrandDots size="sm" /> Checking delivery…
@@ -107,6 +91,17 @@ export function PincodeCheck() {
           <p className="pincode-check-result">
             <Truck size={14} /> Estimated delivery: {formatEstimate()}
           </p>
+          <p className="pincode-check-result">
+            {codEnabled ? <CheckCircle2 size={14} /> : <XCircle size={14} />}{' '}
+            {codEnabled ? 'Cash on Delivery available' : 'Cash on Delivery not available — pay online'}
+          </p>
+          {/* Only once a valid, deliverable pincode has been checked — a
+              store-wide threshold (settings.shipping.freeThreshold). */}
+          {freeDeliveryThreshold > 0 && (
+            <p className="pincode-check-free-delivery">
+              <CheckCircle2 size={14} /> Free delivery on orders above ₹{freeDeliveryThreshold}
+            </p>
+          )}
         </>
       )}
       {state === 'not-deliverable' && (

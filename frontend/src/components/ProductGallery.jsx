@@ -12,8 +12,11 @@ import './ProductGallery.css';
 // tap-to-zoom and swipe-to-change from fighting over the same gesture.
 const SWIPE_THRESHOLD = 40;
 
-export function ProductGallery({ images, activeImage, videoUrl, alt, onImageChange }) {
-  const gallery = images && images.length > 0 ? images : [];
+// `lifestyleImages` is an optional slot for in-use / model photos: they follow
+// the product photos in the same sequence (thumbnails, arrows, swipe, dots).
+export function ProductGallery({ images, lifestyleImages, activeImage, videoUrl, alt, onImageChange }) {
+  const base = images && images.length > 0 ? images : [];
+  const gallery = lifestyleImages?.length ? [...base, ...lifestyleImages.filter((u) => !base.includes(u))] : base;
   const [index, setIndex] = useState(0);
   // When a product has a video, it's the default view. Selecting any image
   // thumbnail switches to images, same as before; nothing about the image
@@ -130,6 +133,20 @@ export function ProductGallery({ images, activeImage, videoUrl, alt, onImageChan
     } else {
       setShowVideo(false);
       setIndex(hasVideo ? nextPos - 1 : nextPos);
+    }
+  }
+
+  // Which slide (video first, then photos) is on screen, for the dot row.
+  const currentPos = videoVisible ? 0 : index + (hasVideo ? 1 : 0);
+
+  function goToSlide(pos) {
+    setManualOverride(true);
+    if (hasVideo && pos === 0) {
+      setShowVideo(true);
+      setVideoFailed(false);
+    } else {
+      setShowVideo(false);
+      setIndex(hasVideo ? pos - 1 : pos);
     }
   }
 
@@ -275,6 +292,21 @@ export function ProductGallery({ images, activeImage, videoUrl, alt, onImageChan
               </span>
             )}
           </button>
+        )}
+
+        {totalSlides > 1 && (
+          <div className="gallery-dots" role="group" aria-label="Choose image">
+            {Array.from({ length: totalSlides }, (_, pos) => (
+              <button
+                key={pos}
+                type="button"
+                className={`gallery-dot ${pos === currentPos ? 'active' : ''}`}
+                aria-label={`Show ${hasVideo && pos === 0 ? 'video' : `image ${hasVideo ? pos : pos + 1}`}`}
+                aria-current={pos === currentPos}
+                onClick={() => goToSlide(pos)}
+              />
+            ))}
+          </div>
         )}
 
         {totalSlides > 1 && (

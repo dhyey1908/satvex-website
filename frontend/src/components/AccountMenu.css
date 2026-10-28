@@ -11,14 +11,14 @@
   border-radius: var(--radius-pill);
   transition: background var(--transition-fast);
 }
-.account-menu-trigger:hover { background: var(--color-surface-muted); }
+.account-menu-trigger:hover { background: var(--color-surface-alt); }
 
 .account-menu-avatar {
   width: 34px;
   height: 34px;
   border-radius: 50%;
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-primary-contrast);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -79,7 +79,7 @@
   text-align: left;
   transition: background var(--transition-fast);
 }
-.account-menu-item:hover { background: var(--color-surface-muted); }
+.account-menu-item:hover { background: var(--color-surface-alt); }
 .account-menu-item svg { color: var(--color-text-muted); flex-shrink: 0; }
 
 .account-menu-divider { height: 1px; background: var(--color-border); margin: 6px 0; }

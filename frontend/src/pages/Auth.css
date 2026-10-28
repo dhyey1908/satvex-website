@@ -49,7 +49,7 @@ button.auth-inline-link {
   .auth-tabs { gap: var(--sp-sm); }
   .auth-tab { font-size: 0.7rem; letter-spacing: 0.08em; }
 }
-.auth-inline-link { font-size: 0.78rem; color: var(--color-accent); }
+.auth-inline-link { font-size: 0.78rem; color: var(--color-primary); }
 .auth-inline-link:hover { text-decoration: underline; }
 
 .auth-footer { margin-top: var(--sp-lg); font-size: 0.85rem; color: var(--color-text-muted); text-align: center; }

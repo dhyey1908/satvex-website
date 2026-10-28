@@ -1,7 +1,9 @@
 .selling-option-selector {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: var(--space-3);
+  /* room for the "Best Value" flag that overhangs the top edge */
+  padding-top: var(--space-2);
 }
 
 .selling-option {
@@ -16,13 +18,13 @@
   background: var(--color-surface);
   cursor: pointer;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
-  min-width: 128px;
+  min-width: 0;
 }
 .selling-option:hover { border-color: var(--color-primary); }
 .selling-option.selected {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 1.5px var(--color-primary);
-  background: var(--color-primary-light);
+  background: var(--color-primary-soft);
 }
 .selling-option-check {
   position: absolute;
@@ -32,7 +34,7 @@
   height: 18px;
   border-radius: 50%;
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-primary-contrast);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -46,21 +48,21 @@
 .selling-option-combo {
   padding: 18px 22px;
   border-radius: var(--radius-lg);
-  border-color: var(--color-outline-variant);
+  border-color: var(--color-border);
   box-shadow: var(--shadow-sm);
-  min-width: 150px;
+  min-width: 0;
 }
 .selling-option-combo:hover {
-  border-color: var(--color-accent);
+  border-color: var(--color-primary);
   box-shadow: var(--shadow-md);
   transform: translateY(-1px);
 }
 .selling-option-combo.selected {
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 1.5px var(--color-accent), var(--shadow-md);
-  background: var(--color-accent-light);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1.5px var(--color-primary), var(--shadow-md);
+  background: var(--color-primary-soft);
 }
-.selling-option-combo .selling-option-check { background: var(--color-accent); }
+.selling-option-combo .selling-option-check { background: var(--color-primary); }
 
 .selling-option-name { font-weight: 700; font-size: 0.92rem; text-transform: uppercase; letter-spacing: 0.03em; }
 .selling-option-savings {
@@ -68,3 +70,19 @@
   font-weight: 700;
   color: var(--color-success);
 }
+
+/* "Best Value" / "Most Popular" flag (STOREFRONT.featuredOptionId). */
+.selling-option-badge {
+  position: absolute;
+  top: -11px;
+  left: 14px;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.selling-option { min-height: 44px; }

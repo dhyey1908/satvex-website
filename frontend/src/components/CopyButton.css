@@ -14,5 +14,5 @@
   cursor: pointer;
   transition: color var(--transition-fast), background var(--transition-fast);
 }
-.copy-btn:hover { color: var(--color-accent); background: var(--color-surface-container); }
+.copy-btn:hover { color: var(--color-primary); background: var(--color-surface-alt); }
 .copy-btn.copied { color: var(--color-success); }

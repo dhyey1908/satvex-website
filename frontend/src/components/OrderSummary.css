@@ -3,7 +3,6 @@
   background: var(--color-surface);
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
-  border-top: 3px solid var(--color-primary);
   display: flex;
   flex-direction: column;
   gap: var(--sp-sm);
@@ -46,7 +45,7 @@
   font-size: 0.88rem;
   color: var(--color-text-muted);
 }
-.order-summary-discount { color: var(--color-accent-dark); }
+.order-summary-discount { color: var(--color-primary-hover); }
 .order-summary-shipping { display: inline-flex; align-items: center; gap: 5px; color: var(--color-success); font-weight: 600; }
 
 .order-summary-total {
@@ -101,3 +100,26 @@
 }
 .order-summary-collapsed-right svg { color: var(--color-text-muted); transition: transform var(--transition-fast); }
 .order-summary-collapsed-right svg.rotated { transform: rotate(180deg); }
+
+.order-summary-tax-note { margin: 0; font-size: 0.78rem; color: var(--color-text-muted); text-align: right; }
+/* "You're saving" is a green pill */
+.order-summary-savings { align-self: flex-start; border-radius: var(--radius-pill); padding: 6px 14px; }
+.order-summary-rows-gap { gap: var(--space-2); }
+
+/* Line items inside the summary: thumbnail of the chosen colour, name, pack, colour chips. */
+.summary-items { display: flex; flex-direction: column; gap: var(--space-3); }
+.summary-item { display: flex; gap: var(--space-3); align-items: flex-start; }
+.summary-item-image {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-alt);
+  overflow: hidden;
+}
+.summary-item-image img { width: 100%; height: 100%; object-fit: contain; }
+.summary-item-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.summary-item-name { font-weight: 600; font-size: 0.9rem; color: var(--color-text); }
+.summary-item-pack { font-size: 0.8rem; color: var(--color-text-muted); }
+.summary-item-price { flex-shrink: 0; font-size: 0.9rem; font-weight: 600; color: var(--color-text); }

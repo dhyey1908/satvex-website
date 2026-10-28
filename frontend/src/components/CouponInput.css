@@ -1,48 +1,74 @@
-.coupon-input {
+.coupon-toggle {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
   align-items: center;
-  position: relative;
-  padding-bottom: var(--space-2);
-}
-/* Border, radius, background and the focus state all come from .input-shell
-   (global.css) — this only adds the coupon field's own layout. */
-.coupon-input-field {
-  flex: 1;
-  min-width: 140px;
-  padding: 0 12px;
-}
-.coupon-input-field input {
-  padding: 8px 0;
-  font-size: 0.88rem;
-  text-transform: uppercase;
-}
-.coupon-error {
-  width: 100%;
-  margin: 4px 0 0;
-}
-
-.coupon-applied {
-  background: var(--color-success-bg);
-  border: 1px solid var(--color-success-bg);
-  color: var(--color-success);
-  padding: 10px 14px;
-  border-radius: var(--radius-sm);
   justify-content: space-between;
-  font-size: 0.88rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
 }
-/* `span` is a flex item here (parent is .coupon-input's display: flex) but
-   was never actually turned into a flex container itself, so its own
-   align-items/gap declarations did nothing — the coupon code + discount
-   amount text just ran as unbreakable inline content. At narrow widths a
-   long coupon code or a big discount amount could overflow the card. */
-.coupon-applied span {
+.coupon-toggle > span { display: inline-flex; align-items: center; gap: 8px; }
+.coupon-toggle svg.rotated { transform: rotate(180deg); }
+.coupon-toggle:hover { color: var(--color-primary-hover); }
+
+.coupon-panel { display: flex; flex-direction: column; gap: var(--space-3); padding-top: var(--space-2); }
+.coupon-row { display: flex; gap: var(--space-2); align-items: stretch; }
+/* Border, radius, background and focus state come from .input-shell (global.css). */
+.coupon-input-field { flex: 1; min-width: 0; padding: 0 12px; min-height: 44px; }
+.coupon-input-field input { padding: 8px 0; font-size: 0.9rem; text-transform: uppercase; }
+.coupon-apply { min-height: 44px; flex-shrink: 0; }
+.coupon-error { margin: 0; }
+
+.coupon-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.coupon-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
-  min-width: 0;
-  overflow-wrap: break-word;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1.5px dashed var(--color-primary);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
 }
-.coupon-applied .btn { flex-shrink: 0; }
+.coupon-chip:hover:not(:disabled) { background: var(--color-surface); }
+.coupon-chip:disabled { color: var(--color-text-muted); border-color: var(--color-border); cursor: not-allowed; }
+
+/* Applied: success pill with a remove (x). */
+.coupon-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px 0 14px;
+  min-height: 44px;
+  border-radius: var(--radius-pill);
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  font-size: 0.88rem;
+}
+.coupon-pill > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.coupon-pill-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-success);
+  cursor: pointer;
+}
+.coupon-pill-remove:hover { background: var(--color-surface); }

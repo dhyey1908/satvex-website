@@ -15,7 +15,7 @@
     z-index: 500;
     height: var(--header-height);
     padding: 0 var(--space-3);
-    background: rgba(251, 246, 240, 0.94);
+    background: color-mix(in srgb, var(--color-bg) 94%, transparent);
     backdrop-filter: blur(6px);
     border-bottom: 1px solid var(--color-border);
   }
@@ -23,8 +23,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     flex-shrink: 0;
     border: none;
     background: none;
@@ -32,7 +32,7 @@
     cursor: pointer;
     border-radius: 50%;
   }
-  .pdp-mobile-header-back:active { background: var(--color-surface-muted); }
+  .pdp-mobile-header-back:active { background: var(--color-surface-alt); }
   .pdp-mobile-header-search {
     flex: 1;
     min-width: 0;
@@ -43,9 +43,9 @@
   .pdp-mobile-header-search .header-search { width: 100%; }
   .pdp-mobile-header-search .icon-btn {
     width: 100%;
-    height: 40px;
+    height: 44px;
     border-radius: var(--radius-pill);
-    background: var(--color-surface-muted);
+    background: var(--color-surface-alt);
     border: 1px solid var(--color-border);
     justify-content: flex-start;
     padding: 0 var(--space-3);
@@ -169,7 +169,7 @@
   gap: 5px;
   padding: 6px 12px;
   border-radius: var(--radius-pill);
-  background: rgba(255, 255, 255, 0.92);
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
   color: var(--color-primary);
   font-size: 0.78rem;
   font-weight: 600;
@@ -181,7 +181,7 @@
   text-overflow: ellipsis;
 }
 .pdp-color-badge-label {
-  color: var(--color-accent);
+  color: var(--color-primary);
   font-weight: 700;
   text-transform: uppercase;
   font-size: 0.64rem;
@@ -201,19 +201,19 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-sm);
   border: none;
-  background: rgba(255, 255, 255, 0.92);
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
   color: var(--color-text);
   cursor: pointer;
   box-shadow: var(--shadow-sm);
   transition: color var(--transition-fast);
 }
-.pdp-gallery-share:hover { color: var(--color-accent); }
-.pdp-gallery-wishlist:hover { color: var(--color-accent); }
-.pdp-gallery-wishlist.active { color: var(--color-accent); }
+.pdp-gallery-share:hover { color: var(--color-primary); }
+.pdp-gallery-wishlist:hover { color: var(--color-primary); }
+.pdp-gallery-wishlist.active { color: var(--color-primary); }
 
 /* .pdp-head + .pdp-purchase together read as ONE continuous bordered
    panel on desktop (matching no-border-between-them + zero row-gap above)
@@ -255,7 +255,7 @@
   font-weight: 700;
 }
 .stock-pill.in { background: var(--color-success-bg); color: var(--color-success); }
-.stock-pill.out { background: var(--color-error-bg); color: var(--color-error); }
+.stock-pill.out { background: var(--color-surface-alt); color: var(--color-text-muted); }
 
 .product-detail-sku {
   font-size: 0.78rem;
@@ -265,6 +265,7 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+.product-detail-price-row { margin-bottom: var(--space-3); }
 .product-detail-section { margin-bottom: var(--space-4); }
 .product-detail-section h3 { font-size: 0.85rem; font-family: var(--font-body); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-text-muted); margin-bottom: var(--space-3); }
 
@@ -290,15 +291,16 @@
   align-items: center;
   justify-content: center;
   width: 52px;
+  min-height: 44px;
   border-radius: var(--radius-button);
-  border: 1.5px solid var(--color-outline-variant);
+  border: 1.5px solid var(--color-outline);
   background: transparent;
   color: var(--color-text);
   cursor: pointer;
   transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
 }
-.pdp-wishlist-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
-.pdp-wishlist-btn.active { border-color: var(--color-accent); color: var(--color-accent); background: var(--color-accent-light); }
+.pdp-wishlist-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.pdp-wishlist-btn.active { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-soft); }
 
 /* "Select N Colors" and "N / N selected" share a row, label left / count
    right — .product-detail-section h3's own margin-bottom (see its rule
@@ -332,12 +334,12 @@
   padding: 6px 12px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--color-border);
-  background: var(--color-surface-container);
+  background: var(--color-surface-alt);
   font-size: 0.76rem;
   font-weight: 600;
   color: var(--color-text-muted);
 }
-.pdp-highlight-pill svg { color: var(--color-accent); flex-shrink: 0; }
+.pdp-highlight-pill svg { color: var(--color-primary); flex-shrink: 0; }
 
 .pdp-description-accordion {
   margin-top: var(--space-4);
@@ -518,7 +520,30 @@
     background: var(--color-surface);
     border-top: 1px solid var(--color-border);
     box-shadow: var(--shadow-lg);
+    flex-direction: column;
+    gap: var(--space-2);
+    transition: transform var(--transition-base);
   }
+  /* Footer on screen: slide the bar down out of the way. */
+  .pdp-mobile-bar.is-hidden { transform: translateY(110%); pointer-events: none; }
+  .pdp-mobile-bar-summary {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+  .pdp-mobile-bar-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .pdp-mobile-bar-price { font-size: 1.05rem; font-weight: 700; color: var(--color-primary); white-space: nowrap; }
+  .pdp-mobile-bar-price small { font-size: 0.72rem; font-weight: 500; color: var(--color-text-muted); }
+  .pdp-mobile-bar-actions { display: flex; gap: var(--space-2); }
   /* min-width: 0 is the fix — .btn is white-space:nowrap by default, and a
      flex item's implicit min-width:auto otherwise refuses to shrink below
      that nowrap text width, pushing the second button off-screen on narrow
@@ -529,6 +554,7 @@
   .pdp-mobile-bar-cart, .pdp-mobile-bar-buy {
     flex: 1;
     min-width: 0;
+    min-height: 44px;
     padding: 13px 6px;
     font-size: 0.7rem;
     letter-spacing: 0.02em;
@@ -541,7 +567,7 @@
      .section's own ≤640px padding-bottom rule in the cascade — that rule
      was winning before (72px) despite this one, leaving the fixed bar
      (measured 81px tall) overlapping the last ~9px of page content. */
-  .product-detail.section { padding-bottom: 96px; }
+  .product-detail.section { padding-bottom: calc(var(--pdp-bar-h, 96px) + var(--space-3)); }
 }
 
 /* ---- Desktop only (>= 1025px): give the gallery more of the row ----------
@@ -553,6 +579,38 @@
     grid-template-columns: minmax(0, 1.45fr) minmax(420px, 1fr);
     column-gap: var(--space-6);
   }
-  /* thumbnail rail (64px) + its gap, then the badge's usual inset */
-  .pdp-has-thumbs .pdp-color-badge { left: calc(64px + var(--space-3) + var(--space-3)); }
 }
+
+/* Reduced motion: no slide on the mobile bar. */
+@media (prefers-reduced-motion: reduce) {
+  .pdp-mobile-bar { transition: none; }
+}
+
+/* "Price after code SATVEX10: Rs X" under the price. */
+.pdp-coupon-price {
+  margin: var(--space-2) 0 var(--space-3);
+  font-size: 0.85rem;
+  color: var(--color-success);
+}
+
+/* Inline error under the colour swatches (incomplete / blocked selection). */
+.pdp-color-error {
+  margin: var(--space-3) 0 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-error-bg);
+  color: var(--color-error);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.pdp-faq { max-width: 760px; margin-inline: auto; }
+.pdp-faq h2 { margin-bottom: var(--space-4); }
+
+/* Breadcrumb: muted trail, current page in the text colour, semi-bold. */
+.pdp-breadcrumb { color: var(--color-text-muted); }
+.pdp-breadcrumb a { color: var(--color-text-muted); }
+.pdp-breadcrumb a:hover { color: var(--color-primary); text-decoration: underline; }
+.pdp-breadcrumb-current { color: var(--color-text); font-weight: 600; }
+
+.pdp-tax-note { margin: var(--space-1) 0 var(--space-2); font-size: 0.8rem; color: var(--color-text-muted); }

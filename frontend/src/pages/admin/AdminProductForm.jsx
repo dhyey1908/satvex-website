@@ -322,7 +322,7 @@ export function AdminProductForm() {
             <label htmlFor="videoUrl">Product Video (optional, one MP4)</label>
             {form.videoUrl ? (
               <div className="repeatable-row">
-                <video src={form.videoUrl} muted style={{ width: 80, height: 80, objectFit: 'contain', background: '#000' }} />
+                <video src={form.videoUrl} muted style={{ width: 80, height: 80, objectFit: 'contain', background: 'var(--color-footer-bg)' }} />
                 <span style={{ flex: 2, fontSize: '0.8rem', wordBreak: 'break-all' }}>{form.videoUrl}</span>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => setField('videoUrl', '')}>
                   <Trash2 size={14} /> Remove

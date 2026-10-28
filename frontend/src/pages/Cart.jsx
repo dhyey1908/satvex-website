@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { useCart } from '../context/CartContext';
@@ -9,18 +9,28 @@ import { addressService } from '../services/addressService';
 import { CartItem } from '../components/CartItem';
 import { OrderSummary } from '../components/OrderSummary';
 import { FreeShippingBanner } from '../components/FreeShippingBanner';
+import { CouponInput } from '../components/CouponInput';
+import { TrustRow } from '../components/TrustRow';
+import { ProductGrid } from '../components/ProductGrid';
 import { EmptyState } from '../components/EmptyState';
 import { PageHeader } from '../components/PageHeader';
+import { useCatalog } from '../hooks/useCatalog';
+import { useStickyBarHeight } from '../hooks/useStickyBarHeight';
+import { estimateWindow } from '../utils/deliveryEstimate';
+import { STOREFRONT } from '../config/storefront';
 import { Loader } from '../components/Loader';
 import { useMinimumLoading } from '../hooks/useMinimumLoading';
-import { ArrowLeft, Trash2, Bookmark, ShieldCheck, RotateCcw, Lock, Sparkles } from 'lucide-react';
+import { ArrowLeft, Trash2, Bookmark, Sparkles, Truck, Heart } from 'lucide-react';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import './Cart.css';
 
 export function Cart() {
   useDocumentMeta({ title: 'Cart', path: '/cart', noindex: true });
 
-  const { items, savedItems, total, loading, updateItem, removeItem, setSavedForLater, appliedCoupon } = useCart();
+  const { items, savedItems, loading, updateItem, removeItem, setSavedForLater, appliedCoupon, applyCoupon, clearCoupon } = useCart();
+  const catalog = useCatalog();
+  const mobileBarRef = useRef(null);
+  useStickyBarHeight(mobileBarRef);
   const cartLoading = loading && items.length === 0 && savedItems.length === 0;
   const holdLoader = useMinimumLoading(cartLoading);
   const { showToast } = useToast();
@@ -88,6 +98,12 @@ export function Cart() {
     }
   }
 
+  async function handleEditColours(cartItemId, selectedColors) {
+    // The backend re-validates the pack size, stock and duplicates; an error
+    // is shown inside the Edit colours dialog.
+    await updateItem(cartItemId, { selectedColors });
+  }
+
   async function handleRemove(cartItemId) {
     try {
       await removeItem(cartItemId);
@@ -136,26 +152,29 @@ export function Cart() {
       <div className="container section">
         <EmptyState
           title="Your cart is empty."
+          message="Pick your colours and they will show up here."
           action={
-            <Link to="/shop" className="btn btn-primary">
-              Continue Shopping
-            </Link>
+            <div className="cart-empty-actions">
+              <Link to="/shop" className="btn btn-primary">
+                Continue shopping
+              </Link>
+              <Link to="/wishlist" className="cart-empty-wishlist">
+                <Heart size={16} aria-hidden="true" /> View your wishlist
+              </Link>
+            </div>
           }
         />
       </div>
     );
   }
 
+  // Everything below is shown exactly as the backend quote returned it.
   const discountAmount = quote?.discountAmount ?? appliedCoupon?.discountAmount ?? 0;
-  const grandTotal = quote?.total ?? Number((total - discountAmount).toFixed(2));
-  // Until the server's quote for THIS cart arrives, grandTotal is just the
-  // item subtotal - without GST/shipping - so it must not be shown as "Total".
+  // Until the server's quote for THIS cart arrives, there is no total to show.
   const quoteIsCurrent = Boolean(quote) && quoteKey === cartQuoteKey;
-  const productSavings = items.reduce(
-    (sum, item) => sum + (item.compareAtPrice > item.unitPrice ? (item.compareAtPrice - item.unitPrice) * item.quantity : 0),
-    0
-  );
-  const savingsAmount = productSavings + discountAmount;
+  const grandTotal = quote?.total ?? 0;
+  const savingsAmount = quote?.savingsAmount ?? 0;
+  const alsoLike = (catalog || []).filter((p) => !items.some((i) => i.productId === p.productId));
 
   return (
     <div className="container section cart-page">
@@ -179,7 +198,9 @@ export function Cart() {
               <CartItem
                 key={item.cartItemId}
                 item={item}
+                catalog={catalog}
                 onQuantityChange={(qty) => handleQuantityChange(item.cartItemId, qty)}
+                onEditColours={(colors) => handleEditColours(item.cartItemId, colors)}
                 onRemove={() => handleRemove(item.cartItemId)}
                 onSaveForLater={() => handleSaveForLater(item.cartItemId)}
               />
@@ -201,6 +222,7 @@ export function Cart() {
                   <CartItem
                     key={item.cartItemId}
                     item={item}
+                    catalog={catalog}
                     onRemove={() => handleRemove(item.cartItemId)}
                     onMoveToCart={() => handleMoveToCart(item.cartItemId)}
                   />
@@ -212,12 +234,26 @@ export function Cart() {
 
         {items.length > 0 && (
           <div className="cart-summary-col">
+            <div className="cart-coupon-card">
+              <CouponInput
+                appliedCoupon={appliedCoupon}
+                onApply={applyCoupon}
+                onClear={clearCoupon}
+                chips={STOREFRONT.checkout.couponChips}
+              />
+            </div>
+
+            <p className="cart-delivery-estimate">
+              <Truck size={16} aria-hidden="true" /> Estimated delivery: {estimateWindow()}
+            </p>
+
             <OrderSummary
-              subtotal={quote?.subtotal ?? total}
+              subtotal={quote?.subtotal ?? 0}
               discountAmount={discountAmount}
               couponCode={appliedCoupon?.code}
               gstPercent={quote?.gstPercent}
               gstAmount={quote?.gstAmount}
+              pricesIncludeGst={quote?.pricesIncludeGst}
               shippingEnabled={quote?.shippingEnabled}
               shipping={quote?.shipping}
               prepaidDiscount={quote?.prepaidDiscount}
@@ -245,27 +281,27 @@ export function Cart() {
             </OrderSummary>
 
             <div className="cart-trust-section">
-              <div className="cart-trust-item">
-                <ShieldCheck size={16} />
-                <span>100% Secure Checkout</span>
-              </div>
-              <div className="cart-trust-item">
-                <Lock size={16} />
-                <span>Your payment details are safe</span>
-              </div>
+              <TrustRow omit={['cod']} />
             </div>
           </div>
         )}
       </div>
 
+      {items.length > 0 && alsoLike.length > 0 && (
+        <section className="cart-also-like" aria-labelledby="cart-also-like-title">
+          <h2 id="cart-also-like-title" className="text-headline-sm">You may also like</h2>
+          <ProductGrid products={alsoLike} />
+        </section>
+      )}
+
       {items.length > 0 && (
-        <div className="cart-mobile-bar">
+        <div className="cart-mobile-bar" ref={mobileBarRef}>
           <div className="cart-mobile-bar-total">
             <span className="cart-mobile-bar-amount">{quoteIsCurrent ? `₹${grandTotal.toFixed(2)}` : '…'}</span>
             {savingsAmount > 0 && <span className="cart-mobile-bar-savings">Saved ₹{savingsAmount.toFixed(2)}</span>}
           </div>
           <Link to="/checkout" className="btn btn-primary cart-mobile-bar-cta">
-            Proceed to Buy
+            Checkout
           </Link>
         </div>
       )}

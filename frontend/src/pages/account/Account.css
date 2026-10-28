@@ -5,7 +5,7 @@
   flex: 1;
   padding: 9px 12px;
   border-radius: var(--radius-button);
-  border: 1.5px solid var(--color-outline-variant);
+  border: 1.5px solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text-muted);
   font-size: 0.82rem;
@@ -14,9 +14,9 @@
   transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
 }
 .address-type-pill.selected {
-  border-color: var(--color-accent);
-  background: var(--color-accent-light);
-  color: var(--color-accent);
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
 }
 
 .account-page-header-row {
@@ -101,7 +101,7 @@
   text-align: center;
   transition: box-shadow var(--transition-base), border-color var(--transition-fast);
 }
-.account-quick-action:hover { box-shadow: var(--shadow-md); border-color: var(--color-accent); }
+.account-quick-action:hover { box-shadow: var(--shadow-md); border-color: var(--color-primary); }
 
 .account-form { max-width: 480px; background: var(--color-surface); border-radius: var(--radius-lg); border: 1px solid var(--color-border); padding: var(--sp-lg); }
 

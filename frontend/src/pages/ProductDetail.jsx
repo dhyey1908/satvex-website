@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Loader2, CheckCircle2, XCircle, ShoppingBag, Zap, ArrowLeft, ChevronDown, BadgeCheck, Share2 } from 'lucide-react';
+import { Heart, Loader2, CheckCircle2, XCircle, ShoppingBag, Zap, ArrowLeft, BadgeCheck, Share2 } from 'lucide-react';
 import { productService } from '../services/productService';
 import { ProductGallery } from '../components/ProductGallery';
 import { SellingOptionSelector } from '../components/SellingOptionSelector';
@@ -12,6 +12,8 @@ import { ProductReviews } from '../components/ProductReviews';
 import { ProductVideoSlider } from '../components/ProductVideoSlider';
 import { PriceDisplay } from '../components/PriceDisplay';
 import { PincodeCheck } from '../components/PincodeCheck';
+import { Accordion } from '../components/Accordion';
+import { TrustRow } from '../components/TrustRow';
 import { ProductGrid } from '../components/ProductGrid';
 import { SearchOverlay } from '../components/SearchOverlay';
 import { Loader } from '../components/Loader';
@@ -25,6 +27,8 @@ import { useToast } from '../context/ToastContext';
 import { useSettings } from '../context/SettingsContext';
 import { useDocumentMeta, setProductStructuredData } from '../hooks/useDocumentMeta';
 import { deriveSku } from '../utils/sku';
+import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
+import { STOREFRONT } from '../config/storefront';
 import './ProductDetail.css';
 
 const DEFAULT_HIGHLIGHTS = [
@@ -65,7 +69,17 @@ export function ProductDetail() {
   const [submitting, setSubmitting] = useState(false);
   const [buyingNow, setBuyingNow] = useState(false);
   const [wishlistBurst, setWishlistBurst] = useState(false);
-  const [descOpen, setDescOpen] = useState(false);
+  // Inline "please pick your colours" message shown under the swatches, plus
+  // the section the page scrolls to when Add to Cart / Buy Now is tapped early.
+  const [colorError, setColorError] = useState(null);
+  const colorSectionRef = useRef(null);
+  // Real-review summary reported up by ProductReviews (for structured data).
+  const [reviewSummary, setReviewSummary] = useState(null);
+  // Sticky mobile bar: hidden while the footer is on screen, and its height is
+  // published as --pdp-bar-h so the page can reserve exactly that much room.
+  const [footerInView, setFooterInView] = useState(false);
+  const mobileBarRef = useRef(null);
+  const recentSlugs = useRecentlyViewed(slug);
   // Whether the sticky gallery is currently pinned to the bottom of its
   // column instead of sticking under the header — see the scroll-driven
   // effect below and the CSS comment on .pdp-gallery-sticky for why this
@@ -74,16 +88,24 @@ export function ProductDetail() {
   const galleryColRef = useRef(null);
   const galleryStickyRef = useRef(null);
 
+  // Heading/title use the full product name ("Butterfly Claw Clip"); the
+  // stored name stays "Butterfly" (the design name).
+  const displayName = product
+    ? /claw clip/i.test(product.name) ? product.name : `${product.name} ${STOREFRONT.productTitleSuffix}`
+    : undefined;
+
   useDocumentMeta({
-    title: product?.name,
+    title: displayName,
     description: product?.shortDescription,
     path: `/product/${slug}`,
+    image: product?.images?.[0] || product?.variants?.find((v) => v.image)?.image,
+    type: 'product',
   });
 
   useEffect(() => {
-    setProductStructuredData(product);
+    setProductStructuredData(product && { ...product, name: displayName }, { reviewSummary });
     return () => setProductStructuredData(null);
-  }, [product]);
+  }, [product, displayName, reviewSummary]);
 
   // Kept in a ref (not a dependency) so the product-load effect below can
   // read the latest cart contents without re-running every time the cart
@@ -147,6 +169,40 @@ export function ProductDetail() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedColors]);
+
+  // The error clears itself as soon as the selection is complete again (or the
+  // pack changes).
+  useEffect(() => {
+    setColorError(null);
+  }, [selectedColors, sellingOptionId]);
+
+  // Mobile buy bar: slide it away while the footer is visible (so footer
+  // links/contact details are never covered) and keep --pdp-bar-h in sync with
+  // its real height for the page's bottom padding.
+  useEffect(() => {
+    if (!product) return undefined;
+    const footer = document.querySelector('.site-footer');
+    let io;
+    if (footer && 'IntersectionObserver' in window) {
+      io = new IntersectionObserver(([entry]) => setFooterInView(entry.isIntersecting), { threshold: 0 });
+      io.observe(footer);
+    }
+    const bar = mobileBarRef.current;
+    let ro;
+    if (bar && 'ResizeObserver' in window) {
+      ro = new ResizeObserver(() => {
+        document.documentElement.style.setProperty('--pdp-bar-h', `${bar.offsetHeight}px`);
+      });
+      ro.observe(bar);
+    }
+    return () => {
+      io?.disconnect();
+      ro?.disconnect();
+      document.documentElement.style.removeProperty('--pdp-bar-h');
+    };
+    // holdLoader: the page body (and so the bar) only mounts once the minimum
+    // loader time has passed, which can be after `product` itself is set.
+  }, [product, holdLoader]);
 
   // Keeps the sticky gallery visually "stuck" under the header for as long
   // as there's room, then pins it to the bottom of its column (see the CSS
@@ -215,7 +271,10 @@ export function ProductDetail() {
   const activeOptions = product.sellingOptions.filter((o) => o.isActive);
   const activeVariants = product.variants.filter((v) => v.isActive);
   const outOfStock = !product.isActive || activeOptions.length === 0 || activeVariants.length === 0;
-  const sku = deriveSku(product.productId, activeVariant?.id);
+  // A derived SKU ending in the placeholder "-XX" (no colour picked yet) is
+  // not a real SKU — don't show it.
+  const rawSku = deriveSku(product.productId, activeVariant?.id);
+  const sku = rawSku && !/-XX$/.test(rawSku) ? rawSku : '';
 
   // Whenever this product has its own color photos, the gallery shows only
   // those (one per color) instead of the separate generic product.images —
@@ -241,7 +300,30 @@ export function ProductDetail() {
     return selectedColors.some((id) => variantsById.get(id)?.inStock === false);
   }
 
+  // Why the current selection can't be bought yet, or null when it can.
+  function selectionProblem() {
+    if (!sellingOption) return 'Please choose a pack.';
+    const needed = sellingOption.quantity;
+    if (selectedColors.length < needed) {
+      return needed === 1 ? 'Please select a colour.' : `Please select ${needed} colours.`;
+    }
+    if (hasOutOfStockSelection()) return 'One of your selected colours is out of stock — please choose another.';
+    return null;
+  }
+
+  // Stops an incomplete selection before anything else happens (login prompt,
+  // cart call): explains it inline and scrolls the colour picker into view.
+  function blockIfIncomplete() {
+    const problem = selectionProblem();
+    if (!problem) return false;
+    setColorError(problem);
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    colorSectionRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+    return true;
+  }
+
   function handleAddToCart(opts = {}) {
+    if (blockIfIncomplete()) return;
     if (!isAuthenticated) {
       // Resuming via the SAME function (checking isAuthenticated again)
       // would re-fail here: the callback requireAuth stores is this
@@ -256,14 +338,8 @@ export function ProductDetail() {
   }
 
   async function performAddToCart({ redirectToCheckout } = {}) {
-    if (!validSelection()) {
-      showToast(`Select ${sellingOption.quantity} color(s) to continue.`, 'warning');
-      return;
-    }
-    if (hasOutOfStockSelection()) {
-      showToast('One or more selected colors are out of stock.', 'error');
-      return;
-    }
+    // Guard again here: this is also what runs after a login prompt resumes.
+    if (blockIfIncomplete()) return;
 
     if (redirectToCheckout) setBuyingNow(true);
     else setSubmitting(true);
@@ -340,6 +416,10 @@ export function ProductDetail() {
     handleAddToCart({ redirectToCheckout: false });
   }
 
+  // Products this visitor opened before (this browser), excluding this one;
+  // empty (so the row is hidden) while the store has only one product.
+  const recentlyViewed = (relatedProducts || []).filter((p) => recentSlugs.includes(p.slug));
+
   const highlights = settings?.whyPillars || DEFAULT_HIGHLIGHTS;
   // Which image is genuinely on screen right now, reported up from
   // ProductGallery and matched back to a variant by its own image URL. With
@@ -384,7 +464,7 @@ export function ProductDetail() {
         <span>/</span>
         <Link to="/shop">Shop</Link>
         <span>/</span>
-        <span className="pdp-breadcrumb-current">{product.name}</span>
+        <span className="pdp-breadcrumb-current">{displayName}</span>
       </nav>
 
       <div className="product-detail-grid">
@@ -399,7 +479,8 @@ export function ProductDetail() {
               images={galleryImages}
               activeImage={activeVariant?.image}
               videoUrl={product.videoUrl}
-              alt={product.name}
+              lifestyleImages={product.lifestyleImages}
+              alt={displayName}
               onImageChange={setDisplayedImage}
             />
             <AnimatePresence>
@@ -445,14 +526,22 @@ export function ProductDetail() {
         </div>
 
         <div className="pdp-head">
-          <h1 className="text-headline-lg">{product.name}</h1>
-          <RatingDisplay rating={product.rating} reviewCount={product.reviewCount} size="lg" />
+          <h1 className="text-headline-lg">{displayName}</h1>
+          {/* Once the review list has loaded, show ITS figures (the reviews a visitor can
+              actually read) rather than the product's stored aggregate. */}
+          <RatingDisplay
+            rating={reviewSummary ? reviewSummary.average : product.rating}
+            reviewCount={reviewSummary ? reviewSummary.count : product.reviewCount}
+            size="lg"
+          />
           <p className="product-detail-desc">{product.shortDescription}</p>
 
           <div className="product-detail-price-row">
             <PriceDisplay
               price={sellingOption?.price ?? product.basePrice}
               compareAtPrice={sellingOption?.compareAtPrice}
+              offer={sellingOption?.offer}
+              showPerPiece={(sellingOption?.quantity ?? 1) > 1}
               size="lg"
             />
             <span className={`stock-pill ${outOfStock ? 'out' : 'in'}`}>
@@ -460,6 +549,14 @@ export function ProductDetail() {
               {outOfStock ? 'Out of Stock' : 'In Stock'}
             </span>
           </div>
+
+          {settings?.tax?.pricesIncludeGst && <p className="pdp-tax-note">Inclusive of all taxes</p>}
+
+          {sellingOption?.offer?.priceAfterCoupon != null && (
+            <p className="pdp-coupon-price">
+              Price after code <strong>{sellingOption.offer.couponCode}</strong>: <strong>₹{sellingOption.offer.priceAfterCoupon}</strong>
+            </p>
+          )}
 
           {sku && <p className="product-detail-sku">SKU: {sku}</p>}
         </div>
@@ -475,9 +572,9 @@ export function ProductDetail() {
           </div>
 
           {sellingOption && (
-            <div className="product-detail-section pdp-color-section">
+            <div className="product-detail-section pdp-color-section" ref={colorSectionRef}>
               <div className="pdp-color-section-header">
-                <h3>{sellingOption.quantity === 1 ? 'Select a Color' : `Select ${sellingOption.quantity} Colors`}</h3>
+                <h3>{sellingOption.quantity === 1 ? 'Select a Colour' : `Select ${sellingOption.quantity} Colours`}</h3>
                 {sellingOption.quantity > 1 && (
                   <span className="pdp-color-count">
                     {selectedColors.length} / {sellingOption.quantity} selected
@@ -490,13 +587,19 @@ export function ProductDetail() {
                 allowDuplicateColors={sellingOption.allowDuplicateColors}
                 selectedIds={selectedColors}
                 onChange={setSelectedColors}
+                onBlocked={setColorError}
               />
+              {colorError && (
+                <p className="pdp-color-error" role="alert">
+                  {colorError}
+                </p>
+              )}
             </div>
           )}
 
           <div className="product-detail-section">
-            <h3>Quantity</h3>
-            <QuantitySelector value={quantity} onChange={setQuantity} />
+            <h3>Number of combos</h3>
+            <QuantitySelector value={quantity} onChange={setQuantity} label="number of combos" />
           </div>
 
           {highlights.length > 0 && (
@@ -551,28 +654,15 @@ export function ProductDetail() {
             </button>
           </div>
 
-          {product.description && (
-            <div className="pdp-description-accordion">
-              <button
-                type="button"
-                className="pdp-description-trigger"
-                aria-expanded={descOpen}
-                onClick={() => setDescOpen((v) => !v)}
-              >
-                <span>Product Details</span>
-                <motion.span animate={{ rotate: descOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
-                  <ChevronDown size={18} />
-                </motion.span>
-              </button>
-              {descOpen && (
-                <div className="pdp-description-body">
-                  {product.description.split(/\n+/).filter(Boolean).map((para, i) => (
-                    <p key={i}>{para}</p>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          <TrustRow />
+
+          <Accordion
+            idPrefix="pdp-details"
+            items={[
+              ...(product.description ? [{ id: 'details', title: 'Product Details', body: product.description }] : []),
+              ...STOREFRONT.detailAccordions,
+            ]}
+          />
         </div>
 
         {/* Its own grid area (see ProductDetail.css) controls width/
@@ -590,40 +680,65 @@ export function ProductDetail() {
 
         <div className="product-detail-reviews" id="reviews">
           <h3 className="text-headline-sm">Reviews</h3>
-          <ProductReviews productId={product.productId} rating={product.rating} reviewCount={product.reviewCount} />
+          <ProductReviews productId={product.productId} onSummary={setReviewSummary} />
         </div>
       </div>
 
       {/* Mobile-only sticky buy bar — CSS-hidden on desktop. Calls the exact
           same handler as the inline buttons above, so behavior (auth
           redirect, validation, loading state) is identical either way. */}
-      <div className="pdp-mobile-bar">
-        <button
-          type="button"
-          className="btn btn-outline pdp-mobile-bar-cart"
-          disabled={submitting || buyingNow || outOfStock}
-          onClick={handleAddOrGoToCart}
-        >
-          {submitting ? (
-            <Loader2 size={16} className="btn-spinner" />
-          ) : (
-            <><ShoppingBag size={16} /> {alreadyInCart ? 'Go to Cart' : 'Add to Cart'}</>
-          )}
-        </button>
-        <button
-          type="button"
-          className="btn btn-primary pdp-mobile-bar-buy"
-          disabled={submitting || buyingNow || outOfStock}
-          onClick={() => handleAddToCart({ redirectToCheckout: true })}
-        >
-          {buyingNow ? <Loader2 size={16} className="btn-spinner" /> : (<><Zap size={16} /> Buy Now</>)}
-        </button>
+      <div className={`pdp-mobile-bar ${footerInView ? 'is-hidden' : ''}`} ref={mobileBarRef} aria-hidden={footerInView}>
+        <div className="pdp-mobile-bar-summary">
+          <span className="pdp-mobile-bar-name">{sellingOption?.name ?? product.name}</span>
+          <span className="pdp-mobile-bar-price">
+            ₹{sellingOption?.price ?? product.basePrice}
+            {sellingOption?.quantity > 1 && sellingOption?.offer?.perPiece > 0 && (
+              <small> · ₹{sellingOption.offer.perPiece} / piece</small>
+            )}
+          </span>
+        </div>
+        <div className="pdp-mobile-bar-actions">
+          <button
+            type="button"
+            className="btn btn-outline pdp-mobile-bar-cart"
+            disabled={submitting || buyingNow || outOfStock}
+            onClick={handleAddOrGoToCart}
+            tabIndex={footerInView ? -1 : 0}
+          >
+            {submitting ? (
+              <Loader2 size={16} className="btn-spinner" />
+            ) : (
+              <><ShoppingBag size={16} /> {alreadyInCart ? 'Go to Cart' : 'Add to Cart'}</>
+            )}
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary pdp-mobile-bar-buy"
+            disabled={submitting || buyingNow || outOfStock}
+            onClick={() => handleAddToCart({ redirectToCheckout: true })}
+            tabIndex={footerInView ? -1 : 0}
+          >
+            {buyingNow ? <Loader2 size={16} className="btn-spinner" /> : (<><Zap size={16} /> Buy Now</>)}
+          </button>
+        </div>
       </div>
+
+      <section className="section pdp-faq" aria-labelledby="pdp-faq-title">
+        <h2 id="pdp-faq-title" className="text-headline-sm">Frequently asked questions</h2>
+        <Accordion idPrefix="pdp-faq" items={STOREFRONT.faqs.map((f, i) => ({ id: `q${i}`, title: f.q, body: f.a }))} />
+      </section>
 
       {relatedProducts && relatedProducts.length > 0 && (
         <section className="section product-detail-related">
           <h2>You may also like</h2>
           <ProductGrid products={relatedProducts} />
+        </section>
+      )}
+
+      {recentlyViewed.length > 0 && (
+        <section className="section product-detail-related">
+          <h2>Recently viewed</h2>
+          <ProductGrid products={recentlyViewed} />
         </section>
       )}
       </div>

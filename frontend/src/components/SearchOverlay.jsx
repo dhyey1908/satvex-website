@@ -108,7 +108,7 @@ export function SearchOverlay() {
               <div className="search-overlay-results">
                 {matches.slice(0, 5).map((p) => (
                   <Link key={p.productId} to={`/product/${p.slug}`} className="search-overlay-result" onClick={close}>
-                    {p.images?.[0] ? <img src={p.images[0]} alt={p.name} /> : <ImagePlaceholder />}
+                    {p.images?.[0] ? <img src={p.images[0]} alt={p.name} loading="lazy" decoding="async" width="56" height="56" /> : <ImagePlaceholder />}
                     <div>
                       <p className="search-overlay-result-name">{p.name}</p>
                       <p className="search-overlay-result-price">From ₹{p.basePrice}</p>

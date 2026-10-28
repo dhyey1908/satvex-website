@@ -1,0 +1,61 @@
+.checkout-header {
+  position: sticky;
+  top: 0;
+  z-index: 500;
+  background: color-mix(in srgb, var(--color-bg) 94%, transparent);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--color-border);
+}
+.checkout-header-inner {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  height: var(--header-height);
+  gap: var(--space-3);
+}
+.checkout-header .brand-logo { justify-self: start; display: inline-flex; align-items: center; min-height: 44px; }
+.checkout-header-secure {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
+.checkout-header-secure svg { color: var(--color-success); }
+.checkout-header-back {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.checkout-header-back:hover { color: var(--color-primary-hover); }
+
+@media (max-width: 480px) {
+  /* Logo, lock label and "Return to bag" must all fit one row at 360px. */
+  .checkout-header-inner { grid-template-columns: auto 1fr auto; gap: var(--space-2); }
+  .checkout-header-secure { justify-self: center; font-size: 0.7rem; letter-spacing: 0.03em; }
+  .checkout-header-back { font-size: 0.76rem; }
+  .checkout-header-back svg { display: none; }
+}
+
+.checkout-footer {
+  margin-top: var(--space-6);
+  background: var(--color-footer-bg);
+  border-top: 1px solid var(--color-footer-border);
+  color: var(--color-footer-muted);
+}
+.checkout-footer-inner { padding-block: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); align-items: center; text-align: center; }
+.checkout-footer nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 var(--space-4); }
+.checkout-footer nav a { display: inline-flex; align-items: center; min-height: 44px; font-size: 0.82rem; color: var(--color-footer-muted); }
+.checkout-footer nav a:hover,
+.checkout-footer nav a:focus-visible { color: var(--color-footer-text); text-decoration: underline; }
+.checkout-footer p { margin: 0; font-size: 0.76rem; color: var(--color-footer-muted); }

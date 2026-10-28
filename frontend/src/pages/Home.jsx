@@ -158,7 +158,7 @@ export function Home() {
               <div className="hero-image">
                 {heroImage ? (
                   <>
-                    <img src={heroImage} alt={showcase?.name} />
+                    <img src={heroImage} alt={showcase?.name} fetchPriority="high" decoding="async" />
                     <div className="hero-image-overlay" />
                     {selectedVariant && (
                       <div className="hero-image-badge">
@@ -256,7 +256,7 @@ export function Home() {
                   <div className="showcase-pricing">
                     <div className="showcase-pricing-row">
                       <div>
-                        <PriceDisplay price={displayOption.price} compareAtPrice={displayOption.compareAtPrice} size="lg" />
+                        <PriceDisplay price={displayOption.price} compareAtPrice={displayOption.compareAtPrice} offer={displayOption.offer} size="lg" />
                       </div>
                       <span className="text-label-sm showcase-pricing-note">Free Shipping</span>
                     </div>

@@ -116,7 +116,7 @@ export function AdminSettings() {
             <div className="field" style={{ gridColumn: '1 / -1' }}>
               <label>Logo</label>
               {form.logoUrl && (
-                <div style={{ marginBottom: 12, padding: 12, background: 'var(--color-surface-muted)', borderRadius: 'var(--radius-sm)', display: 'inline-block' }}>
+                <div style={{ marginBottom: 12, padding: 12, background: 'var(--color-surface-alt)', borderRadius: 'var(--radius-sm)', display: 'inline-block' }}>
                   <img src={form.logoUrl} alt="Current logo" height="40" />
                 </div>
               )}
@@ -144,7 +144,7 @@ export function AdminSettings() {
             <div className="field">
               <label>Sign In / Create Account Page Image</label>
               {form.authImage && (
-                <div style={{ marginBottom: 12, width: 160, height: 128, background: 'var(--color-surface-muted)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+                <div style={{ marginBottom: 12, width: 160, height: 128, background: 'var(--color-surface-alt)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
                   <img src={form.authImage} alt="Sign-in page" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 </div>
               )}
@@ -156,7 +156,7 @@ export function AdminSettings() {
             <div className="field" style={{ marginBottom: 0 }}>
               <label>About Page Image</label>
               {form.aboutImage && (
-                <div style={{ marginBottom: 12, width: 160, height: 128, background: 'var(--color-surface-muted)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+                <div style={{ marginBottom: 12, width: 160, height: 128, background: 'var(--color-surface-alt)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
                   <img src={form.aboutImage} alt="About page" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 </div>
               )}
@@ -316,7 +316,7 @@ export function AdminSettings() {
                 style={{
                   fontSize: '0.85rem',
                   marginTop: 6,
-                  color: connectionResult.ok ? 'var(--color-success, green)' : 'var(--color-danger, crimson)',
+                  color: connectionResult.ok ? 'var(--color-success)' : 'var(--color-error)',
                 }}
               >
                 {connectionResult.ok

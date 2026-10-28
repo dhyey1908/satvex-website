@@ -1,12 +1,12 @@
-/* Dark ink footer against the light body — deliberate contrast anchor. */
+/* Deep-plum footer against the light body — deliberate contrast anchor. */
 .site-footer {
-  background: var(--color-primary);
-  color: rgba(255, 255, 255, 0.72);
-  border-top: 3px solid var(--color-accent);
+  background: var(--color-footer-bg);
+  color: var(--color-footer-muted);
+  border-top: 1px solid var(--color-footer-border);
   padding-top: var(--space-6);
   margin-top: var(--space-7);
 }
-.site-footer p { color: rgba(255, 255, 255, 0.58); }
+.site-footer p { color: var(--color-footer-muted); }
 
 .footer-grid {
   display: grid;
@@ -28,7 +28,7 @@
   margin-bottom: var(--space-3);
 }
 .footer-contact-item:last-child { margin-bottom: 0; }
-.footer-contact-item svg { flex-shrink: 0; margin-top: 5px; color: rgba(255, 255, 255, 0.45); }
+.footer-contact-item svg { flex-shrink: 0; margin-top: 5px; color: var(--color-accent); }
 .footer-contact-item span,
 .footer-contact-item a { min-width: 0; overflow-wrap: break-word; }
 
@@ -41,24 +41,24 @@
 }
 
 .footer-grid h4 {
+  margin: 0 0 var(--space-3);
   font-family: var(--font-body);
   font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  margin-bottom: var(--space-3);
-  color: #fff;
+  color: var(--color-footer-text);
 }
 
-.footer-grid li { margin-bottom: var(--space-2); color: rgba(255, 255, 255, 0.58); }
+.footer-grid li { margin-bottom: var(--space-2); color: var(--color-footer-muted); }
 .footer-grid a { transition: color var(--transition-fast); }
-.footer-grid a:hover { color: var(--color-accent-light); }
+.footer-grid a:hover { color: var(--color-footer-text); text-decoration: underline; }
 
 .footer-bottom {
-  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  border-top: 1px solid var(--color-footer-border);
   padding: var(--space-4) 0;
   font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--color-footer-muted);
 }
 .footer-bottom p { margin: 0; }
 
@@ -68,6 +68,74 @@
   .footer-brand-col p { max-width: none; }
 }
 
-@media (max-width: 480px) {
-  .footer-grid { grid-template-columns: 1fr; gap: var(--space-6); }
+
+/* Link rows: comfortable tap height, underline on hover/focus. */
+.footer-grid li a { display: inline-block; padding: 4px 0; color: inherit; }
+.footer-grid li a:hover,
+.footer-grid li a:focus-visible { color: var(--color-footer-text); text-decoration: underline; }
+.footer-col-body { list-style: none; margin: 0; padding: 0; }
+
+.footer-col-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: left;
+  cursor: default;
 }
+.footer-col-chevron { display: none; transition: transform var(--transition-fast); }
+
+.footer-social { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
+.footer-social a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--color-footer-border);
+  color: var(--color-footer-text);
+}
+.footer-social a:hover,
+.footer-social a:focus-visible { background: var(--color-footer-border); }
+
+.footer-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.footer-payments { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.footer-payment-chip {
+  padding: 4px 10px;
+  border: 1px solid var(--color-footer-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-footer-text);
+  background: transparent;
+}
+
+/* Phones: Shop / Company / Contact collapse into accordions. */
+@media (max-width: 640px) {
+  .footer-grid { grid-template-columns: 1fr; gap: 0; padding-bottom: var(--space-5); }
+  .footer-brand-col { padding-bottom: var(--space-4); }
+  .footer-col { border-top: 1px solid var(--color-footer-border); padding-top: 0; }
+  .footer-grid h4 { margin: 0; }
+  .footer-col-toggle { cursor: pointer; }
+  .footer-col-chevron { display: inline-block; }
+  .footer-col.open .footer-col-chevron { transform: rotate(180deg); }
+  .footer-col-body { display: none; padding-bottom: var(--space-3); }
+  .footer-col.open .footer-col-body { display: block; }
+}
+
+.site-footer .footer-bottom { padding-block: var(--space-4); }

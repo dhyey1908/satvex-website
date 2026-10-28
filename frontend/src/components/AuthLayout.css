@@ -12,7 +12,7 @@
 
 .auth-visual {
   position: relative;
-  background: var(--color-surface-container-high);
+  background: var(--color-surface-alt);
   min-height: 420px;
   display: none;
 }
@@ -20,16 +20,16 @@
 .auth-visual-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(20,19,15,0.78), rgba(20,19,15,0.06) 60%);
+  background: linear-gradient(to top, color-mix(in srgb, var(--color-footer-bg) 78%, transparent), color-mix(in srgb, var(--color-footer-bg) 6%, transparent) 60%);
 }
 .auth-visual-content {
   position: absolute;
   left: var(--sp-lg);
   right: var(--sp-lg);
   bottom: var(--sp-lg);
-  color: #fff;
+  color: var(--color-primary-contrast);
 }
-.auth-visual-content .eyebrow-dot span { color: var(--color-accent-light); }
+.auth-visual-content .eyebrow-dot span { color: var(--color-primary-soft); }
 .auth-visual-content blockquote { margin: var(--sp-sm) 0 0; font-style: italic; }
 
 .auth-panel {

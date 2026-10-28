@@ -12,8 +12,8 @@
   padding: var(--space-4) var(--space-5);
   margin-bottom: var(--space-5);
   border-radius: var(--radius-lg);
-  background: var(--color-surface-container);
-  border: 1px solid var(--color-outline-variant);
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
 }
 .product-reviews-summary-score {
   display: flex;
@@ -27,10 +27,10 @@
   font-family: var(--font-display);
   font-size: 2.6rem;
   font-weight: 700;
-  color: var(--color-accent);
+  color: var(--color-primary);
   line-height: 1;
 }
-.product-reviews-summary-stars { color: var(--color-accent-gold); font-size: 1rem; letter-spacing: 1px; }
+.product-reviews-summary-stars { color: var(--color-star); font-size: 1rem; letter-spacing: 1px; }
 .product-reviews-summary-count { color: var(--color-text-muted); font-size: 0.8rem; }
 
 .product-reviews-summary-bars {
@@ -46,14 +46,14 @@
   flex: 1;
   height: 7px;
   border-radius: var(--radius-pill);
-  background: var(--color-surface-container-high);
+  background: var(--color-surface-alt);
   overflow: hidden;
 }
 .product-reviews-bar-fill {
   display: block;
   height: 100%;
   border-radius: var(--radius-pill);
-  background: var(--color-accent-gold);
+  background: var(--color-star);
   transition: width var(--transition-base);
 }
 .product-reviews-bar-pct { width: 34px; flex-shrink: 0; text-align: right; color: var(--color-text-muted); }
@@ -83,7 +83,7 @@
   gap: 8px;
   font-size: 0.85rem;
 }
-.product-review-stars { color: var(--color-accent-gold); letter-spacing: 1px; }
+.product-review-stars { color: var(--color-star); letter-spacing: 1px; }
 .product-review-author { font-weight: 600; }
 .product-review-date { color: var(--color-text-muted); margin-left: auto; }
 .product-review-title { font-weight: 600; margin: 6px 0 2px; }
@@ -110,7 +110,7 @@
   transition: color var(--transition-fast);
 }
 .review-star-input button.active,
-.review-star-input button:hover { color: var(--color-accent-gold); }
+.review-star-input button:hover { color: var(--color-star); }
 
 .product-review-form-actions { display: flex; align-items: center; gap: var(--space-3); }
 
@@ -130,10 +130,10 @@
   border: 1px solid var(--color-border);
   padding: 0;
   cursor: pointer;
-  background: var(--color-surface-muted);
+  background: var(--color-surface-alt);
   transition: border-color var(--transition-fast);
 }
-.product-review-image-thumb:hover { border-color: var(--color-accent); }
+.product-review-image-thumb:hover { border-color: var(--color-primary); }
 .product-review-image-thumb img { width: 100%; height: 100%; object-fit: cover; }
 
 /* Previews of not-yet-submitted photos in the review form, with a remove
@@ -152,7 +152,7 @@
   border-radius: var(--radius-sm);
   overflow: hidden;
   border: 1px solid var(--color-border);
-  background: var(--color-surface-muted);
+  background: var(--color-surface-alt);
 }
 .product-review-form-image img { width: 100%; height: 100%; object-fit: cover; }
 .product-review-form-image-remove {
@@ -166,11 +166,11 @@
   height: 20px;
   border-radius: 50%;
   border: none;
-  background: rgba(0, 0, 0, 0.6);
-  color: #fff;
+  background: color-mix(in srgb, var(--color-footer-bg) 60%, transparent);
+  color: var(--color-primary-contrast);
   cursor: pointer;
 }
-.product-review-form-image-remove:hover { background: rgba(0, 0, 0, 0.8); }
+.product-review-form-image-remove:hover { background: color-mix(in srgb, var(--color-footer-bg) 80%, transparent); }
 
 /* Full-size preview overlay for a tapped review photo. */
 .product-review-lightbox {
@@ -180,7 +180,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(20, 12, 10, 0.92);
+  background: color-mix(in srgb, var(--color-footer-bg) 92%, transparent);
   cursor: zoom-out;
   padding: var(--space-5);
 }
@@ -202,8 +202,61 @@
   height: 40px;
   border-radius: 50%;
   border: none;
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
+  background: color-mix(in srgb, var(--color-surface) 12%, transparent);
+  color: var(--color-primary-contrast);
   cursor: pointer;
 }
-.product-review-lightbox-close:hover { background: rgba(255, 255, 255, 0.22); }
+.product-review-lightbox-close:hover { background: color-mix(in srgb, var(--color-surface) 22%, transparent); }
+
+
+/* ---- sort / filter / load more / verified badge ---- */
+.product-reviews-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.product-reviews-filter { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.product-reviews-chip {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--color-outline);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.product-reviews-chip.active { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-primary-contrast); }
+.product-reviews-chip:disabled { color: var(--color-text-muted); background: var(--color-surface-alt); border-color: var(--color-border); cursor: not-allowed; }
+.product-reviews-sort { display: inline-flex; align-items: center; gap: var(--space-2); font-size: 0.82rem; color: var(--color-text-muted); }
+.product-reviews-sort select {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: var(--input-border);
+  border-radius: var(--input-radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+.product-review-verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--color-success);
+}
+.product-reviews-more { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); margin-top: var(--space-4); }
+.product-reviews-more p { margin: 0; color: var(--color-text-muted); }
+
+.product-review-item {
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}

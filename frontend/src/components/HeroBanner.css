@@ -28,12 +28,12 @@
   height: 8px;
   border-radius: 50%;
   border: none;
-  background: rgba(255, 255, 255, 0.5);
+  background: color-mix(in srgb, var(--color-surface) 50%, transparent);
   cursor: pointer;
   padding: 0;
   transition: background var(--transition-fast), transform var(--transition-fast);
 }
-.hero-banner-dot.active { background: #fff; transform: scale(1.2); }
+.hero-banner-dot.active { background: var(--color-surface); transform: scale(1.2); }
 
 /* Swipe / drag: horizontal gestures go to the carousel, vertical ones still
    scroll the page. Text/image selection and native drag ghosts are off so a
@@ -58,7 +58,7 @@
     padding: 0;
     border: none;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.82);
+    background: color-mix(in srgb, var(--color-surface) 82%, transparent);
     color: var(--color-text);
     box-shadow: var(--shadow-sm);
     cursor: pointer;
@@ -69,5 +69,5 @@
   .hero-banner-arrow-next { right: var(--sp-sm); }
   .hero-image:hover .hero-banner-arrow,
   .hero-banner-arrow:focus-visible { opacity: 1; }
-  .hero-banner-arrow:hover { background: #fff; color: var(--color-accent); }
+  .hero-banner-arrow:hover { background: var(--color-surface); color: var(--color-primary); }
 }

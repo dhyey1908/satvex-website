@@ -50,7 +50,7 @@
   border-radius: var(--radius-sm);
   transition: color var(--transition-fast), background var(--transition-fast);
 }
-.search-overlay-close:hover { color: var(--color-text); background: var(--color-surface-muted); }
+.search-overlay-close:hover { color: var(--color-text); background: var(--color-surface-alt); }
 
 .search-overlay-results {
   max-height: 60vh;
@@ -66,13 +66,13 @@
   border-radius: var(--radius-sm);
   transition: background var(--transition-fast);
 }
-.search-overlay-result:hover { background: var(--color-surface-muted); }
+.search-overlay-result:hover { background: var(--color-surface-alt); }
 .search-overlay-result img,
 .search-overlay-result .image-placeholder {
   width: 48px;
   height: 48px;
   object-fit: contain;
-  background: var(--color-surface-muted);
+  background: var(--color-surface-alt);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   flex-shrink: 0;
@@ -96,7 +96,7 @@
   color: var(--color-text);
   transition: background var(--transition-fast), border-color var(--transition-fast);
 }
-.search-overlay-view-all:hover { background: var(--color-surface-muted); border-color: var(--color-accent); }
+.search-overlay-view-all:hover { background: var(--color-surface-alt); border-color: var(--color-primary); }
 
 @media (max-width: 640px) {
   .search-overlay-panel {

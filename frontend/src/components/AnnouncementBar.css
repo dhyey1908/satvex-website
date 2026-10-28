@@ -1,9 +1,7 @@
 .announcement-bar {
-  /* Deliberately its own color, not the cream/blush/burgundy theme tokens —
-     a promo strip reads best as a distinct accent stripe, matching the
-     dark teal/navy reference look rather than blending into the header. */
-  background: #0f3335;
-  color: #ffffff;
+  /* Follows the theme: the primary (wine) strip with cream text. */
+  background: var(--color-announcement-bg);
+  color: var(--color-announcement-text);
   text-align: center;
   padding: 8px 16px;
   font-size: 0.8rem;
@@ -45,19 +43,21 @@
   gap: 5px;
   flex-shrink: 0;
   padding: 3px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.45);
+  border: 1px solid var(--color-accent);
   border-radius: var(--radius-pill, 999px);
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
+  background: transparent;
+  color: var(--color-announcement-text);
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
+/* Visually a slim chip; the tap area is padded out to 44px tall. */
+.announcement-bar-copy { position: relative; }
+.announcement-bar-copy::after { content: ''; position: absolute; inset: -11px -6px; }
 .announcement-bar-copy:hover {
-  background: rgba(255, 255, 255, 0.18);
-  border-color: rgba(255, 255, 255, 0.7);
+  background: color-mix(in srgb, var(--color-announcement-text) 16%, transparent);
 }
 .announcement-bar-code {
   letter-spacing: 0.04em;

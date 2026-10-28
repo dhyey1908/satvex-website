@@ -24,11 +24,16 @@ function loadHandler() {
     body.push(lines[i].slice(indent));
   }
   // eslint-disable-next-line no-new-func
-  const code = body.join('\n').replace('${HttpApi}', 'api123').replace(/\$\{AWS::Region\}/g, 'ap-south-1');
+  const code = body
+    .join('\n')
+    .replace('${HttpApi}', 'api123')
+    .replace(/\$\{AWS::Region\}/g, 'ap-south-1')
+    .replace('${FrontendCanonicalHost}', 'www.satvex.co.in')
+    .replace('${PrerenderedProductSlugs}', 'butterfly,second-product');
   return new Function(`${code}\nreturn handler;`)();
 }
 
-const run = (handler, uri) => handler({ request: { uri } }).uri;
+const run = (handler, uri, host = 'www.satvex.co.in') => handler({ request: { uri, headers: { host: { value: host } }, querystring: {} } }).uri;
 const respond = (handler) => handler({ response: { statusCode: 200, headers: {} } }).headers;
 
 // Every <Route path="..."> in App.jsx, nested paths joined to their parent.
@@ -53,9 +58,31 @@ test('every route in App.jsx is served as the SPA (not a 404)', () => {
   const handler = loadHandler();
   const routes = appRoutes();
   assert.ok(routes.length > 20, `expected to find the app routes, got ${routes.length}`);
+  // Home and shop are served their prerendered static page; every other route
+  // (including a product that was not prerendered) is the generic SPA shell.
+  const expected = (r) => (r === '/' ? '/_pre/home.html' : r === '/shop' ? '/_pre/shop.html' : '/index.html');
   for (const r of routes) {
-    assert.equal(run(handler, r), '/index.html', `${r} should be the SPA`);
-    if (r.length > 1) assert.equal(run(handler, `${r}/`), '/index.html', `${r}/ (trailing slash)`);
+    assert.equal(run(handler, r), expected(r), `${r} should be the SPA`);
+    if (r.length > 1) assert.equal(run(handler, `${r}/`), expected(r), `${r}/ (trailing slash)`);
+  }
+});
+
+test('prerendered products get their static page; unlisted product slugs still load the SPA', () => {
+  const handler = loadHandler();
+  assert.equal(run(handler, '/product/butterfly'), '/_pre/product/butterfly.html');
+  assert.equal(run(handler, '/product/second-product/'), '/_pre/product/second-product.html');
+  assert.equal(run(handler, '/product/brand-new-product'), '/index.html');
+  assert.equal(run(handler, '/product/butterfly/extra'), '/__not_found__');
+});
+
+test('the bare domain 301-redirects to the canonical host, keeping path and query', () => {
+  const handler = loadHandler();
+  const res = handler({ request: { uri: '/product/butterfly', headers: { host: { value: 'satvex.co.in' } }, querystring: { utm: { value: 'x' }, a: { value: '' } } } });
+  assert.equal(res.statusCode, 301);
+  assert.equal(res.headers.location.value, 'https://www.satvex.co.in/product/butterfly?utm=x&a');
+  // the canonical host itself, the CloudFront default domain and unknown hosts are never redirected
+  for (const h of ['www.satvex.co.in', 'd111111abcdef8.cloudfront.net', 'other.example.com']) {
+    assert.equal(run(handler, '/shop', h), '/_pre/shop.html', h);
   }
 });
 

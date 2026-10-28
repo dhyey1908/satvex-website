@@ -24,7 +24,7 @@
   position: fixed;
   inset: 0;
   z-index: 2000;
-  background: var(--color-bg, #fbf6f0);
+  background: var(--color-bg);
   animation: none;
   opacity: 1;
   transition: opacity 400ms ease;
@@ -44,14 +44,14 @@
   letter-spacing: 0.34em;
   /* The trailing letter-spacing would push the word off-centre. */
   margin-right: -0.34em;
-  color: var(--color-text, #3a2e2a);
+  color: var(--color-primary);
 }
 
 .brand-loader__label {
   margin: 0;
   font-size: 0.9rem;
   font-weight: 500;
-  color: var(--color-text, #3a2e2a);
+  color: var(--color-text);
 }
 
 .brand-loader__tagline {
@@ -61,7 +61,7 @@
   font-style: italic;
   font-size: 0.95rem;
   line-height: 1.5;
-  color: var(--color-text-muted, #7a6b64);
+  color: var(--color-text-muted);
 }
 
 /* ---- the eight dots ---- */
@@ -81,7 +81,7 @@
   border-radius: 50%;
   background: var(--dot-color);
   /* A hairline ring keeps the white / champagne dots visible on cream. */
-  box-shadow: inset 0 0 0 1px rgba(58, 46, 42, 0.16);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-footer-bg) 16%, transparent);
   opacity: 0.35;
   transform: scale(0.7);
   animation: brand-dot-wave 1.6s ease-in-out infinite;
@@ -119,7 +119,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-bg, #fbf6f0);
+  background: var(--color-bg);
 }
 
 /* Small dots standing in for a figure that is still being calculated. */

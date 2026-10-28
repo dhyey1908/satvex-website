@@ -36,7 +36,7 @@
 }
 .policy-body li { list-style: disc; }
 
-.policy-body a { color: var(--color-accent); font-weight: 600; }
+.policy-body a { color: var(--color-primary); font-weight: 600; }
 .policy-body a:hover { text-decoration: underline; }
 
 .policy-body strong { color: var(--color-text); }

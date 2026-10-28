@@ -14,8 +14,8 @@
   padding: var(--space-3) var(--space-4);
   margin-bottom: var(--space-5);
   border-radius: var(--radius-md);
-  background: var(--color-warning-bg, #fdf3d9);
-  color: var(--color-warning, #8a5a10);
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
   font-size: 0.88rem;
   font-weight: 600;
 }
@@ -27,14 +27,14 @@
    not just an informational flag. */
 .admin-alert-banner-danger {
   background: var(--color-error-bg);
-  color: var(--color-error-dark, var(--color-error));
+  color: var(--color-error, var(--color-error));
   text-decoration: none;
   cursor: pointer;
   transition: box-shadow var(--transition-fast);
 }
 .admin-alert-banner-danger:hover { box-shadow: var(--shadow-sm); }
 
-.admin-needs-review-icon { color: var(--color-warning, #8a5a10); margin-left: 6px; vertical-align: middle; }
+.admin-needs-review-icon { color: var(--color-warning); margin-left: 6px; vertical-align: middle; }
 
 .stat-grid {
   display: grid;
@@ -59,10 +59,10 @@
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
   background:
-    linear-gradient(to right, var(--color-surface) 30%, rgba(255, 255, 255, 0)),
-    linear-gradient(to right, rgba(255, 255, 255, 0), var(--color-surface) 70%) 100% 0,
-    radial-gradient(farthest-side at 0 50%, rgba(20, 19, 15, 0.12), rgba(255, 255, 255, 0)),
-    radial-gradient(farthest-side at 100% 50%, rgba(20, 19, 15, 0.12), rgba(255, 255, 255, 0)) 100% 0;
+    linear-gradient(to right, var(--color-surface) 30%, color-mix(in srgb, var(--color-surface) 0%, transparent)),
+    linear-gradient(to right, color-mix(in srgb, var(--color-surface) 0%, transparent), var(--color-surface) 70%) 100% 0,
+    radial-gradient(farthest-side at 0 50%, color-mix(in srgb, var(--color-footer-bg) 12%, transparent), color-mix(in srgb, var(--color-surface) 0%, transparent)),
+    radial-gradient(farthest-side at 100% 50%, color-mix(in srgb, var(--color-footer-bg) 12%, transparent), color-mix(in srgb, var(--color-surface) 0%, transparent)) 100% 0;
   background-repeat: no-repeat;
   background-color: var(--color-surface);
   background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
@@ -76,8 +76,8 @@
 
 .pill { padding: 3px 10px; border-radius: var(--radius-pill); font-size: 0.75rem; font-weight: 600; }
 .pill-active { background: var(--color-success-bg); color: var(--color-success); }
-.pill-inactive { background: var(--color-surface-muted); color: var(--color-text-muted); }
-.pill-warning { background: var(--color-warning-bg, #fdf3d9); color: var(--color-warning, #8a5a10); }
+.pill-inactive { background: var(--color-surface-alt); color: var(--color-text-muted); }
+.pill-warning { background: var(--color-warning-bg); color: var(--color-warning); }
 .pill-danger { background: var(--color-error-bg); color: var(--color-error); }
 
 .admin-filters { display: flex; gap: var(--space-3); margin-bottom: var(--space-4); flex-wrap: wrap; align-items: center; }
@@ -96,12 +96,12 @@
   height: 22px;
   border: none;
   border-radius: var(--radius-pill);
-  background: var(--color-surface-muted);
+  background: var(--color-surface-alt);
   color: var(--color-text-muted);
   cursor: pointer;
   flex-shrink: 0;
 }
-.admin-search-clear:hover { background: var(--color-surface-container); color: var(--color-text); }
+.admin-search-clear:hover { background: var(--color-surface-alt); color: var(--color-text); }
 .admin-date-filter { display: inline-flex; align-items: center; gap: 6px; }
 .admin-reset-filters { margin-left: auto; }
 .admin-result-count { margin: 0 0 var(--space-3); font-size: 0.82rem; color: var(--color-text-muted); }
@@ -121,7 +121,7 @@
 }
 .admin-sort-btn svg { opacity: 0.45; }
 .admin-sort-btn:hover { color: var(--color-text); }
-.admin-sort-btn.active { color: var(--color-accent); }
+.admin-sort-btn.active { color: var(--color-primary); }
 .admin-sort-btn.active svg { opacity: 1; }
 /* Wide tables (orders: 10 columns) - tighter cells so the date and View
    button stay on screen at laptop widths. */
@@ -136,7 +136,7 @@
   border-radius: var(--radius-sm);
   overflow: hidden;
   border: 1px solid var(--color-border);
-  background: var(--color-surface-muted);
+  background: var(--color-surface-alt);
   padding: 0;
   cursor: pointer;
 }
@@ -149,7 +149,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(20, 12, 10, 0.92);
+  background: color-mix(in srgb, var(--color-footer-bg) 92%, transparent);
   cursor: zoom-out;
   padding: var(--space-5);
 }
@@ -171,11 +171,11 @@
   height: 40px;
   border-radius: 50%;
   border: none;
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
+  background: color-mix(in srgb, var(--color-surface) 12%, transparent);
+  color: var(--color-primary-contrast);
   cursor: pointer;
 }
-.admin-attachment-lightbox-close:hover { background: rgba(255, 255, 255, 0.22); }
+.admin-attachment-lightbox-close:hover { background: color-mix(in srgb, var(--color-surface) 22%, transparent); }
 
 .admin-pagination {
   display: flex;
@@ -192,9 +192,9 @@
   margin-top: var(--space-4);
 }
 .trend-chart { width: 100%; height: 140px; display: block; margin-top: var(--space-3); }
-.trend-chart-area { fill: var(--color-accent); opacity: 0.08; }
-.trend-chart-line { fill: none; stroke: var(--color-accent); stroke-width: 2; }
-.trend-chart-dot { fill: var(--color-accent); }
+.trend-chart-area { fill: var(--color-primary); opacity: 0.08; }
+.trend-chart-line { fill: none; stroke: var(--color-primary); stroke-width: 2; }
+.trend-chart-dot { fill: var(--color-primary); }
 
 /* .admin-form { max-width: 760px; } */
 /* Wider variant — used by pages (e.g. Settings) whose cards should use the
@@ -221,7 +221,7 @@
   justify-content: flex-end;
   padding: var(--space-4) var(--space-5);
   margin-top: var(--sp-lg);
-  background: rgba(251, 246, 240, 0.94);
+  background: color-mix(in srgb, var(--color-bg) 94%, transparent);
   backdrop-filter: blur(6px);
   border-top: 1px solid var(--color-border);
   border-radius: var(--radius-md);

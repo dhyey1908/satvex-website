@@ -32,4 +32,4 @@
   background: currentColor;
   box-shadow: 0 0 7px 2px currentColor;
 }
-.order-celebration-particle.shape-icon { filter: drop-shadow(0 0 3px rgba(176, 141, 87, 0.5)); }
+.order-celebration-particle.shape-icon { filter: drop-shadow(0 0 3px color-mix(in srgb, var(--color-star) 50%, transparent)); }

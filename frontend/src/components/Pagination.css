@@ -40,8 +40,8 @@
   cursor: pointer;
   transition: background var(--transition-fast), color var(--transition-fast);
 }
-.pagination-page:hover { background: var(--color-surface-muted); color: var(--color-text); }
-.pagination-page.active { background: var(--color-primary); color: #fff; }
+.pagination-page:hover { background: var(--color-surface-alt); color: var(--color-text); }
+.pagination-page.active { background: var(--color-primary); color: var(--color-primary-contrast); }
 
 .pagination-ellipsis {
   color: var(--color-outline);

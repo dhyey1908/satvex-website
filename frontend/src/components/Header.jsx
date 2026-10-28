@@ -71,11 +71,11 @@ export function Header() {
       initial={prefersReducedMotion ? false : { opacity: 0, y: -12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-      style={{ boxShadow: useTransform(headerShadowOpacity, (v) => `0 8px 24px -12px rgba(9,7,7,${v * 0.15})`) }}
+      style={{ boxShadow: useTransform(headerShadowOpacity, (v) => `0 8px 24px -12px color-mix(in srgb, var(--color-text) ${Math.round(v * 15)}%, transparent)`) }}
     >
       <div className="container site-header-inner">
         <Link to="/" className="brand-logo" aria-label="Satvex home">
-          <BrandLogo height={36} />
+          <BrandLogo height={36} cropTagline />
         </Link>
 
         <nav className="nav-desktop" aria-label="Primary">

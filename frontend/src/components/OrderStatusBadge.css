@@ -4,10 +4,10 @@
   border-radius: var(--radius-pill);
   font-size: 0.78rem;
   font-weight: 600;
-  background: var(--color-surface-muted);
+  background: var(--color-surface-alt);
   color: var(--color-text-muted);
 }
-.status-pending, .status-confirmed { background: #fdf3d9; color: #8a6d1f; }
-.status-processing, .status-shipped { background: #e3ecf9; color: #2c5ba3; }
+.status-pending, .status-confirmed { background: var(--color-warning-bg); color: var(--color-warning); }
+.status-processing, .status-shipped { background: var(--color-primary-soft); color: var(--color-primary-dark); }
 .status-delivered { background: var(--color-success-bg); color: var(--color-success); }
 .status-cancelled { background: var(--color-error-bg); color: var(--color-error); }
