@@ -723,11 +723,6 @@ export function ProductDetail() {
         </div>
       </div>
 
-      <section className="section pdp-faq" aria-labelledby="pdp-faq-title">
-        <h2 id="pdp-faq-title" className="text-headline-sm">Frequently asked questions</h2>
-        <Accordion idPrefix="pdp-faq" items={STOREFRONT.faqs.map((f, i) => ({ id: `q${i}`, title: f.q, body: f.a }))} />
-      </section>
-
       {relatedProducts && relatedProducts.length > 0 && (
         <section className="section product-detail-related">
           <h2>You may also like</h2>

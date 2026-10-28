@@ -604,8 +604,6 @@
   font-weight: 600;
 }
 
-.pdp-faq { max-width: 760px; margin-inline: auto; }
-.pdp-faq h2 { margin-bottom: var(--space-4); }
 
 /* Breadcrumb: muted trail, current page in the text colour, semi-bold. */
 .pdp-breadcrumb { color: var(--color-text-muted); }

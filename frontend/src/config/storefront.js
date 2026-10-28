@@ -36,14 +36,6 @@ export const STOREFRONT = {
     { id: 'shipping-returns', title: 'Shipping & Returns', body: 'TODO: summarise delivery time, shipping charges and the returns/refund policy. Full policy: Shipping & Delivery and Returns & Refunds pages.' },
   ],
 
-  // FAQ accordion. All answers are placeholders.
-  faqs: [
-    { q: 'How many colours can I choose in a combo?', a: 'TODO: confirm — you pick as many colours as the combo includes (2 or 3) and may repeat a colour.' },
-    { q: 'Is the claw clip suitable for thick hair?', a: 'TODO: add hair-type / grip guidance.' },
-    { q: 'How long does delivery take?', a: 'TODO: add delivery timelines. Enter your pincode above for an estimate.' },
-    { q: 'What if I want to return or exchange it?', a: 'TODO: summarise the return/exchange window and conditions.' },
-  ],
-
   // Trust row under the buy buttons. `cod` is shown only if COD is enabled in
   // the store settings.
   trust: [
