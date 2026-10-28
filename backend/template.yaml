@@ -22,9 +22,27 @@ Parameters:
     Type: String
     NoEcho: true
     Description: Long random secret used to sign auth JWTs
-  SesSenderEmail:
+  SmtpHost:
     Type: String
-    Description: Verified SES sender address for password-reset emails
+    Default: ''
+    Description: SMTP server hostname for outgoing email (password reset, contact and shipment alerts). Empty disables email.
+  SmtpPort:
+    Type: Number
+    Default: 587
+    Description: SMTP port — 587 (STARTTLS) or 465 (implicit TLS)
+  SmtpUser:
+    Type: String
+    Default: ''
+    Description: SMTP login username
+  SmtpPassword:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: SMTP login password / app password
+  SmtpFrom:
+    Type: String
+    Default: ''
+    Description: From address the SMTP account may send as, e.g. no-reply@satvex.co.in
   ResetTokenExpiresMin:
     Type: Number
     Default: 30
@@ -516,7 +534,11 @@ Resources:
           ACCESS_TOKEN_EXPIRES_IN: 1h
           REFRESH_TOKEN_MAX_AGE_DAYS: !Ref RefreshTokenMaxAgeDays
           RESET_TOKEN_EXPIRES_MIN: !Ref ResetTokenExpiresMin
-          SES_SENDER_EMAIL: !Ref SesSenderEmail
+          SMTP_HOST: !Ref SmtpHost
+          SMTP_PORT: !Ref SmtpPort
+          SMTP_USER: !Ref SmtpUser
+          SMTP_PASSWORD: !Ref SmtpPassword
+          SMTP_FROM: !Ref SmtpFrom
           PAYU_MERCHANT_KEY: !Ref PayuMerchantKey
           PAYU_MERCHANT_SALT: !Ref PayuMerchantSalt
           PAYU_ENV: !Ref PayuEnv
@@ -557,15 +579,6 @@ Resources:
             TableName: !Ref RefreshTokensTable
         - S3CrudPolicy:
             BucketName: !Ref MediaBucket
-        # Not SESCrudPolicy (which scopes to a single identity): recipients
-        # here are admin-configurable settings (contactEmail), not just the
-        # fixed sender identity, and SES authorizes ses:SendEmail against
-        # every identity ARN a send touches — so this must cover any
-        # identity in the account, not only SesSenderEmail's.
-        - Statement:
-            - Effect: Allow
-              Action: ses:SendEmail
-              Resource: !Sub arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*
         # SNS SMS publish is account-wide (no per-topic resource — SNS
         # direct-to-phone-number publish has no ARN to scope a resource
         # policy to), per AWS's own documented pattern for this API.
@@ -658,7 +671,11 @@ Resources:
           SHIPROCKET_PASSWORD: !Ref ShiprocketPassword
           SHIPROCKET_BASE_URL: !Ref ShiprocketBaseUrl
           SHIPROCKET_SERVICEABILITY_BASE_URL: !Ref ShiprocketServiceabilityBaseUrl
-          SES_SENDER_EMAIL: !Ref SesSenderEmail
+          SMTP_HOST: !Ref SmtpHost
+          SMTP_PORT: !Ref SmtpPort
+          SMTP_USER: !Ref SmtpUser
+          SMTP_PASSWORD: !Ref SmtpPassword
+          SMTP_FROM: !Ref SmtpFrom
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref OrdersTable
@@ -666,12 +683,6 @@ Resources:
             TableName: !Ref ShipmentJobsTable
         - DynamoDBCrudPolicy:
             TableName: !Ref SettingsTable
-        # Same as ApiFunction's SES policy — shipmentAlertEmail is an
-        # admin-configurable recipient, not the fixed sender identity.
-        - Statement:
-            - Effect: Allow
-              Action: ses:SendEmail
-              Resource: !Sub arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*
       Events:
         TenMinuteSweep:
           Type: Schedule

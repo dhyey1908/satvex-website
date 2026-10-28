@@ -1,36 +1,51 @@
-const { SESv2Client, SendEmailCommand } = require('@aws-sdk/client-sesv2');
+const nodemailer = require('nodemailer');
 const env = require('../config/env');
 const logger = require('../utils/logger');
 
-const client = new SESv2Client({ region: env.awsRegion });
+// Plain SMTP (any provider: Zoho, Brevo, Gmail app password, ...). The transport
+// is built lazily so a missing SMTP config only disables email instead of
+// crashing the Lambda at import time. Port 465 is implicit TLS; 587/25 use STARTTLS.
+let transport;
+function getTransport() {
+  if (!transport) {
+    const { host, port, user, pass } = env.smtp;
+    transport = nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      auth: user ? { user, pass } : undefined,
+    });
+  }
+  return transport;
+}
+
+// Test hook only — lets the unit tests swap in a recording transport.
+function __setTransportForTests(t) {
+  transport = t;
+}
+
+function isConfigured() {
+  return Boolean(env.smtp.host && env.smtp.from);
+}
+
+async function send({ to, subject, html, text, replyTo }) {
+  await getTransport().sendMail({ from: env.smtp.from, to, subject, html, text, replyTo });
+}
 
 async function sendPasswordResetEmail({ toEmail, resetLink }) {
-  if (!env.ses.senderEmail) {
-    logger.warn('SES_SENDER_EMAIL not configured; skipping password reset email send', { toEmail });
+  if (!isConfigured()) {
+    logger.warn('SMTP not configured; skipping password reset email send', { toEmail });
     return;
   }
 
-  const command = new SendEmailCommand({
-    FromEmailAddress: env.ses.senderEmail,
-    Destination: { ToAddresses: [toEmail] },
-    Content: {
-      Simple: {
-        Subject: { Data: 'Reset your Satvex password' },
-        Body: {
-          Html: {
-            Data: `<p>We received a request to reset your Satvex password.</p>
+  await send({
+    to: toEmail,
+    subject: 'Reset your Satvex password',
+    html: `<p>We received a request to reset your Satvex password.</p>
                    <p><a href="${resetLink}">Click here to reset your password</a></p>
                    <p>This link expires in ${env.resetTokenExpiresMin} minutes. If you did not request this, you can ignore this email.</p>`,
-          },
-          Text: {
-            Data: `Reset your Satvex password: ${resetLink} (expires in ${env.resetTokenExpiresMin} minutes)`,
-          },
-        },
-      },
-    },
+    text: `Reset your Satvex password: ${resetLink} (expires in ${env.resetTokenExpiresMin} minutes)`,
   });
-
-  await client.send(command);
 }
 
 // Fired once per job, exactly when shipmentJobService.recordFailure reports
@@ -39,34 +54,26 @@ async function sendPasswordResetEmail({ toEmail, resetLink }) {
 // 5-15 minute backoff step. Best-effort: swallows its own errors so a
 // broken/unconfigured mailbox never breaks the sweep itself.
 async function sendShipmentSyncFailedAlert({ toEmail, orderId, customerName, error }) {
-  if (!toEmail || !env.ses.senderEmail) {
-    logger.warn('shipment sync alert not sent — no recipient or SES_SENDER_EMAIL configured', { orderId, toEmail });
+  if (!toEmail || !isConfigured()) {
+    logger.warn('shipment sync alert not sent — no recipient or SMTP configured', { orderId, toEmail });
     return;
   }
   try {
-    await client.send(
-      new SendEmailCommand({
-        FromEmailAddress: env.ses.senderEmail,
-        Destination: { ToAddresses: [toEmail.toLowerCase()] },
-        Content: {
-          Simple: {
-            Subject: { Data: `[Satvex] Shipment sync failed — Order ${orderId.slice(0, 8).toUpperCase()}` },
-            Body: {
-              Html: {
-                Data: `<p>A paid order's Shiprocket shipment could not be created after 6 retry attempts and needs manual attention.</p>
+    await send({
+      to: toEmail.toLowerCase(),
+      subject: `[Satvex] Shipment sync failed — Order ${orderId.slice(0, 8).toUpperCase()}`,
+      html: `<p>A paid order's Shiprocket shipment could not be created after 6 retry attempts and needs manual attention.</p>
                        <p><strong>Order:</strong> ${orderId}<br/>
                        <strong>Customer:</strong> ${customerName || 'Unknown'}<br/>
                        <strong>Last error:</strong> ${error || 'Unknown error'}</p>
                        <p>Open Admin → Orders → Shipment Sync Issues to retry it.</p>`,
-              },
-              Text: {
-                Data: `A paid order's Shiprocket shipment could not be created after 6 retry attempts.\nOrder: ${orderId}\nCustomer: ${customerName || 'Unknown'}\nLast error: ${error || 'Unknown error'}\n\nOpen Admin -> Orders -> Shipment Sync Issues to retry it.`,
-              },
-            },
-          },
-        },
-      })
-    );
+      text: `A paid order's Shiprocket shipment could not be created after 6 retry attempts.
+Order: ${orderId}
+Customer: ${customerName || 'Unknown'}
+Last error: ${error || 'Unknown error'}
+
+Open Admin -> Orders -> Shipment Sync Issues to retry it.`,
+    });
   } catch (err) {
     logger.error('failed to send shipment sync alert email (non-fatal)', { orderId, message: err.message });
   }
@@ -107,12 +114,11 @@ function buildContactDetailLines(contact) {
 }
 
 // Fired once per Contact Us submission — best-effort, same as the shipment
-// alert above: swallows its own errors so a broken/unconfigured mailbox (or
-// an unverified recipient while SES is still in sandbox mode) never breaks
-// the actual form submission for the customer.
+// alert above: swallows its own errors so a broken/unconfigured mailbox never
+// breaks the actual form submission for the customer.
 async function sendContactNotificationEmail({ toEmail, contact }) {
-  if (!toEmail || !env.ses.senderEmail) {
-    logger.warn('contact notification not sent — no recipient or SES_SENDER_EMAIL configured', { contactId: contact.contactId });
+  if (!toEmail || !isConfigured()) {
+    logger.warn('contact notification not sent — no recipient or SMTP configured', { contactId: contact.contactId });
     return;
   }
   try {
@@ -129,20 +135,11 @@ async function sendContactNotificationEmail({ toEmail, contact }) {
       ? `\nAttachments:\n${attachments.map((url, i) => `Attachment ${i + 1}: ${url}`).join('\n')}`
       : '';
 
-    await client.send(
-      new SendEmailCommand({
-        FromEmailAddress: env.ses.senderEmail,
-        // Lowercased — SES's sandbox-mode verified-recipient check is
-        // case-sensitive, so a mixed-case address can silently fail to send
-        // even when the (lowercase) identity is actually verified.
-        Destination: { ToAddresses: [toEmail.toLowerCase()] },
-        ReplyToAddresses: contact.email ? [contact.email] : undefined,
-        Content: {
-          Simple: {
-            Subject: { Data: `[Satvex] New ${typeLabel} enquiry from ${contact.name}` },
-            Body: {
-              Html: {
-                Data: `<p>A new ${typeLabel} enquiry came in through the Contact Us form.</p>
+    await send({
+      to: toEmail.toLowerCase(),
+      replyTo: contact.email || undefined,
+      subject: `[Satvex] New ${typeLabel} enquiry from ${contact.name}`,
+      html: `<p>A new ${typeLabel} enquiry came in through the Contact Us form.</p>
                        <p><strong>Name:</strong> ${contact.name}<br/>
                        ${contact.email ? `<strong>Email:</strong> ${contact.email}<br/>` : ''}
                        ${contact.phone ? `<strong>Phone:</strong> ${contact.phone}<br/>` : ''}
@@ -151,18 +148,11 @@ async function sendContactNotificationEmail({ toEmail, contact }) {
                        <p>${contact.message}</p>
                        ${attachmentsHtml}
                        <p>Reply directly to this email to respond, or view it in Admin → Contacts.</p>`,
-              },
-              Text: {
-                Data: `New ${typeLabel} enquiry.\nName: ${contact.name}\n${contact.email ? `Email: ${contact.email}\n` : ''}${contact.phone ? `Phone: ${contact.phone}\n` : ''}${detailText}\nMessage:\n${contact.message}\n${attachmentsText}\n\nReply directly to this email to respond, or view it in Admin -> Contacts.`,
-              },
-            },
-          },
-        },
-      })
-    );
+      text: `New ${typeLabel} enquiry.\nName: ${contact.name}\n${contact.email ? `Email: ${contact.email}\n` : ''}${contact.phone ? `Phone: ${contact.phone}\n` : ''}${detailText}\nMessage:\n${contact.message}\n${attachmentsText}\n\nReply directly to this email to respond, or view it in Admin -> Contacts.`,
+    });
   } catch (err) {
     logger.error('failed to send contact notification email (non-fatal)', { contactId: contact.contactId, message: err.message });
   }
 }
 
-module.exports = { sendPasswordResetEmail, sendShipmentSyncFailedAlert, sendContactNotificationEmail };
+module.exports = { sendPasswordResetEmail, sendShipmentSyncFailedAlert, sendContactNotificationEmail, __setTransportForTests };

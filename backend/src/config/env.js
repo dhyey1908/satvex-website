@@ -112,8 +112,14 @@ const env = {
 
   resetTokenExpiresMin: Number(process.env.RESET_TOKEN_EXPIRES_MIN || 30),
 
-  ses: {
-    senderEmail: process.env.SES_SENDER_EMAIL,
+  // Outbound email over plain SMTP (any provider). `from` must be an address
+  // the provider lets this account send as, e.g. "Satvex <no-reply@satvex.co.in>".
+  smtp: {
+    host: (process.env.SMTP_HOST || '').trim() || undefined,
+    port: Number(process.env.SMTP_PORT || 587),
+    user: (process.env.SMTP_USER || '').trim() || undefined,
+    pass: process.env.SMTP_PASSWORD || undefined,
+    from: (process.env.SMTP_FROM || '').trim() || undefined,
   },
 
   otp: {

@@ -46,7 +46,7 @@ and run `npm run deploy` in `backend/`; do not edit resources by hand.
 | **S3** | Website files, uploaded media | 2 buckets |
 | **CloudFront** | CDN + HTTPS for the website and for media | 2 distributions |
 | **EventBridge** | Schedules for the background jobs | 2 rules |
-| **SES** | Transactional email (contact form, order mail) | 1 region config |
+| **SMTP** (external provider) | Transactional email (password reset, contact form, shipment alerts) | no AWS resource |
 | **SNS** | SMS fallback path (only when MiniMoth is not the OTP provider) | account-level |
 | **IAM** | One execution role per Lambda | 3 roles |
 | **CloudWatch Logs** | Lambda logs | 3 log groups |
@@ -118,13 +118,13 @@ Media upload folders: `products`, `variants`, `videos`, `branding`, `banners`
 | IAM roles | `ApiFunctionRole`, `ExpirePaymentsFunctionRole`, `ShipmentSweepFunctionRole` |
 | Log groups | `/aws/lambda/satvex-api-dev`, `…-expire-payments-dev`, `…-shipment-sweep-dev` |
 
-## 6. Email (SES)
+## 6. Email (SMTP)
 
-* Account is in **sandbox**: 200 emails / 24 h and only to verified
-  addresses. Verified identities today: 8 addresses (store + team/test).
-* Before real customers rely on order emails, request **SES production
-  access** in the AWS console, then verify a sending domain.
-* Sender configured via `SES_SENDER_EMAIL`.
+* Outgoing mail (password reset, contact form, shipment alerts) goes through
+  plain SMTP via nodemailer - no AWS service involved, so no SES sandbox.
+* Configured via `SmtpHost` / `SmtpPort` / `SmtpUser` / `SmtpPassword` /
+  `SmtpFrom` (Lambda env `SMTP_*`). Empty `SmtpHost` disables email (logged).
+* `SmtpFrom` must be an address the SMTP account is allowed to send as.
 
 ## 7. Configuration parameters (`template.yaml` → Lambda env)
 
@@ -135,7 +135,7 @@ Values are in `backend/samconfig.toml` (gitignored). **Never commit them.**
 | `Stage` | – | no | Suffix for every resource name (`dev`) |
 | `FrontendOrigin` | `FRONTEND_ORIGIN` | no | CORS / redirect origin |
 | `JwtSecret` | `JWT_SECRET` | **yes** | Signs access tokens |
-| `SesSenderEmail` | `SES_SENDER_EMAIL` | no | |
+| `SmtpHost` / `SmtpPort` / `SmtpUser` / `SmtpPassword` / `SmtpFrom` | `SMTP_*` | **yes** (password) | Outgoing email login |
 | `ResetTokenExpiresMin` | `RESET_TOKEN_EXPIRES_MIN` | no | |
 | `PayuMerchantKey` / `PayuMerchantSalt` / `PayuEnv` | `PAYU_*` | **yes** (key, salt) | `PayuEnv=test` until PayU live approval |
 | `ShiprocketEmail` / `ShiprocketPassword` / `ShiprocketWebhookToken` / `ShiprocketBaseUrl` | `SHIPROCKET_*` | **yes** | |
@@ -149,7 +149,7 @@ Values are in `backend/samconfig.toml` (gitignored). **Never commit them.**
 - [ ] `MiniMothApiKey` → `mm_live_…`, redeploy backend
 - [ ] `OtpTestPhones` → blank
 - [ ] PayU live key/salt + `PayuEnv=live` (needs PayU go-live approval)
-- [ ] SES production access
+- [ ] SMTP credentials set (`SmtpHost`, `SmtpUser`, `SmtpPassword`, `SmtpFrom`)
 - [ ] Shiprocket account / pickup address confirmed
 - [ ] DynamoDB point-in-time recovery enabled on `orders`, `users`, `products`
 - [ ] CloudWatch alarm on Lambda errors for `satvex-api-dev`

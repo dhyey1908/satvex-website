@@ -49,7 +49,7 @@ cp .env.example .env   # fill in JWT_SECRET at minimum for local dev
 npm run dev             # http://localhost:4000
 ```
 
-Local development talks to **real AWS DynamoDB/S3/SES** (there is no local DynamoDB emulator in this setup) — so most endpoints will return errors until you've deployed the infrastructure (see below) and pointed `.env` at the real table/bucket names and your AWS credentials are available (e.g. via `aws configure` or `AWS_PROFILE`).
+Local development talks to **real AWS DynamoDB/S3** (there is no local DynamoDB emulator in this setup) — so most endpoints will return errors until you've deployed the infrastructure (see below) and pointed `.env` at the real table/bucket names and your AWS credentials are available (e.g. via `aws configure` or `AWS_PROFILE`).
 
 ### Frontend
 
@@ -62,7 +62,7 @@ npm run dev             # http://localhost:5173
 
 ## Environment Configuration
 
-- `backend/.env.example` — API URL, DynamoDB table names, S3 bucket, JWT secret, SES sender email. Copy to `.env` and fill in.
+- `backend/.env.example` — API URL, DynamoDB table names, S3 bucket, JWT secret, SMTP settings. Copy to `.env` and fill in.
 - `frontend/.env.example` — `VITE_API_URL`. Copy to `.env` and fill in.
 
 Never commit real `.env` files — only `.env.example`.
@@ -71,7 +71,7 @@ Never commit real `.env` files — only `.env.example`.
 
 The backend infrastructure (7 DynamoDB tables, Lambda, HTTP API, media S3 bucket + CloudFront, frontend S3 bucket + CloudFront) is defined in [backend/template.yaml](backend/template.yaml) using AWS SAM.
 
-**One-time setup**: configure an AWS CLI profile with credentials that can create the required resources (`aws configure --profile satvex`), and verify your SES sender email/domain in the SES console (password-reset emails will fail to send otherwise — SES starts in sandbox mode, so it can only send to verified recipients until you request production access).
+**One-time setup**: configure an AWS CLI profile with credentials that can create the required resources (`aws configure --profile satvex`). Outgoing email (password reset, contact and shipment alerts) uses plain SMTP — create a mailbox/SMTP login with any provider and put it in `SmtpHost/SmtpPort/SmtpUser/SmtpPassword/SmtpFrom`.
 
 ### 1. Deploy the backend
 
@@ -88,7 +88,7 @@ npm run deploy          # = sam build && sam deploy — the [default] section of
 
 ### 2. Seed data / admin account
 
-Point `backend/.env`'s table names, `S3_MEDIA_BUCKET`, `CLOUDFRONT_MEDIA_URL`, `JWT_SECRET`, and `SES_SENDER_EMAIL` at the real values from the stack outputs (same values used in `samconfig.toml` above), plus set `ADMIN_BOOTSTRAP_EMAIL`/`ADMIN_BOOTSTRAP_PASSWORD`, then:
+Point `backend/.env`'s table names, `S3_MEDIA_BUCKET`, `CLOUDFRONT_MEDIA_URL`, `JWT_SECRET`, and the `SMTP_*` values at the real values from the stack outputs (same values used in `samconfig.toml` above), plus set `ADMIN_BOOTSTRAP_EMAIL`/`ADMIN_BOOTSTRAP_PASSWORD`, then:
 
 ```bash
 cd backend
@@ -148,7 +148,7 @@ Pushing to `main` automatically deploys both backend and frontend via [.github/w
    | `AWS_DEPLOY_ROLE_ARN` | ARN from step 1 |
    | `FRONTEND_ORIGIN` | Your production frontend URL (e.g. `https://satvex.co.in`) |
    | `JWT_SECRET` | A long random string |
-   | `SES_SENDER_EMAIL` | Your verified SES sender address |
+   | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` | Your SMTP provider's server and login; `SMTP_FROM` must be an address the account may send as |
    | `SITE_URL` | Same as `FRONTEND_ORIGIN`, used for sitemap generation |
 
 3. Push to `main` (or run the workflow manually from the Actions tab). The workflow deploys the backend stack first, reads its outputs (API URL, frontend bucket, CloudFront domain), then builds the frontend against that API URL and syncs it to S3 + invalidates CloudFront.
@@ -159,7 +159,7 @@ Everything in `infra/github-oidc.yaml`'s IAM policy is scoped to resources this 
 
 - **401 on every request from the frontend**: check `VITE_API_URL` and that the backend's `FRONTEND_ORIGIN`/CORS config matches the frontend's actual origin exactly (including protocol).
 - **500 errors from any DynamoDB-backed endpoint**: the table doesn't exist yet, or `.env`/Lambda env vars don't match the real table names — re-check the stack outputs.
-- **Password reset emails never arrive**: your SES sender identity isn't verified, or (in sandbox mode) the recipient isn't a verified address.
+- **Password reset emails never arrive**: check the SMTP settings (host, port, login) and that `SMTP_FROM` is an address your provider lets you send as; the Lambda logs show the SMTP error.
 - **Product images don't upload from the admin panel**: the media S3 bucket's CORS config only allows the exact `FrontendOrigin` configured at deploy time — update the parameter and redeploy if your frontend origin changed.
 - **`sam local invoke` hangs / times out**: this is a known Docker-Desktop-on-Windows quirk with SAM's local Lambda emulator, unrelated to the app code — deploy and test against the real stack instead, or use `sam local start-api` if you need to debug locally.
 - **GitHub Actions fails with "not authorized to perform sts:AssumeRoleWithWebIdentity"**: the OIDC bootstrap stack (`infra/github-oidc.yaml`) hasn't been deployed yet, `AWS_DEPLOY_ROLE_ARN` is wrong, or the workflow is running on a branch other than the one set in `AllowedBranch`.

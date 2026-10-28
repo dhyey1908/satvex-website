@@ -11,4 +11,4 @@ profile = "REPLACE_ME"
 confirm_changeset = false
 fail_on_empty_changeset = false
 capabilities = "CAPABILITY_IAM"
-parameter_overrides = "Stage=prod FrontendOrigin=https://your-domain.com JwtSecret=REPLACE_ME SesSenderEmail=REPLACE_ME ResetTokenExpiresMin=30"
+parameter_overrides = "Stage=prod FrontendOrigin=https://your-domain.com JwtSecret=REPLACE_ME SmtpHost=smtp.example.com SmtpPort=587 SmtpUser=REPLACE_ME SmtpPassword=REPLACE_ME SmtpFrom=no-reply@example.com ResetTokenExpiresMin=30"

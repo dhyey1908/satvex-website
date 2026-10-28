@@ -121,9 +121,8 @@ const paymentsSettingsSchema = z.object({
 });
 
 const notificationsSettingsSchema = z.object({
-  // Lowercased because SES's sandbox-mode verified-recipient check is
-  // case-sensitive — a mixed-case address here can silently fail to send
-  // even when the (lowercase) identity is verified.
+  // Lowercased so the same address is always stored one way — mail providers
+  // may treat the recipient case-sensitively.
   shipmentAlertEmail: z.string().trim().toLowerCase().email().optional().or(z.literal('')),
 });
 
