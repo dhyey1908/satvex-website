@@ -325,3 +325,6 @@
 /* Thumbnails: white tiles; the selected one gets a 2px primary border. */
 .gallery-thumb { background: var(--color-surface); }
 .gallery-thumb.active { border-color: var(--color-primary); box-shadow: 0 0 0 0.5px var(--color-primary); border-width: 2px; }
+/* The video tile keeps its own fill: the plain white tile rule above must not win over it (a white play icon on white looked like an empty box). */
+.gallery-thumb.gallery-thumb-video { background: var(--color-primary); color: var(--color-primary-contrast); }
+.gallery-thumb.gallery-thumb-video:hover { background: var(--color-primary-hover); }
