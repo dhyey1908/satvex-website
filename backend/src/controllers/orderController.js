@@ -13,6 +13,7 @@ const AppError = require('../utils/AppError');
 const { ok, created } = require('../utils/response');
 const { stripOrderCost } = require('../utils/productVisibility');
 const { lineSubtotal } = require('../utils/money');
+const adminNotifier = require('../services/adminNotifier');
 const {
   ordersQuerySchema,
   queryOrders,
@@ -311,6 +312,10 @@ async function checkout(req, res) {
     await shipmentService.triggerShipmentIfNeeded(order.orderId);
   }
 
+  // COD orders are final the moment they are placed, so tell the admin now. Online
+  // orders are announced when the payment is confirmed (see the markPaid call sites).
+  if (order.paymentMethod === 'COD') await adminNotifier.codOrderPlaced(order);
+
   // Step 8: return.
   created(res, { order: toCustomerOrder(order), payuParams });
 }
@@ -344,6 +349,7 @@ async function cancelMyOrder(req, res) {
   }
   await orderService.updateStatus(req.params.id, 'Cancelled');
   const released = await releaseCancelledOrder(order);
+  await adminNotifier.orderCancelled(order);
   ok(res, { updated: true, status: 'Cancelled', shipmentCancelled: released.shipment.cancelled });
 }
 
@@ -400,10 +406,13 @@ async function getPaymentStatus(req, res) {
   if (result?.status === 'success') {
     if (result.amount != null && Number(result.amount).toFixed(2) !== Number(order.total).toFixed(2)) {
       await orderService.flagForReview(order.orderId, 'Payment amount mismatch on reconciliation.');
+      await adminNotifier.needsReview(order.orderId, 'Payment amount mismatch on reconciliation.');
     } else {
-      await orderService.markPaid(order.orderId, { payuMihpayid: result.mihpayid, paidAt: new Date().toISOString() });
+      const paid = await orderService.markPaid(order.orderId, { payuMihpayid: result.mihpayid, paidAt: new Date().toISOString() });
       await orderService.recordPaymentAttemptResult(order.orderId, { txnid, status: 'success', mihpayid: result.mihpayid, mode: result.mode, bankRefNum: result.bankRefNum });
       await shipmentService.triggerShipmentIfNeeded(order.orderId);
+      // Only the call that actually flips the order to paid announces it (a repeat is a no-op).
+      if (paid?.updated) await adminNotifier.onlineOrderPaid(order.orderId, { late: paid.late });
     }
   } else if (result?.status === 'failure') {
     await orderService.markPaymentAttempt(order.orderId, 'FAILED');
@@ -458,9 +467,10 @@ async function retryPayment(req, res) {
   const previousTxnid = latestAttemptTxnid(order);
   const result = await payuService.verifyPayment(previousTxnid).catch(() => null);
   if (result?.status === 'success') {
-    await orderService.markPaid(order.orderId, { payuMihpayid: result.mihpayid, paidAt: new Date().toISOString() });
+    const paid = await orderService.markPaid(order.orderId, { payuMihpayid: result.mihpayid, paidAt: new Date().toISOString() });
     await orderService.recordPaymentAttemptResult(order.orderId, { txnid: previousTxnid, status: 'success', mihpayid: result.mihpayid, mode: result.mode, bankRefNum: result.bankRefNum });
     await shipmentService.triggerShipmentIfNeeded(order.orderId);
+    if (paid?.updated) await adminNotifier.onlineOrderPaid(order.orderId, { late: paid.late });
     return ok(res, { payuParams: null, alreadyPaid: true });
   }
 

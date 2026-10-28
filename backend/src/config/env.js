@@ -8,10 +8,19 @@ function required(name, fallback) {
   return value;
 }
 
+// The public storefront URL for links in emails: the https www origin if listed,
+// else the first https one, else the first entry (FRONTEND_ORIGIN is a CORS
+// allow-list and may hold several, including localhost).
+function pickSiteUrl(list) {
+  const origins = String(list).split(',').map((o) => o.trim()).filter(Boolean);
+  return origins.find((o) => /^https:\/\/www\./.test(o)) || origins.find((o) => o.startsWith('https://')) || origins[0];
+}
+
 const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT || 4000),
   frontendOrigin: required('FRONTEND_ORIGIN', 'http://localhost:5173'),
+  siteUrl: pickSiteUrl(required('FRONTEND_ORIGIN', 'http://localhost:5173')),
   // Manual override for this Lambda's own public URL, used to build PayU's
   // surl/furl (PayU's hosted checkout POSTs the payment result straight
   // back to a backend URL we give it, not the frontend). Normally unset —

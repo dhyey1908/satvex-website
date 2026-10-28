@@ -1,4 +1,5 @@
 const orderService = require('../services/orderService');
+const adminNotifier = require('../services/adminNotifier');
 const payuService = require('../services/payuService');
 const shipmentService = require('../services/shipmentService');
 const env = require('../config/env');
@@ -65,8 +66,9 @@ async function callback(req, res) {
     // be flagged as a mismatch against PayU's "224.82".
     if (result.amount != null && Number(result.amount).toFixed(2) !== Number(order.total).toFixed(2)) {
       await orderService.flagForReview(order.orderId, 'Payment amount mismatch on PayU callback.');
+      await adminNotifier.needsReview(order.orderId, 'Payment amount mismatch on PayU callback.');
     } else {
-      await orderService.markPaid(order.orderId, { payuMihpayid: result.mihpayid, paidAt: new Date().toISOString() });
+      const paid = await orderService.markPaid(order.orderId, { payuMihpayid: result.mihpayid, paidAt: new Date().toISOString() });
       await orderService.recordPaymentAttemptResult(order.orderId, {
         txnid,
         status: 'success',
@@ -75,6 +77,7 @@ async function callback(req, res) {
         bankRefNum: result.bankRefNum || body.bank_ref_num,
       });
       await shipmentService.triggerShipmentIfNeeded(order.orderId);
+      if (paid?.updated) await adminNotifier.onlineOrderPaid(order.orderId, { late: paid.late });
     }
   } else if (result?.status === 'failure') {
     await orderService.markPaymentAttempt(order.orderId, 'FAILED');
