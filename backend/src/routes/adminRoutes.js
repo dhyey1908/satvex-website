@@ -27,6 +27,7 @@ router.put('/orders/:id/status', asyncHandler(orderController.adminUpdateStatus)
 router.post('/orders/:id/refund', asyncHandler(orderController.adminRefund));
 router.post('/orders/:id/retry-shipment', asyncHandler(orderController.adminRetryShipment));
 router.post('/orders/:id/link-shipment', asyncHandler(orderController.adminLinkManualShipment));
+router.delete('/orders/:id/link-shipment', asyncHandler(orderController.adminUnlinkManualShipment));
 router.get('/shipments/sync-issues', asyncHandler(orderController.adminShipmentSyncIssues));
 router.post('/shipments/retry-all', asyncHandler(orderController.adminRetryAllShipments));
 router.post('/shiprocket/test-connection', asyncHandler(orderController.adminTestShiprocketConnection));

@@ -9,6 +9,7 @@ export const adminService = {
   order: (id) => api.get(`/admin/orders/${encodeURIComponent(id)}`),
   updateOrderStatus: (id, status) => api.put(`/admin/orders/${encodeURIComponent(id)}/status`, { status }),
   refundOrder: (id, note) => api.post(`/admin/orders/${encodeURIComponent(id)}/refund`, note ? { note } : {}),
+  unlinkShipment: (id) => api.delete(`/admin/orders/${encodeURIComponent(id)}/link-shipment`),
   linkShipment: (id, data) => api.post(`/admin/orders/${encodeURIComponent(id)}/link-shipment`, data),
   retryShipment: (id) => api.post(`/admin/orders/${encodeURIComponent(id)}/retry-shipment`, {}),
   shipmentSyncIssues: (params) => api.get('/admin/shipments/sync-issues', params),

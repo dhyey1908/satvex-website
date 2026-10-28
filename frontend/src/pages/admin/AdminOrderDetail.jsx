@@ -87,6 +87,23 @@ export function AdminOrderDetail() {
 
   const [linkingShipment, setLinkingShipment] = useState(false);
 
+  async function handleUnlinkShipment() {
+    const ok = await confirm({
+      title: 'Unlink this shipment?',
+      message: 'The order goes back to "Sync Failed" and appears in Shipment Sync Issues again, where you can link the right shipment or retry.',
+      confirmLabel: 'Unlink',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await adminService.unlinkShipment(id);
+      showToast('Unlinked. The order is back in Shipment Sync Issues.', 'success');
+      load();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
   async function handleRetryShipment() {
     setRetryingShipment(true);
     try {
@@ -268,6 +285,23 @@ export function AdminOrderDetail() {
             Last Tracking Update: <strong>{order.lastTrackingStatus}</strong>
           </p>
         )}
+        {order.shipmentManuallyLinked && (
+          <>
+            <p>
+              Shiprocket order id: <strong>{order.shiprocketOrderId}</strong>
+            </p>
+            {!order.lastTrackingStatus && (
+              <>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setLinkingShipment(true)}>
+                  Edit
+                </button>{' '}
+                <button type="button" className="btn btn-ghost btn-sm" onClick={handleUnlinkShipment}>
+                  Unlink (entered by mistake)
+                </button>
+              </>
+            )}
+          </>
+        )}
         {order.shipmentStatus !== 'label_generated' && !order.shipmentManuallyLinked && (
           <>
             <button type="button" className="btn btn-secondary btn-sm" onClick={handleRetryShipment} disabled={retryingShipment}>
@@ -279,7 +313,7 @@ export function AdminOrderDetail() {
           </>
         )}
         {order.manualShipmentNote && <p>Note: {order.manualShipmentNote}</p>}
-        <LinkShipmentModal open={linkingShipment} onClose={() => setLinkingShipment(false)} orderId={id} onLinked={load} />
+        <LinkShipmentModal open={linkingShipment} onClose={() => setLinkingShipment(false)} orderId={id} onLinked={load} initial={order.shipmentManuallyLinked ? order : null} />
       </div>
 
       <div className="admin-form-section">

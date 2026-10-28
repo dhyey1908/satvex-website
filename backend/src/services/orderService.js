@@ -673,29 +673,44 @@ async function recordAwbAssigned(orderId, { awbCode, courierName, shiprocketShip
 // known, and flags it so the automatic booking, the retry sweep and "Retry all"
 // never create a second Shiprocket order for it.
 async function recordManualShipment(orderId, { shiprocketOrderId, awbCode, courierName, note }) {
-  await recordShiprocketOrderCreated(orderId, { shiprocketOrderId });
-  if (awbCode) {
-    await recordAwbAssigned(orderId, { awbCode, courierName: courierName || null, shiprocketShipmentId: null });
-  } else if (courierName) {
-    await docClient.send(
-      new UpdateCommand({
-        TableName: TABLE,
-        Key: { orderId },
-        UpdateExpression: 'SET courierName = :courier, updatedAt = :now',
-        ExpressionAttributeValues: { ':courier': courierName, ':now': new Date().toISOString() },
-      })
-    );
-  }
+  const now = new Date().toISOString();
   await docClient.send(
     new UpdateCommand({
       TableName: TABLE,
       Key: { orderId },
-      UpdateExpression: 'SET shipmentManuallyLinked = :true, manualShipmentAt = :now, manualShipmentNote = :note, updatedAt = :now',
-      ExpressionAttributeValues: { ':true': true, ':now': new Date().toISOString(), ':note': note || null },
+      // Replaces every manual-link field (not merges), so an edit with the AWB
+      // left blank clears a wrong AWB instead of keeping it.
+      UpdateExpression:
+        'SET shiprocketOrderId = :srId, awbCode = :awb, courierName = :courier, shipmentStatus = :status, shipmentManuallyLinked = :true, manualShipmentAt = :now, manualShipmentNote = :note, updatedAt = :now',
+      ConditionExpression: 'attribute_exists(orderId)',
+      ExpressionAttributeValues: {
+        ':srId': String(shiprocketOrderId),
+        ':awb': awbCode || null,
+        ':courier': courierName || null,
+        ':status': awbCode ? 'awb_assigned' : 'order_created',
+        ':true': true,
+        ':now': now,
+        ':note': note || null,
+      },
     })
   );
   // A confirmed order with a real shipment is "Processing" from here on.
   await advanceStatusIfEligible(orderId, 'Processing', ['Pending', 'Confirmed']);
+}
+
+// Undo a manual link (entered by mistake): the order goes back to "Sync Failed"
+// so it shows up in Shipment Sync Issues again and can be re-linked or retried.
+async function clearManualShipment(orderId) {
+  await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE,
+      Key: { orderId },
+      UpdateExpression:
+        'SET shipmentStatus = :failed, updatedAt = :now REMOVE shiprocketOrderId, awbCode, courierName, shipmentManuallyLinked, manualShipmentAt, manualShipmentNote',
+      ConditionExpression: 'attribute_exists(orderId) AND shipmentManuallyLinked = :true',
+      ExpressionAttributeValues: { ':failed': 'sync_failed', ':true': true, ':now': new Date().toISOString() },
+    })
+  );
 }
 
 async function recordPickupScheduled(orderId) {
@@ -870,6 +885,7 @@ module.exports = {
   markShipmentSyncFailed,
   recordShiprocketOrderCreated,
   recordManualShipment,
+  clearManualShipment,
   markShipmentCancelled,
   findByShiprocketOrderId,
   recordAwbAssigned,

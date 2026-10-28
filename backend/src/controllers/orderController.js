@@ -685,6 +685,11 @@ async function adminLinkManualShipment(req, res) {
   ok(res, { order });
 }
 
+async function adminUnlinkManualShipment(req, res) {
+  const order = await shipmentService.unlinkManualShipment(req.params.id);
+  ok(res, { order });
+}
+
 async function adminRetryShipment(req, res) {
   const order = await orderService.findById(req.params.id);
   if (!order) {
@@ -755,6 +760,7 @@ module.exports = {
   adminRefund,
   adminRetryShipment,
   adminLinkManualShipment,
+  adminUnlinkManualShipment,
   adminShipmentSyncIssues,
   adminRetryAllShipments,
   adminTestShiprocketConnection,

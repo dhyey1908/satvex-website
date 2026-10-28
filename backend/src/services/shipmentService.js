@@ -287,6 +287,12 @@ async function linkManualShipment(orderId, { shiprocketOrderId, awbCode, courier
   if (['label_generated', 'cancelled'].includes(order.shipmentStatus) || order.lastTrackingStatus) {
     throw new AppError('This order already has a working shipment, so there is nothing to link.', 409, 'SHIPMENT_ALREADY_SYNCED');
   }
+  // A Shiprocket order id belongs to exactly one of our orders: tracking updates
+  // are matched on it, so a typo that hits another order would mix their tracking up.
+  const owner = await orderService.findByShiprocketOrderId(shiprocketOrderId);
+  if (owner && owner.orderId !== orderId) {
+    throw new AppError(`That Shiprocket order id is already linked to another order (#${owner.orderId.slice(0, 8).toUpperCase()}). Check the number.`, 409, 'SHIPROCKET_ID_IN_USE');
+  }
   // Wait out an automatic attempt that is mid-flight rather than racing it.
   const { acquired } = await orderService.acquireShipmentLock(orderId);
   if (!acquired) throw new AppError('An automatic shipment attempt is running for this order — try again in a minute.', 409, 'SHIPMENT_IN_PROGRESS');
@@ -297,6 +303,18 @@ async function linkManualShipment(orderId, { shiprocketOrderId, awbCode, courier
   } finally {
     await orderService.releaseShipmentLock(orderId);
   }
+  return orderService.findById(orderId);
+}
+
+// Undo a manual link made by mistake: back to "Sync Failed" so it can be fixed.
+async function unlinkManualShipment(orderId) {
+  const order = await orderService.findById(orderId);
+  if (!order) throw new AppError('Order not found.', 404, 'NOT_FOUND');
+  if (!order.shipmentManuallyLinked) throw new AppError('This order has no manual shipment link.', 409, 'NOT_LINKED');
+  if (order.lastTrackingStatus) {
+    throw new AppError('The courier has already reported movement for this shipment, so it can no longer be unlinked.', 409, 'SHIPMENT_IN_MOTION');
+  }
+  await orderService.clearManualShipment(orderId);
   return orderService.findById(orderId);
 }
 
@@ -401,4 +419,4 @@ async function cancelShipmentForOrder(order) {
   }
 }
 
-module.exports = { attemptShipmentCreation, triggerShipmentIfNeeded, retryShipment, linkManualShipment, listSyncIssues, cancelShipmentForOrder };
+module.exports = { attemptShipmentCreation, triggerShipmentIfNeeded, retryShipment, linkManualShipment, unlinkManualShipment, listSyncIssues, cancelShipmentForOrder };

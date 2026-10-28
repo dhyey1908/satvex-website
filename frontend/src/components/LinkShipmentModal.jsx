@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Modal } from './Modal';
 import { adminService } from '../services/adminService';
@@ -10,11 +10,20 @@ import { useToast } from '../context/ToastContext';
  * order id here links it to this order, so tracking updates reach it, the retry
  * stops, and it leaves the Sync Issues list. Nothing is created at Shiprocket.
  */
-export function LinkShipmentModal({ open, onClose, orderId, onLinked }) {
+export function LinkShipmentModal({ open, onClose, orderId, onLinked, initial = null }) {
   const { showToast } = useToast();
   const [form, setForm] = useState({ shiprocketOrderId: '', awbCode: '', courierName: '', note: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const editing = Boolean(initial);
+
+  // Opening to EDIT pre-fills what was entered before; opening to link starts empty.
+  useEffect(() => {
+    if (open) {
+      setForm({ shiprocketOrderId: initial?.shiprocketOrderId || '', awbCode: initial?.awbCode || '', courierName: initial?.courierName || '', note: initial?.manualShipmentNote || '' });
+      setError(null);
+    }
+  }, [open, initial]);
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
@@ -27,7 +36,7 @@ export function LinkShipmentModal({ open, onClose, orderId, onLinked }) {
     setError(null);
     try {
       await adminService.linkShipment(orderId, form);
-      showToast('Linked. This order now follows the Shiprocket shipment.', 'success');
+      showToast(editing ? 'Shipment details updated.' : 'Linked. This order now follows the Shiprocket shipment.', 'success');
       onLinked?.();
       onClose();
     } catch (err) {
@@ -41,12 +50,12 @@ export function LinkShipmentModal({ open, onClose, orderId, onLinked }) {
     <Modal
       open={open}
       onClose={onClose}
-      title="Shipped manually in Shiprocket"
+      title={editing ? 'Edit manual shipment' : 'Shipped manually in Shiprocket'}
       footer={
         <>
           <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancel</button>
           <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>
-            {saving ? <Loader2 size={16} className="btn-spinner" /> : 'Link shipment'}
+            {saving ? <Loader2 size={16} className="btn-spinner" /> : editing ? 'Save changes' : 'Link shipment'}
           </button>
         </>
       }

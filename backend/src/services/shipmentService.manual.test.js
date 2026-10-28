@@ -17,6 +17,7 @@ beforeEach(() => {
   calls = [];
   orderService.findById = async (id) => db[id] || null;
   orderService.listAll = async () => Object.values(db);
+  orderService.findByShiprocketOrderId = async () => null;
   orderService.acquireShipmentLock = async () => ({ acquired: true });
   orderService.releaseShipmentLock = async () => calls.push('release');
   orderService.recordManualShipment = async (id, input) => {
@@ -59,4 +60,30 @@ test('does not race an automatic attempt that holds the lock', async () => {
   orderService.acquireShipmentLock = async () => ({ acquired: false });
   await assert.rejects(() => shipmentService.linkManualShipment('A', { shiprocketOrderId: '987654' }), /running/i);
   assert.equal(calls.length, 0);
+});
+
+test('a Shiprocket order id already linked to ANOTHER order is rejected (typo protection)', async () => {
+  orderService.findByShiprocketOrderId = async () => ({ orderId: 'OTHER1234-xxxx' });
+  await assert.rejects(() => shipmentService.linkManualShipment('A', { shiprocketOrderId: '987654' }), /already linked to another order \(#OTHER123\)/);
+  assert.equal(calls.length, 0);
+});
+
+test('editing: re-linking the SAME order with corrected values is allowed', async () => {
+  await shipmentService.linkManualShipment('A', { shiprocketOrderId: '111111' });
+  orderService.findByShiprocketOrderId = async () => ({ orderId: 'A' }); // its own id
+  await shipmentService.linkManualShipment('A', { shiprocketOrderId: '222222', awbCode: 'AWB99999' });
+  const edits = calls.filter((c) => c[0] === 'manual');
+  assert.equal(edits.length, 2);
+  assert.equal(edits[1][2].shiprocketOrderId, '222222');
+});
+
+test('unlinking puts the order back in Sync Issues; refused when it is not linked or already moving', async () => {
+  await assert.rejects(() => shipmentService.unlinkManualShipment('A'), /no manual shipment link/i);
+  orderService.clearManualShipment = async (id) => { Object.assign(db[id], { shipmentStatus: 'sync_failed', shipmentManuallyLinked: undefined, shiprocketOrderId: undefined }); };
+  await shipmentService.linkManualShipment('A', { shiprocketOrderId: '987654' });
+  assert.equal((await shipmentService.listSyncIssues()).issues.length, 0);
+  await shipmentService.unlinkManualShipment('A');
+  assert.equal((await shipmentService.listSyncIssues()).issues.length, 1);
+  db.A.shipmentManuallyLinked = true; db.A.lastTrackingStatus = 'In Transit';
+  await assert.rejects(() => shipmentService.unlinkManualShipment('A'), /already reported movement/i);
 });
