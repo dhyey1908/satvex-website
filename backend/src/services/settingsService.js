@@ -11,13 +11,16 @@ const DEFAULT_SETTINGS = {
   contactPhone: '',
   contactEmail: '',
   instagramUrl: '',
+  pinterestUrl: '',
   brandName: 'Satvex',
   logoUrl: '',
   heroBanners: [],
   announcements: [],
   authImage: '',
   aboutImage: '',
-  tax: { enabled: true, percent: 18 },
+  // pricesIncludeGst (the PRICES_INCLUDE_GST flag): false = GST is added on top of
+  // the listed price (current behaviour); true = listed prices already include it.
+  tax: { enabled: true, percent: 18, pricesIncludeGst: false },
   // Dynamic, Shiprocket-rate-based shipping — see pricingService.js /
   // shippingRateService.js. fallbackFlatCharge keeps pricing working even
   // before Shiprocket is connected (shiprocket.enabled stays false until
@@ -64,6 +67,11 @@ const DEFAULT_SETTINGS = {
   // total. null = not set, so fees show as "unavailable" rather than an
   // invented number.
   finance: { paymentGatewayFeePercent: null },
+  // Storefront review display. showUnverified=false (default) shows ONLY
+  // reviews stamped verifiedPurchase (written after a real delivered order);
+  // anything else in the table (imported/seeded rows) stays hidden and out of
+  // the average. Flip to true only if every stored review is genuine.
+  reviews: { showUnverified: false },
   whyPillars: [
     { title: 'Flexible', description: 'Moves comfortably with your everyday needs.' },
     { title: 'Comfortable', description: 'Lightweight designs created for effortless everyday use.' },

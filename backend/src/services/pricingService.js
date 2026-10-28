@@ -5,6 +5,7 @@ const settingsService = require('./settingsService');
 const shippingRateService = require('./shippingRateService');
 const deliveryEligibilityService = require('./deliveryEligibilityService');
 const AppError = require('../utils/AppError');
+const { toPaise, fromPaise, percentOf } = require('../utils/money');
 
 /**
  * Re-derives a trustworthy line item from raw client input by re-reading the
@@ -54,14 +55,16 @@ async function resolveLineItem({ productId, sellingOptionId, selectedColors }) {
 
   const selectedColorDetails = selectedColors.map((id) => {
     const v = variantsById.get(id);
-    return { id, colorName: v.colorName, colorCode: v.colorCode };
+    return { id, colorName: v.colorName, colorCode: v.colorCode, image: v.image || null };
   });
 
   return {
     productId: product.productId,
     productName: product.name,
     productSlug: product.slug,
-    productImage: selectedColorDetails.length === 1 ? variantsById.get(selectedColorDetails[0].id)?.image || product.images?.[0] || null : product.images?.[0] || null,
+    // The photo of the colour the customer actually chose (the first selected
+    // one for a combo); the product's main photo only when that colour has none.
+    productImage: selectedColorDetails[0]?.image || product.images?.[0] || null,
     sellingOptionId: sellingOption.id,
     sellingOptionName: sellingOption.name,
     selectedColors,
@@ -102,9 +105,11 @@ async function validateCoupon(code, subtotal, userId) {
     }
   }
 
-  const rawDiscount =
-    coupon.discountType === 'percentage' ? (subtotal * coupon.discountValue) / 100 : coupon.discountValue;
-  const discountAmount = Number(Math.min(rawDiscount, subtotal).toFixed(2));
+  // Computed in paise and rounded once (see utils/money.js).
+  const subtotalPaise = toPaise(subtotal);
+  const rawPaise =
+    coupon.discountType === 'percentage' ? percentOf(subtotalPaise, coupon.discountValue) : toPaise(coupon.discountValue);
+  const discountAmount = fromPaise(Math.min(rawPaise, subtotalPaise));
 
   return { code: coupon.code, discountType: coupon.discountType, discountValue: coupon.discountValue, discountAmount };
 }
@@ -135,28 +140,46 @@ async function calculateTotals({ items, couponCode, paymentMethod, userId, deliv
     await deliveryEligibilityService.assertDeliverable(deliveryPincode);
   }
 
-  const subtotal = Number(items.reduce((sum, item) => sum + item.subtotal, 0).toFixed(2));
+  // Everything below is integer paise (see utils/money.js); rupees appear only
+  // in the returned object.
+  const subtotalPaise = items.reduce((sum, item) => sum + toPaise(item.subtotal), 0);
+  const subtotal = fromPaise(subtotalPaise);
 
   let couponResult = null;
   if (couponCode) {
     couponResult = await validateCoupon(couponCode, subtotal, userId);
   }
-  const discountAmount = couponResult?.discountAmount || 0;
-  const taxableAmount = Number((subtotal - discountAmount).toFixed(2));
+  const discountPaise = couponResult ? toPaise(couponResult.discountAmount) : 0;
+  const discountAmount = fromPaise(discountPaise);
+  const afterCouponPaise = subtotalPaise - discountPaise;
 
   const settings = await settingsService.getSettings();
 
   const gstEnabled = Boolean(settings.tax?.enabled);
   const gstPercent = gstEnabled ? Number(settings.tax?.percent ?? 0) : 0;
-  const gstAmount = gstEnabled ? Number(((taxableAmount * gstPercent) / 100).toFixed(2)) : 0;
+  // PRICES_INCLUDE_GST (settings.tax.pricesIncludeGst, default false): when
+  // true the listed prices already contain GST, so the GST figure is the part
+  // INSIDE the price and nothing is added on top. GST is rounded once either way.
+  const pricesIncludeGst = gstEnabled && Boolean(settings.tax?.pricesIncludeGst);
+  const gstPaise = !gstEnabled
+    ? 0
+    : pricesIncludeGst
+      ? Math.round((afterCouponPaise * gstPercent) / (100 + gstPercent))
+      : percentOf(afterCouponPaise, gstPercent);
+  const taxablePaise = pricesIncludeGst ? afterCouponPaise - gstPaise : afterCouponPaise;
+  // The product total the customer pays for the goods (incl. GST), before
+  // shipping/COD: used for the free-shipping check and the prepaid discount.
+  const productTotalPaise = pricesIncludeGst ? afterCouponPaise : taxablePaise + gstPaise;
+  const taxableAmount = fromPaise(taxablePaise);
+  const gstAmount = fromPaise(gstPaise);
 
   // Free-shipping check is on the product total INCLUDING GST, after
   // coupon, before shipping/COD — per spec, not on raw subtotal.
-  const freeShippingBase = Number((taxableAmount + gstAmount).toFixed(2));
   const freeThreshold = Number(settings.shipping?.freeThreshold ?? 700);
-  const qualifiesForFreeShipping = freeThreshold > 0 && freeShippingBase >= freeThreshold;
+  const thresholdPaise = toPaise(freeThreshold);
+  const qualifiesForFreeShipping = freeThreshold > 0 && productTotalPaise >= thresholdPaise;
 
-  let shipping = 0;
+  let shippingPaise = 0;
   let shippingSource = 'free';
   let shippingCourier = null;
   let quotedFreightCharge = null;
@@ -164,7 +187,7 @@ async function calculateTotals({ items, couponCode, paymentMethod, userId, deliv
   if (!qualifiesForFreeShipping) {
     const weightKg = Number(settings.shiprocket?.defaultPackage?.weightKg ?? 0.3);
     const quote = await shippingRateService.getShippingQuote({ deliveryPincode, paymentMethod, weightKg });
-    shipping = quote.charge;
+    shippingPaise = toPaise(quote.charge);
     shippingSource = quote.source;
     shippingCourier = quote.courierName;
     quotedFreightCharge = quote.freightCharge ?? null;
@@ -179,22 +202,31 @@ async function calculateTotals({ items, couponCode, paymentMethod, userId, deliv
   // fee always applies (see shippingSettingsSchema's comment).
   const rateIncludesCodCharge = Boolean(settings.shipping?.rateIncludesCodCharge);
   const skipFlatCodFee = rateIncludesCodCharge && shippingSource === 'shiprocket';
-  const codCharge = paymentMethod === 'COD' && codEnabled && !skipFlatCodFee ? Number(settings.cod?.charge ?? 59) : 0;
+  const codPaise = paymentMethod === 'COD' && codEnabled && !skipFlatCodFee ? toPaise(settings.cod?.charge ?? 59) : 0;
 
   // Optional prepaid discount — off by default (type 'none'), applied to
   // the product total (never to shipping/COD).
-  let prepaidDiscount = 0;
+  let prepaidPaise = 0;
   const prepaidDiscountType = settings.cod?.prepaidDiscountType || 'none';
   if (paymentMethod === 'Online' && prepaidDiscountType !== 'none') {
-    const base = freeShippingBase;
-    const raw =
+    const rawPaise =
       prepaidDiscountType === 'percentage'
-        ? (base * Number(settings.cod?.prepaidDiscountValue || 0)) / 100
-        : Number(settings.cod?.prepaidDiscountValue || 0);
-    prepaidDiscount = Number(Math.min(raw, base).toFixed(2));
+        ? percentOf(productTotalPaise, settings.cod?.prepaidDiscountValue || 0)
+        : toPaise(settings.cod?.prepaidDiscountValue || 0);
+    prepaidPaise = Math.min(rawPaise, productTotalPaise);
   }
 
-  const total = Number((taxableAmount + gstAmount + shipping + codCharge - prepaidDiscount).toFixed(2));
+  const totalPaise = productTotalPaise + shippingPaise + codPaise - prepaidPaise;
+
+  // What the customer saves in total: the admin's compare-at (MRP) markdown
+  // on every pack plus the coupon. Done here so the browser does no price math.
+  const markdownPaise = items.reduce(
+    (sum, item) =>
+      item.compareAtPrice > item.unitPrice
+        ? sum + (toPaise(item.compareAtPrice) - toPaise(item.unitPrice)) * Number(item.quantity || 1)
+        : sum,
+    0
+  );
 
   return {
     subtotal,
@@ -203,8 +235,10 @@ async function calculateTotals({ items, couponCode, paymentMethod, userId, deliv
     taxableAmount,
     gstPercent,
     gstAmount,
+    // true: prices already include GST (gstAmount is the portion inside them).
+    pricesIncludeGst,
     shippingEnabled: true,
-    shipping,
+    shipping: fromPaise(shippingPaise),
     shippingSource,
     shippingCourier,
     // Internal cost data (the courier's quoted rates) — persisted on the
@@ -214,16 +248,18 @@ async function calculateTotals({ items, couponCode, paymentMethod, userId, deliv
     quotedRtoCharge,
     freeShippingThreshold: freeThreshold,
     qualifiesForFreeShipping,
-    amountToFreeShipping: qualifiesForFreeShipping ? 0 : Number((freeThreshold - freeShippingBase).toFixed(2)),
+    amountToFreeShipping: qualifiesForFreeShipping ? 0 : fromPaise(thresholdPaise - productTotalPaise),
     // Pre-computed here (not on the frontend) so FreeShippingBanner.jsx can
     // stay a pure display component with zero arithmetic on its own props —
     // see src/checks/noClientSidePriceMath.test.js, which enforces that.
     freeShippingProgressPercent:
-      freeThreshold > 0 ? Math.min(100, Number(((freeShippingBase / freeThreshold) * 100).toFixed(1))) : 100,
-    codCharge,
-    prepaidDiscount,
+      freeThreshold > 0 ? Math.min(100, Number(((productTotalPaise / thresholdPaise) * 100).toFixed(1))) : 100,
+    codCharge: fromPaise(codPaise),
+    prepaidDiscount: fromPaise(prepaidPaise),
+    productSavings: fromPaise(markdownPaise),
+    savingsAmount: fromPaise(markdownPaise + discountPaise),
     paymentMethod,
-    total,
+    total: fromPaise(totalPaise),
   };
 }
 
@@ -239,7 +275,7 @@ async function calculateTotals({ items, couponCode, paymentMethod, userId, deliv
  * assumption about which of those applies.
  */
 function buildPrepaidOffer(codTotals, onlineTotals) {
-  const savings = Number((codTotals.total - onlineTotals.total).toFixed(2));
+  const savings = fromPaise(toPaise(codTotals.total) - toPaise(onlineTotals.total));
   return {
     savings: savings > 0 ? savings : 0,
     codCharge: codTotals.codCharge,

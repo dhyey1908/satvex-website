@@ -12,6 +12,7 @@ const { checkoutSchema, quoteSchema, updateOrderStatusSchema, refundSchema } = r
 const AppError = require('../utils/AppError');
 const { ok, created } = require('../utils/response');
 const { stripOrderCost } = require('../utils/productVisibility');
+const { lineSubtotal } = require('../utils/money');
 const {
   ordersQuerySchema,
   queryOrders,
@@ -99,7 +100,7 @@ async function resolveOrderItems(userId) {
         sellingOptionId: cartItem.sellingOptionId,
         selectedColors: cartItem.selectedColors,
       });
-      const subtotal = Number((lineItem.unitPrice * cartItem.quantity).toFixed(2));
+      const subtotal = lineSubtotal(lineItem.unitPrice, cartItem.quantity);
       return { ...lineItem, quantity: cartItem.quantity, subtotal };
     })
   );
@@ -279,6 +280,7 @@ async function checkout(req, res) {
       discountAmount: totals.discountAmount,
       gstPercent: totals.gstPercent,
       gstAmount: totals.gstAmount,
+      pricesIncludeGst: totals.pricesIncludeGst,
       shipping: totals.shipping,
       shippingCourier: totals.shippingCourier,
       shippingSource: totals.shippingSource,

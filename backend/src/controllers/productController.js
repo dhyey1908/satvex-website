@@ -4,6 +4,7 @@ const { productSchema, productUpdateSchema } = require('../validators/productVal
 const AppError = require('../utils/AppError');
 const { ok, created } = require('../utils/response');
 const { productForViewer } = require('../utils/productVisibility');
+const offerService = require('../services/offerService');
 const { productsQuerySchema, queryProducts } = require('../services/adminListQueries');
 
 function assignIdsIfMissing(list, prefix) {
@@ -12,10 +13,19 @@ function assignIdsIfMissing(list, prefix) {
 
 const forViewer = productForViewer;
 
+// Customers get the display-only offer figures; admins get the raw product so
+// the product form can save it back unchanged.
+async function forResponse(product, isAdmin) {
+  if (isAdmin) return forViewer(product, true);
+  const [decorated] = await offerService.decorateProducts([forViewer(product, false)]);
+  return decorated;
+}
+
 async function list(req, res) {
   const isAdmin = req.user?.role === 'admin';
   const products = await productService.listProducts({ onlyActive: !isAdmin });
-  ok(res, { products: products.map((p) => forViewer(p, isAdmin)) });
+  const visible = products.map((p) => forViewer(p, isAdmin));
+  ok(res, { products: isAdmin ? visible : await offerService.decorateProducts(visible) });
 }
 
 // Admin catalogue: search/filter/sort/pagination over every product (active
@@ -34,7 +44,7 @@ async function getById(req, res) {
   if (!product || (!product.isActive && !isAdmin)) {
     throw new AppError('Product not found.', 404, 'NOT_FOUND');
   }
-  ok(res, { product: forViewer(product, isAdmin) });
+  ok(res, { product: await forResponse(product, isAdmin) });
 }
 
 async function getBySlug(req, res) {
@@ -43,7 +53,7 @@ async function getBySlug(req, res) {
   if (!product || (!product.isActive && !isAdmin)) {
     throw new AppError('Product not found.', 404, 'NOT_FOUND');
   }
-  ok(res, { product: forViewer(product, isAdmin) });
+  ok(res, { product: await forResponse(product, isAdmin) });
 }
 
 async function create(req, res) {

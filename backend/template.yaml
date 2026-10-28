@@ -22,6 +22,14 @@ Parameters:
     Type: String
     NoEcho: true
     Description: Long random secret used to sign auth JWTs
+  FrontendCanonicalHost:
+    Type: String
+    Default: ''
+    Description: Canonical storefront host, e.g. www.satvex.co.in. When set, its apex (satvex.co.in) is 301-redirected to it at the CDN edge. Empty = no redirect.
+  PrerenderedProductSlugs:
+    Type: String
+    Default: butterfly
+    Description: Comma-separated product slugs the frontend build prerendered (see frontend/scripts/prerender.js output). Listed slugs are served their static page; any other product URL falls back to the normal SPA shell. Update when you add a product, then redeploy the frontend.
   SmtpHost:
     Type: String
     Default: ''
@@ -834,6 +842,9 @@ Resources:
         Comment: SPA route allowlist (real 404s) and security headers
         Runtime: cloudfront-js-2.0
       FunctionCode: !Sub |
+        var CANONICAL_HOST = '${FrontendCanonicalHost}';
+        var PRERENDERED_PRODUCTS = '${PrerenderedProductSlugs}'.split(',');
+
         var ROUTES = [
           /^\/$/,
           /^\/(shop|about|contact|shipping-policy|returns-refunds|privacy-policy|terms-conditions|login|wishlist|cart|checkout|profile|orders)$/,
@@ -885,10 +896,43 @@ Resources:
           var request = event.request;
           var uri = request.uri;
 
+          // One canonical host: the bare domain 301s to it (query string kept).
+          var host = request.headers.host ? request.headers.host.value : '';
+          if (CANONICAL_HOST && host && host !== CANONICAL_HOST && host === CANONICAL_HOST.replace(/^www\./, '')) {
+            var qs = [];
+            for (var key in request.querystring) {
+              var item = request.querystring[key];
+              qs.push(key + (item.value !== '' ? '=' + item.value : ''));
+            }
+            return {
+              statusCode: 301,
+              statusDescription: 'Moved Permanently',
+              headers: { location: { value: 'https://' + CANONICAL_HOST + uri + (qs.length ? '?' + qs.join('&') : '') } }
+            };
+          }
+
           // Files (assets, sitemap.xml, robots.txt, 404.html...) go to S3 as is.
           if (/\.[A-Za-z0-9]{1,10}$/.test(uri)) return request;
 
           var path = uri.length > 1 ? uri.replace(/\/+$/, '') : uri;
+
+          // Pages the frontend build prerendered (static title/meta/JSON-LD for
+          // crawlers that don't run JavaScript). React still takes over in the
+          // browser. Everything else below uses the generic SPA shell.
+          if (path === '/') {
+            request.uri = '/_pre/home.html';
+            return request;
+          }
+          if (path === '/shop') {
+            request.uri = '/_pre/shop.html';
+            return request;
+          }
+          var product = path.match(/^\/product\/([^\/]+)$/);
+          if (product && PRERENDERED_PRODUCTS.indexOf(product[1]) !== -1) {
+            request.uri = '/_pre/product/' + product[1] + '.html';
+            return request;
+          }
+
           for (var i = 0; i < ROUTES.length; i++) {
             if (ROUTES[i].test(path)) {
               request.uri = '/index.html';

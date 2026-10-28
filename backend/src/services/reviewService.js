@@ -3,6 +3,7 @@ const { docClient } = require('../config/dynamo');
 const env = require('../config/env');
 const productService = require('./productService');
 const AppError = require('../utils/AppError');
+const settingsService = require('./settingsService');
 const { scanAll } = require('../utils/listQuery');
 
 const TABLE = env.tables.reviews;
@@ -48,14 +49,58 @@ async function listForUserAcrossProducts(userId) {
   return (result.Items || []).filter((r) => r.userId === userId);
 }
 
+// A review counts toward the public figures only if the storefront would show
+// it (see settings.reviews.showUnverified), so the product's stored
+// rating/reviewCount always matches the reviews a visitor can actually read.
 async function recomputeProductAggregate(productId) {
-  const reviews = await listForProduct(productId);
+  const settings = await settingsService.getSettings();
+  const showUnverified = Boolean(settings.reviews?.showUnverified);
+  const reviews = (await listForProduct(productId)).filter((r) => showUnverified || r.verifiedPurchase === true);
   const reviewCount = reviews.length;
   const rating = reviewCount > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount : 0;
   await productService.updateRatingAggregate(productId, { rating, reviewCount });
 }
 
-async function create({ productId, userId, userName, rating, title, comment, images }) {
+const REVIEW_SORTS = {
+  recent: (a, b) => b.createdAt.localeCompare(a.createdAt),
+  highest: (a, b) => b.rating - a.rating || b.createdAt.localeCompare(a.createdAt),
+  lowest: (a, b) => a.rating - b.rating || b.createdAt.localeCompare(a.createdAt),
+};
+
+/**
+ * Everything the review list needs, computed in one place so the browser only
+ * displays it: which reviews are visible, the 5-1 star breakdown and average
+ * (always over ALL visible reviews, not just the filtered page), the
+ * sorted/filtered slice, and whether more remain. With no `limit` the whole
+ * filtered list is returned.
+ */
+function buildReviewsView(allReviews, { showUnverified = false, sort = 'recent', rating, limit, offset = 0 } = {}) {
+  const visible = allReviews
+    .filter((r) => showUnverified || r.verifiedPurchase === true)
+    .map((r) => ({ ...r, verifiedPurchase: r.verifiedPurchase === true }));
+
+  const breakdown = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+  let sum = 0;
+  for (const r of visible) {
+    breakdown[r.rating] += 1;
+    sum += r.rating;
+  }
+  const count = visible.length;
+  const summary = {
+    count,
+    average: count > 0 ? Number((sum / count).toFixed(1)) : 0,
+    breakdown,
+    verifiedCount: visible.filter((r) => r.verifiedPurchase).length,
+  };
+
+  const filtered = (rating ? visible.filter((r) => r.rating === rating) : visible).sort(
+    REVIEW_SORTS[sort] || REVIEW_SORTS.recent
+  );
+  const reviews = limit ? filtered.slice(offset, offset + limit) : filtered;
+  return { reviews, total: filtered.length, hasMore: limit ? offset + limit < filtered.length : false, summary };
+}
+
+async function create({ productId, userId, userName, rating, title, comment, images, orderId }) {
   const now = new Date().toISOString();
   const review = {
     // Deterministic key (rather than a random uuid) so the ConditionExpression
@@ -70,6 +115,11 @@ async function create({ productId, userId, userName, rating, title, comment, ima
     title: title || '',
     comment,
     images: images || [],
+    // Stamped only by the controller after it has confirmed a delivered
+    // order containing this product — this is what the "Verified Purchase"
+    // badge (and the public rating) is based on.
+    verifiedPurchase: Boolean(orderId),
+    orderId: orderId || null,
     createdAt: now,
     updatedAt: now,
   };
@@ -143,6 +193,7 @@ module.exports = {
   listAllForAdmin,
   listForUserAcrossProducts,
   recomputeProductAggregate,
+  buildReviewsView,
   create,
   update,
   remove,

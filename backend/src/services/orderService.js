@@ -43,6 +43,7 @@ async function createOrder({
   discountAmount,
   gstPercent,
   gstAmount,
+  pricesIncludeGst,
   shipping,
   shippingCourier,
   shippingSource,
@@ -71,6 +72,8 @@ async function createOrder({
     // the tax shown on a historical order.
     gstPercent: gstPercent || 0,
     gstAmount: gstAmount || 0,
+    // true: the prices on this order already include GST (gstAmount is the part inside them).
+    pricesIncludeGst: Boolean(pricesIncludeGst),
     shipping: shipping || 0,
     shippingCourier: shippingCourier || null,
     // How `shipping` was decided ('free' | 'shiprocket' | 'fallback…') and
@@ -197,6 +200,16 @@ async function hasUserReceivedDeliveredProduct(userId, productId) {
   return orders.some(
     (order) => order.status === 'Delivered' && (order.items || []).some((item) => item.productId === productId)
   );
+}
+
+// The delivered order that makes someone a verified buyer of this product
+// (most recent first), or null. Its orderId is stored on the review.
+async function findDeliveredOrderForProduct(userId, productId) {
+  const orders = await listForUser(userId);
+  const matches = orders
+    .filter((o) => o.status === 'Delivered' && (o.items || []).some((i) => i.productId === productId))
+    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  return matches[0] || null;
 }
 
 async function updateStatus(orderId, status) {
@@ -812,6 +825,7 @@ module.exports = {
   listExpiryCandidates,
   updateStatus,
   hasUserReceivedDeliveredProduct,
+  findDeliveredOrderForProduct,
   markPaymentAttempt,
   recordPaymentAttemptInitiated,
   recordPaymentAttemptResult,

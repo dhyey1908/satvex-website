@@ -3,11 +3,12 @@ const { v4: uuid } = require('uuid');
 const { docClient } = require('../config/dynamo');
 const env = require('../config/env');
 const AppError = require('../utils/AppError');
+const { lineSubtotal } = require('../utils/money');
 
 const TABLE = env.tables.carts;
 
 function withSubtotal(item) {
-  return { ...item, subtotal: Number((item.unitPrice * item.quantity).toFixed(2)) };
+  return { ...item, subtotal: lineSubtotal(item.unitPrice, item.quantity) };
 }
 
 async function getCartForUser(userId) {

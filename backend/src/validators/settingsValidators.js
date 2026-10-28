@@ -34,6 +34,7 @@ const pillarSchema = z.object({
 const taxSettingsSchema = z.object({
   enabled: z.boolean().default(true),
   percent: z.number().min(0).max(100).default(18),
+  pricesIncludeGst: z.boolean().default(false),
 });
 
 // Dynamic, Shiprocket-rate-based shipping (replaces the old flat
@@ -133,10 +134,15 @@ const financeSettingsSchema = z.object({
   paymentGatewayFeePercent: z.number().min(0).max(20).nullable(),
 });
 
+const reviewsSettingsSchema = z.object({
+  showUnverified: z.boolean().default(false),
+});
+
 const updateSettingsSchema = z.object({
   contactPhone: z.string().trim().max(20).optional(),
   contactEmail: z.string().trim().toLowerCase().email().optional().or(z.literal('')),
   instagramUrl: z.string().trim().url().optional().or(z.literal('')),
+  pinterestUrl: z.string().trim().url().optional().or(z.literal('')),
   brandName: z.string().trim().max(60).optional(),
   logoUrl: z.string().trim().url().optional().or(z.literal('')),
   heroBanners: z.array(heroBannerSchema).max(10).optional(),
@@ -152,6 +158,7 @@ const updateSettingsSchema = z.object({
   delivery: deliverySettingsSchema.optional(),
   notifications: notificationsSettingsSchema.optional(),
   finance: financeSettingsSchema.optional(),
+  reviews: reviewsSettingsSchema.optional(),
 });
 
 module.exports = { updateSettingsSchema };

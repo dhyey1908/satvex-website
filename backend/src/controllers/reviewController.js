@@ -4,12 +4,26 @@ const orderService = require('../services/orderService');
 const userService = require('../services/userService');
 const { createReviewSchema } = require('../validators/reviewValidators');
 const AppError = require('../utils/AppError');
+const { z } = require('zod');
+const settingsService = require('../services/settingsService');
 const { reviewsQuerySchema, queryReviews } = require('../services/adminListQueries');
 const { ok, created } = require('../utils/response');
 
+const listQuerySchema = z.object({
+  sort: z.enum(['recent', 'highest', 'lowest']).default('recent'),
+  rating: z.coerce.number().int().min(1).max(5).optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
 async function listForProduct(req, res) {
-  const reviews = await reviewService.listForProduct(req.params.id);
-  ok(res, { reviews });
+  const query = listQuerySchema.parse(req.query);
+  const settings = await settingsService.getSettings();
+  const view = reviewService.buildReviewsView(await reviewService.listForProduct(req.params.id), {
+    ...query,
+    showUnverified: Boolean(settings.reviews?.showUnverified),
+  });
+  ok(res, view);
 }
 
 async function getMine(req, res) {
@@ -28,8 +42,8 @@ async function create(req, res) {
     throw new AppError('Product not found.', 404, 'NOT_FOUND');
   }
 
-  const delivered = await orderService.hasUserReceivedDeliveredProduct(req.user.id, req.params.id);
-  if (!delivered) {
+  const deliveredOrder = await orderService.findDeliveredOrderForProduct(req.user.id, req.params.id);
+  if (!deliveredOrder) {
     throw new AppError('You can review this product after it has been delivered.', 403, 'NOT_ELIGIBLE');
   }
 
@@ -44,6 +58,7 @@ async function create(req, res) {
     productId: req.params.id,
     userId: req.user.id,
     userName: user?.name || 'Satvex Customer',
+    orderId: deliveredOrder.orderId,
     ...data,
   });
   created(res, { review });

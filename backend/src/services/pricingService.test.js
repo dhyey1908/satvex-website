@@ -207,3 +207,54 @@ test('buildPrepaidOffer: rounds to paise', () => {
   const offer = buildPrepaidOffer({ total: 100.3, codCharge: 0 }, { total: 100.1, codCharge: 0, prepaidDiscount: 0 });
   assert.equal(offer.savings, 0.2);
 });
+
+// ---- integer-paise maths and PRICES_INCLUDE_GST -------------------------------
+
+test('totals are exact to the paisa (no float noise like 175.82000000000002)', async () => {
+  stubSettings();
+  // 2 x 87.91 = 175.82; GST 18% = 31.6476 -> 31.65 (rounded once); free shipping is not reached
+  const totals = await calculateTotals({ items: [{ subtotal: 175.82 }], paymentMethod: 'Online' });
+  assert.equal(totals.subtotal, 175.82);
+  assert.equal(totals.gstAmount, 31.65);
+  assert.equal(totals.total, 266.47); // 175.82 + 31.65 + 59
+  for (const v of [totals.subtotal, totals.gstAmount, totals.shipping, totals.total]) {
+    assert.equal(String(v), Number(v).toFixed(2).replace(/\.?0+$/, ''), `${v} has more than 2 decimals`);
+  }
+});
+
+test('many small lines add up without drift', async () => {
+  stubSettings();
+  const items = Array.from({ length: 10 }, () => ({ subtotal: 19.99 }));
+  const totals = await calculateTotals({ items, paymentMethod: 'Online' });
+  assert.equal(totals.subtotal, 199.9);
+  assert.equal(totals.gstAmount, 35.98); // 35.982
+});
+
+test('PRICES_INCLUDE_GST: GST is the part inside the price; nothing is added on top', async () => {
+  stubSettings();
+  settingsService.getSettings = ((orig) => async () => ({ ...(await orig()), tax: { enabled: true, percent: 18, pricesIncludeGst: true } }))(settingsService.getSettings);
+  const totals = await calculateTotals({ items: [{ subtotal: 708 }], paymentMethod: 'Online' });
+  assert.equal(totals.pricesIncludeGst, true);
+  assert.equal(totals.gstAmount, 108); // 708 * 18 / 118
+  assert.equal(totals.taxableAmount, 600);
+  assert.equal(totals.qualifiesForFreeShipping, true); // 708 >= 700, the listed price is the product total
+  assert.equal(totals.total, 708); // not 835.44
+});
+
+test('PRICES_INCLUDE_GST off (default): GST is added on top as before', async () => {
+  stubSettings();
+  const totals = await calculateTotals({ items: [{ subtotal: 600 }], paymentMethod: 'Online' });
+  assert.equal(totals.pricesIncludeGst, false);
+  assert.equal(totals.gstAmount, 108);
+  assert.equal(totals.total, 708);
+});
+
+test('savingsAmount = MRP markdown on every pack + coupon discount, computed server-side', async () => {
+  stubSettings();
+  couponService.findByCode = async () => ({ code: 'SAVE10', isActive: true, discountType: 'percentage', discountValue: 10, usageCount: 0 });
+  const items = [{ subtotal: 498, unitPrice: 249, compareAtPrice: 299, quantity: 2 }];
+  const totals = await calculateTotals({ items, paymentMethod: 'Online', couponCode: 'SAVE10' });
+  assert.equal(totals.productSavings, 100); // (299-249) x 2
+  assert.equal(totals.discountAmount, 49.8);
+  assert.equal(totals.savingsAmount, 149.8);
+});
