@@ -26,7 +26,9 @@ const deliveryEligibilityService = require('../services/deliveryEligibilityServi
 const toCustomerOrder = stripOrderCost;
 
 const CANCELLABLE_STATUSES = new Set(['Pending', 'Confirmed']);
-const PAYMENT_WINDOW_MS = 24 * 60 * 60 * 1000;
+// PayU drops an unfinished attempt after ~30 min, so an unpaid online order
+// (and the coupon it holds) expires on the same clock.
+const PAYMENT_WINDOW_MS = 30 * 60 * 1000;
 
 // PayU needs a plain 10-digit Indian mobile number. Our checkout validator
 // allows spaces/parens/+, so this strips down to digits and removes a

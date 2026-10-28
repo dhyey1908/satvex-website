@@ -630,7 +630,7 @@ Resources:
         HourlySweep:
           Type: Schedule
           Properties:
-            Schedule: rate(1 hour)
+            Schedule: rate(10 minutes)
 
   ExpirePaymentsFunctionLogGroup:
     Type: AWS::Logs::LogGroup

@@ -5,6 +5,7 @@
 // env-dependent service tests in this codebase.
 process.env.PAYU_MERCHANT_KEY = 'testkey';
 process.env.PAYU_MERCHANT_SALT = 'testsalt';
+process.env.PAYU_ENV = 'test'; // don't inherit PAYU_ENV=production from backend/.env
 
 const { test, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
