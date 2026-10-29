@@ -692,7 +692,22 @@ export function ProductDetail() {
             idPrefix="pdp-details"
             items={[
               ...(product.description ? [{ id: 'details', title: 'Product Details', body: product.description }] : []),
-              ...STOREFRONT.detailAccordions,
+              // From the product form's "How to Wear / Fit Notes"; no notes, no section.
+              ...(product.howToWear?.trim() ? [{ id: 'how-to-use', title: 'How to Use & Care', body: product.howToWear.trim() }] : []),
+              {
+                id: 'shipping-returns',
+                title: 'Shipping & Returns',
+                body: (
+                  <>
+                    <p>Delivery times, shipping charges and our return and refund terms are set out in our policies.</p>
+                    <p>
+                      <Link to="/shipping-policy">Shipping &amp; Delivery policy</Link>
+                      {' · '}
+                      <Link to="/returns-refunds">Returns &amp; Refunds policy</Link>
+                    </p>
+                  </>
+                ),
+              },
             ]}
           />
         </div>

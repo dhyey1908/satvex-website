@@ -29,13 +29,6 @@ export const STOREFRONT = {
     couponChips: ['SATVEX10'],
   },
 
-  // Accordions under "Product Details". All body copy is a placeholder.
-  detailAccordions: [
-    { id: 'size-material', title: 'Size & Material', body: 'TODO: add size (length x width), weight and material details for the claw clip.' },
-    { id: 'how-to-use', title: 'How to Use & Care', body: 'TODO: add usage steps and care instructions (cleaning, storage).' },
-    { id: 'shipping-returns', title: 'Shipping & Returns', body: 'TODO: summarise delivery time, shipping charges and the returns/refund policy. Full policy: Shipping & Delivery and Returns & Refunds pages.' },
-  ],
-
   // Trust row under the buy buttons. `cod` is shown only if COD is enabled in
   // the store settings.
   trust: [

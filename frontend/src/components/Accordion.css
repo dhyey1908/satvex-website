@@ -24,3 +24,5 @@
 .accordion-body p { margin: 0 0 var(--space-2); font-size: 0.9rem; line-height: 1.6; }
 .accordion-body p:last-child { margin-bottom: 0; }
 @media (prefers-reduced-motion: reduce) { .accordion-chevron { transition: none; } }
+
+.accordion-body a { color: var(--color-primary); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
