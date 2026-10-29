@@ -9,6 +9,7 @@ const payuService = require('../services/payuService');
 const settingsService = require('../services/settingsService');
 const shipmentService = require('../services/shipmentService');
 const shiprocketService = require('../services/shiprocketService');
+const { statusChangeProblem } = require('../utils/orderConsistency');
 const { checkoutSchema, quoteSchema, updateOrderStatusSchema, refundSchema } = require('../validators/orderValidators');
 const AppError = require('../utils/AppError');
 const { ok, created } = require('../utils/response');
@@ -541,15 +542,11 @@ async function adminUpdateStatus(req, res) {
     throw new AppError('Order not found.', 404, 'NOT_FOUND');
   }
 
-  // Fulfilment gating: an Online order can't be marked Shipped/Delivered
-  // until it's actually paid — enforced here, not just hidden in the UI.
-  if (
-    order.paymentMethod === 'Online' &&
-    order.paymentStatus !== 'paid' &&
-    (status === 'Shipped' || status === 'Delivered')
-  ) {
-    throw new AppError('This order has not been paid yet and cannot be shipped.', 400, 'PAYMENT_NOT_CONFIRMED');
-  }
+  // Consistency gating (utils/orderConsistency.js): an unpaid Online order can't be
+  // Confirmed/Processing/Shipped/Delivered, and nothing is Delivered while shipping
+  // still says "order created" — enforced here, not just hidden in the UI.
+  const problem = statusChangeProblem(order, status);
+  if (problem) throw new AppError(problem.message, 400, problem.code);
 
   // A paid Online order can never be cancelled without at least a refund
   // having been initiated — otherwise we'd hold the customer's money on a

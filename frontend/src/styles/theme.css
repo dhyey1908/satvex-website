@@ -25,6 +25,8 @@
   --color-success: #2f6b48;  --color-success-bg: #e6f2ea;
   --color-warning: #8a5a12;  --color-warning-bg: #fbf0da;
   --color-error: #b3261e;    --color-error-bg: #fbe5e3;
+  --color-info: #1f5a99;     --color-info-bg: #e3edf9;       /* Processing / Order Created */
+  --color-indigo: #4338a0;   --color-indigo-bg: #e8e6f9;     /* Shipped / In transit */
 
   --color-announcement-bg: #6b4fa0;
   --color-announcement-text: #faf7fd;

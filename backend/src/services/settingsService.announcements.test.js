@@ -63,3 +63,20 @@ test('getActiveAnnouncements: includes an announcement whose coupon is genuinely
   const result = await settingsService.getActiveAnnouncements([announcement({ couponCode: 'SATVEX10' })]);
   assert.equal(result.length, 1);
 });
+
+test('schedules follow the IST calendar day, and banners honour them', () => {
+  const settingsService = require('./settingsService');
+  // 21 Oct 2026 23:30 IST = 18:00 UTC; 22 Oct 00:10 IST = 18:40 UTC on the 21st.
+  assert.equal(settingsService.istToday(Date.parse('2026-10-21T18:00:00Z')), '2026-10-21');
+  assert.equal(settingsService.istToday(Date.parse('2026-10-21T18:40:00Z')), '2026-10-22');
+  const banners = [
+    { id: 'a', isActive: true, endDate: '2026-10-21' },
+    { id: 'b', isActive: true, startDate: '2026-10-25' },
+    { id: 'c', isActive: false },
+    { id: 'd', isActive: true },
+  ];
+  const ids = (now) => settingsService.activeBanners(banners, Date.parse(now)).map((b) => b.id);
+  assert.deepEqual(ids('2026-10-21T18:00:00Z'), ['a', 'd']);
+  assert.deepEqual(ids('2026-10-21T18:40:00Z'), ['d']);
+  assert.deepEqual(ids('2026-10-25T01:00:00Z'), ['b', 'd']);
+});

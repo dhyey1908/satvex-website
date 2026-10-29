@@ -1,136 +1,85 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Download, Eye, AlertTriangle } from 'lucide-react';
+import { AlertTriangle, CircleDollarSign, Copy, Download, Eye, FileText, MessageCircle, Package, Tag, Truck, Wallet, CreditCard } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { adminService } from '../../services/adminService';
 import { useToast } from '../../context/ToastContext';
-import { Loader } from '../../components/Loader';
 import { ErrorState } from '../../components/ErrorState';
-import { EmptyState } from '../../components/EmptyState';
-import { Pagination } from '../../components/Pagination';
-import { AdminSearchField, SortableTh, ResetFiltersButton, DateFilter, ResultCount } from '../../components/AdminListControls';
+import { PageHeader, countLabel } from '../../components/admin/PageHeader';
+import { FilterBar } from '../../components/admin/FilterBar';
+import { DataTable, TableEmpty, TableFooter } from '../../components/admin/DataTable';
+import { StatusBadge } from '../../components/admin/StatusBadge';
+import { RowMenu } from '../../components/admin/RowMenu';
+import { OrderDrawer } from './OrderDrawer';
 import { useAdminList } from '../../hooks/useAdminList';
 import { effectivePaymentStatus } from '../../utils/paymentStatus';
-import { formatDate } from '../../utils/date';
+import { PAYMENT_LABELS, SHIPMENT_LABELS, toneFor } from '../../utils/statusTones';
+import { formatShortDateTime } from '../../utils/dateRange';
+import { downloadCsv, rupees } from '../../utils/csv';
+import { itemImage } from '../../utils/itemImage';
+import { whatsappLink } from '../../utils/whatsapp';
 import './Admin.css';
-
-const ADMIN_PAYMENT_LIST_LABELS = {
-  paid: 'Paid',
-  expired: 'Expired',
-  failed: 'Failed',
-  dropped: 'Dropped',
-  confirming: 'Pending',
-  awaiting: 'Awaiting',
-};
-
-const SHIPMENT_STATUS_LABELS = {
-  not_created: 'Not Created',
-  order_created: 'Order Created',
-  awb_assigned: 'AWB Assigned',
-  pickup_scheduled: 'Pickup Scheduled',
-  label_generated: 'Label Ready',
-  // Set once a sync job exhausts all retries (see shipmentJobService/
-  // shipmentSweep.js) — distinct from 'not_created' so a stuck PAID order
-  // never reads the same as a brand-new unpaid one in this table.
-  sync_failed: 'Sync Failed',
-};
+import './AdminLists.css';
 
 const STATUSES = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
-const SHIPMENT_STATUSES = Object.keys(SHIPMENT_STATUS_LABELS);
-const PAGE_SIZE = 20;
+const TABS = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+const PAYMENT_STATES = ['paid', 'awaiting', 'confirming', 'failed', 'dropped', 'expired'];
+const SHIPMENT_STATES = Object.keys(SHIPMENT_LABELS);
 
 const LIST_DEFAULTS = {
   sortBy: 'createdAt',
   sortDir: 'desc',
-  filters: {
-    status: '',
-    paymentMethod: '',
-    paymentStatus: '',
-    shipmentStatus: '',
-    courier: '',
-    deliveryStatus: '',
-    dateFrom: '',
-    dateTo: '',
-  },
+  filters: { status: '', paymentMethod: '', paymentStatus: '', shipmentStatus: '', courier: '', deliveryStatus: '', dateFrom: '', dateTo: '' },
 };
 
-function toCsv(orders) {
-  const header = ['Order ID', 'Customer', 'Email', 'Total', 'Status', 'Date'];
-  const rows = orders.map((o) => [
-    o.orderId,
-    o.customer?.name || '',
-    o.customer?.email || '',
-    Number(o.total || 0).toFixed(2),
-    o.status || '',
-    o.createdAt ? new Date(o.createdAt).toISOString() : '',
-  ]);
-  return [header, ...rows]
-    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-    .join('\n');
-}
+const colourNames = (item) => (item.selectedColorDetails || []).map((c) => c.colorName).filter(Boolean).join(', ');
+const itemsSummary = (order) => {
+  const [first, ...rest] = order.items || [];
+  if (!first) return '—';
+  const text = `${first.sellingOptionName || first.productName}${colourNames(first) ? ` · ${colourNames(first)}` : ''}`;
+  return rest.length ? `${text} (+${rest.length} more)` : text;
+};
+const paymentKey = (o) => (o.paymentMethod === 'Online' ? effectivePaymentStatus(o) || o.paymentStatus : 'not_required');
 
 export function AdminOrders() {
   const { showToast } = useToast();
-  const list = useAdminList({
-    fetcher: adminService.orders,
-    resultKey: 'orders',
-    defaults: LIST_DEFAULTS,
-    pageSize: PAGE_SIZE,
-  });
+  const navigate = useNavigate();
+  const list = useAdminList({ fetcher: adminService.orders, resultKey: 'orders', defaults: LIST_DEFAULTS, pageSize: 25, urlSync: true });
   const { items: orders, filters, setFilter, facets } = list;
+  const counts = facets.counts || { status: {}, paymentStatus: {}, shipmentStatus: {}, paymentMethod: {} };
   const [selected, setSelected] = useState([]);
-  const [bulkStatus, setBulkStatus] = useState('');
-  const [bulkUpdating, setBulkUpdating] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [open, setOpen] = useState(null);
 
-  // A different page / filter shows different orders — a selection made on
-  // the previous view shouldn't silently ride along into a bulk update.
-  function resetSelection() {
+  const change = (key, value) => {
+    setFilter(key, value);
     setSelected([]);
-  }
+  };
+  const rows = orders || [];
+  const selectedRows = rows.filter((o) => selected.includes(o.orderId));
 
-  function toggleSelect(orderId) {
-    setSelected((prev) => (prev.includes(orderId) ? prev.filter((id) => id !== orderId) : [...prev, orderId]));
-  }
-
-  const pageOrders = orders || [];
-  const allOnPageSelected = pageOrders.length > 0 && pageOrders.every((o) => selected.includes(o.orderId));
-
-  function toggleSelectAllOnPage() {
-    const pageIds = pageOrders.map((o) => o.orderId);
-    setSelected((prev) =>
-      allOnPageSelected ? prev.filter((id) => !pageIds.includes(id)) : [...new Set([...prev, ...pageIds])]
-    );
-  }
-
-  async function applyBulkStatus() {
-    if (!bulkStatus || selected.length === 0) return;
-    setBulkUpdating(true);
-    try {
-      await Promise.all(selected.map((id) => adminService.updateOrderStatus(id, bulkStatus)));
-      showToast(`Updated ${selected.length} order(s) to ${bulkStatus}`, 'success');
-      setBulkStatus('');
-      resetSelection();
-      list.reload();
-    } catch (err) {
-      showToast(err.message, 'error');
-    } finally {
-      setBulkUpdating(false);
-    }
-  }
-
-  // Exports EVERY order matching the current search/filters/sort, not just the
-  // page on screen.
-  async function exportCsv() {
+  async function exportCsv(only) {
     setExporting(true);
     try {
-      const all = await list.fetchAll();
-      const blob = new Blob([toCsv(all)], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `orders-${new Date().toISOString().slice(0, 10)}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
+      const all = only || (await list.fetchAll());
+      downloadCsv(
+        `orders-${new Date().toISOString().slice(0, 10)}.csv`,
+        ['Order ID', 'Placed (IST)', 'Customer', 'Phone', 'Email', 'Items', 'Total', 'Method', 'Status', 'Payment', 'Shipping', 'AWB'],
+        all.map((o) => [
+          o.orderId,
+          formatShortDateTime(o.createdAt),
+          o.customer?.name,
+          o.customer?.phone,
+          o.customer?.email,
+          itemsSummary(o),
+          Number(o.total || 0).toFixed(2),
+          o.paymentMethod === 'Online' ? 'Prepaid' : 'COD',
+          o.status,
+          PAYMENT_LABELS[paymentKey(o)] || paymentKey(o),
+          SHIPMENT_LABELS[o.shipmentStatus || 'not_created'],
+          o.awbCode,
+        ])
+      );
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
@@ -138,241 +87,216 @@ export function AdminOrders() {
     }
   }
 
-  const sortProps = {
-    sortBy: list.sortBy,
-    sortDir: list.sortDir,
-    onSort: (field, firstDir) => {
-      list.toggleSort(field, firstDir);
-      resetSelection();
-    },
+  async function markProcessing() {
+    setBusy(true);
+    const results = await Promise.allSettled(selected.map((id) => adminService.updateOrderStatus(id, 'Processing')));
+    setBusy(false);
+    const failed = results.filter((r) => r.status === 'rejected');
+    const done = results.length - failed.length;
+    if (done) showToast(`${countLabel(done, 'order')} marked Processing`, 'success');
+    if (failed.length) showToast(`${failed.length} could not be changed: ${failed[0].reason?.message || 'not allowed'}`, 'error');
+    setSelected([]);
+    list.reload();
+  }
+
+  function printLabels() {
+    const urls = selectedRows.map((o) => o.labelUrl).filter(Boolean);
+    if (urls.length === 0) {
+      showToast('None of the selected orders has a shipping label yet.', 'error');
+      return;
+    }
+    urls.forEach((u) => window.open(u, '_blank', 'noopener'));
+    if (urls.length < selectedRows.length) showToast(`${selectedRows.length - urls.length} selected order(s) have no label yet.`, 'error');
+  }
+
+  const rowMenu = (o) => {
+    const wa = whatsappLink(o.customer?.phone, `Hi ${o.customer?.name || ''}, this is SATVEX about your order ${o.orderId.slice(0, 8)}.`);
+    return [
+      { label: 'View order', icon: Eye, onClick: () => navigate(`/admin/orders/${o.orderId}`) },
+      { label: 'Copy order ID', icon: Copy, onClick: () => navigator.clipboard?.writeText(o.orderId).then(() => showToast('Order ID copied', 'success')) },
+      { label: 'WhatsApp customer', icon: MessageCircle, href: wa, hidden: !wa },
+      { label: 'Print invoice', icon: FileText, href: o.invoiceUrl, hidden: !o.invoiceUrl },
+    ];
   };
-  const initialLoad = !orders && list.loading;
+
+  const columns = [
+    {
+      key: 'order',
+      header: 'Order',
+      sortField: 'createdAt',
+      firstDir: 'desc',
+      className: 'ui-cell-primary',
+      render: (o) => (
+        <>
+          <span className="ui-cell-main">
+            #{o.orderId.slice(0, 8)}
+            {o.conflicts?.length > 0 && (
+              <span className="ui-warn" title={o.conflicts.join(' ')}>
+                <AlertTriangle size={14} aria-label="Statuses conflict" />
+              </span>
+            )}
+            {o.needsReview && <AlertTriangle size={14} className="admin-needs-review-icon" title="Needs review" />}
+          </span>
+          <span className="ui-cell-sub">{formatShortDateTime(o.createdAt)}</span>
+        </>
+      ),
+    },
+    {
+      key: 'customer',
+      header: 'Customer',
+      render: (o) => (
+        <>
+          <span className="ui-cell-main">{o.customer?.name || '—'}</span>
+          <span className="ui-cell-sub">{o.customer?.phone || '—'}</span>
+        </>
+      ),
+    },
+    {
+      key: 'items',
+      header: 'Items',
+      className: 'ui-wrap',
+      render: (o) => {
+        const img = o.items?.[0] && itemImage(o.items[0]);
+        return (
+          <div className="al-items">
+            {img ? <img src={img} alt="" loading="lazy" /> : <span className="al-items-blank" />}
+            <span>{itemsSummary(o)}</span>
+          </div>
+        );
+      },
+    },
+    { key: 'total', header: 'Total', sortField: 'total', firstDir: 'desc', className: 'ui-num', render: (o) => <span className="ui-cell-main">{rupees(o.total)}</span> },
+    {
+      key: 'method',
+      header: 'Method',
+      sortField: 'paymentMethod',
+      render: (o) => <StatusBadge tone="outline" label={o.paymentMethod === 'Online' ? 'Prepaid' : 'COD'} />,
+    },
+    { key: 'status', header: 'Status', sortField: 'status', render: (o) => <StatusBadge kind="order" value={o.status} /> },
+    {
+      key: 'payment',
+      header: 'Payment',
+      sortField: 'paymentStatus',
+      render: (o) => <StatusBadge kind="payment" value={paymentKey(o)} label={PAYMENT_LABELS[paymentKey(o)] || paymentKey(o)} />,
+    },
+    {
+      key: 'shipping',
+      header: 'Shipping',
+      sortField: 'shipmentStatus',
+      render: (o) => {
+        const s = o.shipmentStatus || 'not_created';
+        return <StatusBadge kind="shipment" value={s} label={SHIPMENT_LABELS[s] || s} />;
+      },
+    },
+    { key: 'menu', header: '', className: 'ui-cell-actions', render: (o) => <RowMenu items={rowMenu(o)} /> },
+  ];
+
+  const opt = (values, labels, bucket, kind) => values.map((v) => ({ value: v, label: labels?.[v] || v, tone: toneFor(kind, v), count: counts[bucket]?.[v] || 0 }));
+  const chips = [
+    { key: 'status', label: 'Status', icon: Package, multi: true, options: opt(STATUSES, null, 'status', 'order') },
+    {
+      key: 'paymentMethod',
+      label: 'Method',
+      icon: Wallet,
+      options: [
+        { value: 'COD', label: 'COD', count: counts.paymentMethod?.COD || 0 },
+        { value: 'Online', label: 'Prepaid', count: counts.paymentMethod?.Online || 0 },
+      ],
+    },
+    { key: 'paymentStatus', label: 'Payment', icon: CreditCard, multi: true, options: opt(PAYMENT_STATES, PAYMENT_LABELS, 'paymentStatus', 'payment') },
+    { key: 'shipmentStatus', label: 'Shipping', icon: Truck, multi: true, options: opt(SHIPMENT_STATES, SHIPMENT_LABELS, 'shipmentStatus', 'shipment') },
+  ];
+  if (facets.couriers?.length) chips.push({ key: 'courier', label: 'Courier', icon: Tag, secondary: true, options: facets.couriers.map((c) => ({ value: c, label: c })) });
+  if (facets.deliveryStatuses?.length) chips.push({ key: 'deliveryStatus', label: 'Delivery', icon: CircleDollarSign, secondary: true, options: facets.deliveryStatuses.map((c) => ({ value: c, label: c })) });
+
+  const total = list.pagination?.total ?? 0;
+  const sort = { sortBy: list.sortBy, sortDir: list.sortDir, onSort: (f, d) => { list.toggleSort(f, d); setSelected([]); } };
 
   return (
     <div>
-      <div className="admin-page-header">
-        <h1>Orders</h1>
-        {list.pagination?.total > 0 && (
-          <button type="button" className="btn btn-outline btn-sm" onClick={exportCsv} disabled={exporting}>
+      <PageHeader
+        title="Orders"
+        subtitle={orders ? countLabel(counts.total ?? total, 'order') : ' '}
+        actions={
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => exportCsv()} disabled={exporting || total === 0}>
             <Download size={14} /> {exporting ? 'Exporting…' : 'Export CSV'}
           </button>
-        )}
-      </div>
+        }
+      />
 
-      <div className="admin-filters">
-        <AdminSearchField
-          value={list.searchInput}
-          onChange={(v) => {
-            list.setSearchInput(v);
-            resetSelection();
-          }}
-          placeholder="Search by order id, name, email, phone, AWB…"
-          label="Search orders"
-        />
-        <select
-          value={filters.status}
-          onChange={(e) => { setFilter('status', e.target.value); resetSelection(); }}
-          aria-label="Order status"
-        >
-          <option value="">All Statuses</option>
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
-        <select
-          value={filters.paymentMethod}
-          onChange={(e) => { setFilter('paymentMethod', e.target.value); resetSelection(); }}
-          aria-label="Payment method"
-        >
-          <option value="">COD &amp; Prepaid</option>
-          <option value="COD">COD</option>
-          <option value="Online">Prepaid (Online)</option>
-        </select>
-        <select
-          value={filters.paymentStatus}
-          onChange={(e) => { setFilter('paymentStatus', e.target.value); resetSelection(); }}
-          aria-label="Payment status"
-        >
-          <option value="">All Payment States</option>
-          {Object.entries(ADMIN_PAYMENT_LIST_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </select>
-        <select
-          value={filters.shipmentStatus}
-          onChange={(e) => { setFilter('shipmentStatus', e.target.value); resetSelection(); }}
-          aria-label="Shipping status"
-        >
-          <option value="">All Shipping Statuses</option>
-          {SHIPMENT_STATUSES.map((s) => (
-            <option key={s} value={s}>{SHIPMENT_STATUS_LABELS[s]}</option>
-          ))}
-        </select>
-        {facets.couriers?.length > 0 && (
-          <select
-            value={filters.courier}
-            onChange={(e) => { setFilter('courier', e.target.value); resetSelection(); }}
-            aria-label="Courier"
-          >
-            <option value="">All Couriers</option>
-            {facets.couriers.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        )}
-        {facets.deliveryStatuses?.length > 0 && (
-          <select
-            value={filters.deliveryStatus}
-            onChange={(e) => { setFilter('deliveryStatus', e.target.value); resetSelection(); }}
-            aria-label="Delivery status"
-          >
-            <option value="">All Delivery Statuses</option>
-            {facets.deliveryStatuses.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-        )}
-        <DateFilter
-          label="From"
-          value={filters.dateFrom}
-          max={filters.dateTo}
-          onChange={(v) => { setFilter('dateFrom', v); resetSelection(); }}
-        />
-        <DateFilter
-          label="To"
-          value={filters.dateTo}
-          min={filters.dateFrom}
-          onChange={(v) => { setFilter('dateTo', v); resetSelection(); }}
-        />
-        <ResetFiltersButton
-          visible={list.hasActiveFilters}
-          onClick={() => {
-            list.reset();
-            resetSelection();
-          }}
-        />
-      </div>
-
-      {selected.length > 0 && (
-        <form className="admin-filters" onSubmit={(e) => e.preventDefault()}>
-          <span className="text-label-sm" style={{ alignSelf: 'center' }}>
-            {selected.length} selected
-          </span>
-          <select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value)} aria-label="Bulk status">
-            <option value="">Set status to…</option>
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            disabled={!bulkStatus || bulkUpdating}
-            onClick={applyBulkStatus}
-          >
-            {bulkUpdating ? 'Updating…' : 'Apply'}
+      <div className="al-tabs" role="tablist" aria-label="Order status">
+        <button type="button" role="tab" aria-selected={!filters.status} className={`al-tab ${!filters.status ? 'is-on' : ''}`} onClick={() => change('status', '')}>
+          All <span className="al-tab-count">{counts.total ?? 0}</span>
+        </button>
+        {TABS.map((s) => (
+          <button key={s} type="button" role="tab" aria-selected={filters.status === s} className={`al-tab ${filters.status === s ? 'is-on' : ''}`} onClick={() => change('status', s)}>
+            {s} <span className="al-tab-count">{counts.status?.[s] || 0}</span>
           </button>
-        </form>
-      )}
+        ))}
+      </div>
 
-      {list.error && <ErrorState message={list.error} onRetry={list.reload} />}
-      {!list.error && initialLoad && <Loader label="Loading orders…" />}
-      {!list.error && orders?.length === 0 && (
-        <EmptyState
-          title="No orders found"
-          message={list.hasActiveFilters ? 'No orders match these filters. Try resetting them.' : undefined}
-        />
-      )}
+      <FilterBar
+        search={{ value: list.searchInput, onChange: (v) => { list.setSearchInput(v); setSelected([]); }, placeholder: 'Search order ID, name, phone, AWB…' }}
+        chips={chips}
+        values={filters}
+        onChange={change}
+        date={{ label: 'Date', from: filters.dateFrom, to: filters.dateTo, onChange: ({ from, to }) => { setFilter('dateFrom', from); setFilter('dateTo', to); setSelected([]); } }}
+        onClearAll={() => { list.clearFilters(); setSelected([]); }}
+        resultText={orders ? `Showing ${rows.length} of ${total} orders` : null}
+        searchLabel="Search orders"
+      />
 
-      {!list.error && orders?.length > 0 && (
+      {list.error ? (
+        <ErrorState message={list.error} onRetry={list.reload} />
+      ) : (
         <>
-          <ResultCount pagination={list.pagination} loading={list.loading} label="orders" />
-          <div className={`admin-table-wrap ${list.loading ? 'is-refreshing' : ''}`}>
-            <table className="admin-table admin-table-compact">
-              <thead>
-                <tr>
-                  <th>
-                    <input
-                      type="checkbox"
-                      checked={allOnPageSelected}
-                      onChange={toggleSelectAllOnPage}
-                      aria-label="Select all orders on this page"
-                    />
-                  </th>
-                  <th>Order ID</th>
-                  <th>Customer</th>
-                  <SortableTh label="Total" field="total" firstDir="desc" {...sortProps} />
-                  <SortableTh label="Status" field="status" {...sortProps} />
-                  <SortableTh label="Method" field="paymentMethod" {...sortProps} />
-                  <SortableTh label="Payment" field="paymentStatus" {...sortProps} />
-                  <SortableTh label="Shipping" field="shipmentStatus" {...sortProps} />
-                  <SortableTh label="Date" field="createdAt" firstDir="desc" {...sortProps} />
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.map((o) => (
-                  <tr key={o.orderId}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={selected.includes(o.orderId)}
-                        onChange={() => toggleSelect(o.orderId)}
-                        aria-label={`Select order ${o.orderId.slice(0, 8)}`}
-                      />
-                    </td>
-                    <td>{o.orderId.slice(0, 8)}</td>
-                    <td>{o.customer?.name || '—'}</td>
-                    <td>₹{Number(o.total || 0).toFixed(2)}</td>
-                    <td>
-                      <span className={`pill ${o.status === 'Cancelled' ? 'pill-inactive' : 'pill-active'}`}>
-                        {o.status}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="text-label-sm">{o.paymentMethod === 'Online' ? 'Prepaid' : 'COD'}</span>
-                    </td>
-                    <td>
-                      {o.paymentMethod === 'Online' ? (
-                        <span className={`pill ${o.paymentStatus === 'paid' ? 'pill-active' : 'pill-inactive'}`}>
-                          {ADMIN_PAYMENT_LIST_LABELS[effectivePaymentStatus(o)] || o.paymentStatus}
-                        </span>
-                      ) : (
-                        <span className="text-label-sm">—</span>
-                      )}
-                      {o.needsReview && <AlertTriangle size={14} className="admin-needs-review-icon" title="Needs review" />}
-                    </td>
-                    <td>
-                      <span
-                        className={`pill ${o.shipmentStatus === 'sync_failed' ? 'pill-danger' : o.awbCode ? 'pill-active' : 'pill-inactive'}`}
-                      >
-                        {SHIPMENT_STATUS_LABELS[o.shipmentStatus] || o.shipmentStatus || 'Not Created'}
-                      </span>
-                    </td>
-                    <td>{formatDate(o.createdAt)}</td>
-                    <td>
-                      <Link to={`/admin/orders/${o.orderId}`} className="btn btn-ghost btn-sm">
-                        <Eye size={14} /> View
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {list.paginationProps && (
-            <Pagination
-              {...list.paginationProps}
-              onPageChange={(p) => {
-                list.setPage(p);
-                resetSelection();
-              }}
-              itemLabel="orders"
-            />
-          )}
+          <DataTable
+            columns={columns}
+            rows={orders}
+            rowKey={(o) => o.orderId}
+            loading={list.loading}
+            sort={sort}
+            onRowClick={setOpen}
+            rowClassName={(o) => (o.conflicts?.length ? 'has-conflict' : '')}
+            select={{
+              selected,
+              onToggle: (id) => setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])),
+              onToggleAll: (pageRows) => {
+                const ids = pageRows.map((r) => r.orderId);
+                setSelected((prev) => (ids.every((id) => prev.includes(id)) ? prev.filter((id) => !ids.includes(id)) : [...new Set([...prev, ...ids])]));
+              },
+            }}
+            caption="Orders"
+            empty={
+              <TableEmpty
+                title={list.hasActiveFilters ? 'No orders match these filters' : 'No orders yet'}
+                message={list.hasActiveFilters ? 'Try a different search or clear the filters.' : 'New orders will show up here.'}
+                filtered={list.hasActiveFilters}
+                onClear={list.clearFilters}
+              />
+            }
+          />
+          <TableFooter
+            paginationProps={list.paginationProps}
+            pageSize={list.pageSize}
+            onPageSize={(n) => { list.setPageSize(n); setSelected([]); }}
+            onPageChange={(p) => { list.setPage(p); setSelected([]); }}
+            itemLabel="orders"
+          />
         </>
       )}
+
+      {selected.length > 0 && (
+        <div className="al-bulk" role="region" aria-label="Bulk actions">
+          <strong>{selected.length} selected</strong>
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => exportCsv(selectedRows)} disabled={exporting}>Export</button>
+          <button type="button" className="btn btn-primary btn-sm" onClick={markProcessing} disabled={busy}>{busy ? 'Updating…' : 'Mark processing'}</button>
+          <button type="button" className="btn btn-outline btn-sm" onClick={printLabels}>Print labels</button>
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => setSelected([])}>Clear</button>
+        </div>
+      )}
+
+      <OrderDrawer order={open} onClose={() => setOpen(null)} />
     </div>
   );
 }

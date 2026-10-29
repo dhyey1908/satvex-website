@@ -1,17 +1,22 @@
 const { z } = require('zod');
 const { INDIAN_STATES } = require('../constants/indianStates');
 
+// Dates are plain YYYY-MM-DD (schedule is day-granularity, not time-of-day), compared
+// against today's IST date by the public filters in settingsService.js.
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const heroBannerSchema = z.object({
   id: z.string().trim().min(1),
   type: z.enum(['image', 'video']),
   mediaUrl: z.string().trim().url(),
+  // Optional portrait image for phones; the desktop media is used when it is missing.
+  mobileMediaUrl: z.string().trim().url().optional().or(z.literal('')),
+  title: z.string().trim().max(80).optional().or(z.literal('')),
+  alt: z.string().trim().max(160).optional().or(z.literal('')),
   link: z.string().trim().max(300).optional().or(z.literal('')),
+  startDate: z.string().trim().regex(DATE_RE).optional().or(z.literal('')),
+  endDate: z.string().trim().regex(DATE_RE).optional().or(z.literal('')),
   isActive: z.boolean().default(true),
 });
-
-// Dates are plain YYYY-MM-DD (schedule is day-granularity, not time-of-day)
-// — compared against the current date in settingsRoutes.js's public filter.
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const announcementSchema = z.object({
   id: z.string().trim().min(1),
   message: z.string().trim().min(1).max(140),

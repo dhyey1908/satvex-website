@@ -95,6 +95,18 @@ function pricesIncludeGst(settings) {
 // except a few secrets"), so a field added later - shipment alert email,
 // Shiprocket pickup details, payment test users, finance assumptions - can never
 // leak to the public by default.
+// Today's date in India (YYYY-MM-DD). Schedules are entered as IST calendar days, so
+// "ends 21 Oct" must stop showing at midnight IST, not at 5:30am the next day (UTC).
+const istToday = (now = Date.now()) => new Date(now + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+const inSchedule = (item, today) => !(item.startDate && today < item.startDate) && !(item.endDate && today > item.endDate);
+
+// Banners the public site should show: switched on and inside their schedule.
+function activeBanners(banners, now) {
+  const today = istToday(now);
+  return (banners || []).filter((b) => b.isActive !== false && inSchedule(b, today));
+}
+
 function toPublicSettings(settings) {
   const s = settings || {};
   return {
@@ -104,7 +116,7 @@ function toPublicSettings(settings) {
     contactEmail: s.contactEmail,
     instagramUrl: s.instagramUrl,
     pinterestUrl: s.pinterestUrl,
-    heroBanners: s.heroBanners,
+    heroBanners: activeBanners(s.heroBanners),
     authImage: s.authImage,
     aboutImage: s.aboutImage,
     whyPillars: s.whyPillars,
@@ -146,17 +158,12 @@ async function isAnnouncementCouponValid(code) {
 // should actually show: active, within its configured date schedule (if
 // any), and — if it references a coupon — that coupon currently valid.
 async function getActiveAnnouncements(announcements) {
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD, matches schema
-  const candidates = (announcements || []).filter((a) => {
-    if (!a.isActive) return false;
-    if (a.startDate && today < a.startDate) return false;
-    if (a.endDate && today > a.endDate) return false;
-    return true;
-  });
+  const today = istToday(); // YYYY-MM-DD, matches schema
+  const candidates = (announcements || []).filter((a) => a.isActive && inSchedule(a, today));
   const checked = await Promise.all(
     candidates.map(async (a) => ((await isAnnouncementCouponValid(a.couponCode)) ? a : null))
   );
   return checked.filter(Boolean);
 }
 
-module.exports = { pricesIncludeGst, toPublicSettings, getSettings, updateSettings, getActiveAnnouncements, isAnnouncementCouponValid };
+module.exports = { istToday, activeBanners, pricesIncludeGst, toPublicSettings, getSettings, updateSettings, getActiveAnnouncements, isAnnouncementCouponValid };

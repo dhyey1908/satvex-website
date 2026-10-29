@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
-const SEARCH_DEBOUNCE_MS = 350;
+const SEARCH_DEBOUNCE_MS = 300;
 
 /**
  * State + data loading for an admin list screen whose search, filters, sort
@@ -14,15 +15,27 @@ const SEARCH_DEBOUNCE_MS = 350;
  * - Previous results stay on screen while a new request is in flight, so the
  *   filter bar (and a focused search box) never unmounts mid-typing.
  * - Out-of-order responses are discarded.
+ * - `urlSync`: search, filters, sort, page and page size live in the query string
+ *   (?q=&status=Pending&sort=…&page=2&size=25), so a refresh or a shared link keeps them.
  */
-export function useAdminList({ fetcher, resultKey, defaults, pageSize = 20 }) {
+export function useAdminList({ fetcher, resultKey, defaults, pageSize: initialPageSize = 20, urlSync = false }) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const fromUrl = (key) => (urlSync ? searchParams.get(key) : null);
   const defaultFilters = useMemo(() => defaults.filters || {}, [defaults.filters]);
-  const [filters, setFilters] = useState(defaultFilters);
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState(defaults.sortBy);
-  const [sortDir, setSortDir] = useState(defaults.sortDir);
-  const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState(() => {
+    const out = { ...defaultFilters };
+    for (const key of Object.keys(defaultFilters)) {
+      const v = fromUrl(key);
+      if (v) out[key] = v;
+    }
+    return out;
+  });
+  const [searchInput, setSearchInput] = useState(() => fromUrl('q') || '');
+  const [search, setSearch] = useState(() => (fromUrl('q') || '').trim());
+  const [sortBy, setSortBy] = useState(() => fromUrl('sort') || defaults.sortBy);
+  const [sortDir, setSortDir] = useState(() => fromUrl('dir') || defaults.sortDir);
+  const [page, setPage] = useState(() => Math.max(1, Number(fromUrl('page')) || 1));
+  const [pageSize, setPageSizeState] = useState(() => Number(fromUrl('size')) || initialPageSize);
   const [reloadToken, setReloadToken] = useState(0);
   const [state, setState] = useState({ data: null, loading: true, error: null });
   const latest = useRef(0);
@@ -49,6 +62,22 @@ export function useAdminList({ fetcher, resultKey, defaults, pageSize = 20 }) {
   }, [filters, search, sortBy, sortDir, page, pageSize]);
 
   const paramsKey = JSON.stringify(params);
+
+  // Mirror the state into the address bar (replace, so Back still leaves the page).
+  useEffect(() => {
+    if (!urlSync) return;
+    const next = new URLSearchParams();
+    if (search) next.set('q', search);
+    for (const [key, value] of Object.entries(filters)) {
+      if (value && value !== (defaultFilters[key] ?? '')) next.set(key, value);
+    }
+    if (sortBy !== defaults.sortBy) next.set('sort', sortBy);
+    if (sortDir !== defaults.sortDir) next.set('dir', sortDir);
+    if (page > 1) next.set('page', String(page));
+    if (pageSize !== initialPageSize) next.set('size', String(pageSize));
+    if (next.toString() !== searchParams.toString()) setSearchParams(next, { replace: true, state: { keepScroll: true } });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlSync, search, filters, sortBy, sortDir, page, pageSize]);
   const fetcherRef = useRef(fetcher);
   fetcherRef.current = fetcher;
 
@@ -95,7 +124,20 @@ export function useAdminList({ fetcher, resultKey, defaults, pageSize = 20 }) {
     setPage(1);
   }, [defaultFilters, defaults.sortBy, defaults.sortDir]);
 
+  // Clears search + filters but keeps the sort the admin chose.
+  const clearFilters = useCallback(() => {
+    setFilters(defaultFilters);
+    setSearchInput('');
+    setSearch('');
+    setPage(1);
+  }, [defaultFilters]);
+
   const reload = useCallback(() => setReloadToken((n) => n + 1), []);
+
+  const setPageSize = useCallback((n) => {
+    setPageSizeState(n);
+    setPage(1);
+  }, []);
 
   // Everything matching the current search/filters/sort (no paging) — used by
   // the CSV export so it isn't limited to the visible page.
@@ -131,6 +173,9 @@ export function useAdminList({ fetcher, resultKey, defaults, pageSize = 20 }) {
     page: pagination?.page || page,
     setPage,
     reset,
+    clearFilters,
+    pageSize,
+    setPageSize,
     reload,
     fetchAll,
     hasActiveFilters,

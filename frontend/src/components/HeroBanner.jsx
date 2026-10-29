@@ -151,6 +151,16 @@ export function HeroBanner({ banners, fallback }) {
   }
 
   if (count === 0) return fallback;
+  // A banner can carry a separate portrait image for phones.
+  const [isPhone, setIsPhone] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 640px)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia?.('(max-width: 640px)');
+    if (!mq) return undefined;
+    const onChange = () => setIsPhone(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
   if (!displayed) return fallback;
 
   const isExternal = current.link && /^https?:\/\//.test(current.link);
@@ -186,8 +196,8 @@ export function HeroBanner({ banners, fallback }) {
         ) : (
           <motion.img
             key={displayed.id}
-            src={displayed.mediaUrl}
-            alt=""
+            src={isPhone && displayed.mobileMediaUrl ? displayed.mobileMediaUrl : displayed.mediaUrl}
+            alt={displayed.alt || ''}
             draggable={false}
             initial={crossfade.initial}
             animate={crossfade.animate}

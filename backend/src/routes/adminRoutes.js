@@ -41,6 +41,10 @@ router.post('/shiprocket/test-connection', asyncHandler(orderController.adminTes
 
 router.get('/contacts', asyncHandler(contactController.adminList));
 router.put('/contacts/:id/status', asyncHandler(contactController.adminUpdateStatus));
+router.put('/contacts/:id/read', asyncHandler(contactController.adminMarkRead));
+router.put('/contacts/:id/note', asyncHandler(contactController.adminSetNote));
+router.delete('/contacts/:id', asyncHandler(contactController.adminRemove));
+router.get('/counts', asyncHandler(adminController.sidebarCounts));
 
 router.get('/products', asyncHandler(productController.adminList));
 

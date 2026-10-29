@@ -55,7 +55,7 @@ const PAIRS = [
   ['color-primary-contrast', 'color-primary', 4.5], ['color-primary-contrast', 'color-primary-hover', 4.5],
   ['color-primary-dark', 'color-primary-soft', 4.5], ['color-primary-dark', 'color-surface-alt', 4.5],
   ['color-primary', 'color-bg', 4.5], ['color-primary', 'color-surface', 4.5], ['color-primary', 'color-surface-alt', 4.5], ['color-primary', 'color-primary-soft', 4.5],
-  ['color-success', 'color-success-bg', 4.5], ['color-warning', 'color-warning-bg', 4.5], ['color-error', 'color-error-bg', 4.5], ['color-error', 'color-bg', 4.5],
+  ['color-success', 'color-success-bg', 4.5], ['color-warning', 'color-warning-bg', 4.5], ['color-error', 'color-error-bg', 4.5], ['color-info', 'color-info-bg', 4.5], ['color-indigo', 'color-indigo-bg', 4.5], ['color-info', 'color-surface', 4.5], ['color-indigo', 'color-surface', 4.5], ['color-error', 'color-bg', 4.5],
   ['color-announcement-text', 'color-announcement-bg', 4.5],
   ['color-footer-text', 'color-footer-bg', 4.5], ['color-footer-muted', 'color-footer-bg', 4.5], ['color-accent', 'color-footer-bg', 3],
   ['color-outline', 'color-bg', 3], ['color-outline', 'color-surface', 3], ['color-outline', 'color-surface-alt', 3],

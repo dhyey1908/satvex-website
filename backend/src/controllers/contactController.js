@@ -30,8 +30,8 @@ async function submit(req, res) {
 
 async function adminList(req, res) {
   const query = contactsQuerySchema.parse(req.query);
-  const { items, pagination } = queryContacts(await contactService.listContacts(), query);
-  ok(res, { contacts: items, pagination });
+  const { items, pagination, facets } = queryContacts(await contactService.listContacts(), query);
+  ok(res, { contacts: items, pagination, facets });
 }
 
 async function adminUpdateStatus(req, res) {
@@ -41,4 +41,21 @@ async function adminUpdateStatus(req, res) {
   ok(res, { contact });
 }
 
-module.exports = { submit, adminList, adminUpdateStatus };
+async function adminMarkRead(req, res) {
+  await contactService.markRead(req.params.id);
+  ok(res, { read: true });
+}
+
+async function adminSetNote(req, res) {
+  const { note } = z.object({ note: z.string().trim().max(2000) }).parse(req.body);
+  const contact = await contactService.setNote(req.params.id, note);
+  if (!contact) throw new AppError('Enquiry not found.', 404, 'NOT_FOUND');
+  ok(res, { contact });
+}
+
+async function adminRemove(req, res) {
+  await contactService.remove(req.params.id);
+  ok(res, { removed: true });
+}
+
+module.exports = { submit, adminList, adminUpdateStatus, adminMarkRead, adminSetNote, adminRemove };

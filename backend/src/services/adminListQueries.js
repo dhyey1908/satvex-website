@@ -18,6 +18,7 @@ const {
   paginate,
 } = require('../utils/listQuery');
 const { classifyOrder } = require('./financialAnalyticsService');
+const { statusConflicts } = require('../utils/orderConsistency');
 
 const ORDER_STATUSES = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 const SHIPMENT_STATUSES = [
@@ -31,6 +32,13 @@ const SHIPMENT_STATUSES = [
 ];
 
 // ---------------------------------------------------------------- orders ---
+
+// "a,b" -> ['a','b'] (each checked against `values`), so a filter chip can pick several.
+const multi = (values) =>
+  z.preprocess(
+    (v) => (v === '' || v == null ? undefined : String(v).split(',').map((x) => x.trim()).filter(Boolean)),
+    z.array(z.enum(values)).min(1).optional()
+  );
 
 // Mirrors frontend utils/paymentStatus.effectivePaymentStatus: what actually
 // happened with the payment (a failed/dropped ATTEMPT is layered on top of an
@@ -58,12 +66,13 @@ const ordersQuerySchema = z
       defaultSort: 'createdAt',
     }),
     ...dateRangeShape,
-    status: optional(z.enum(ORDER_STATUSES)),
+    status: multi(ORDER_STATUSES),
     paymentMethod: optional(z.enum(['COD', 'Online'])),
-    paymentStatus: optional(z.enum(['paid', 'awaiting', 'confirming', 'failed', 'dropped', 'expired'])),
-    shipmentStatus: optional(z.enum(SHIPMENT_STATUSES)),
+    paymentStatus: multi(['paid', 'awaiting', 'confirming', 'failed', 'dropped', 'expired']),
+    shipmentStatus: multi(SHIPMENT_STATUSES),
     courier: optional(z.string().trim().max(80)),
     deliveryStatus: optional(z.string().trim().max(80)),
+    userId: optional(z.string().trim().max(80)),
   })
   .refine(checkDateRange, DATE_RANGE_ERROR);
 
@@ -76,23 +85,41 @@ const ORDER_SORT = {
   shipmentStatus: (o) => SHIPMENT_STATUSES.indexOf(o.shipmentStatus || 'not_created'),
 };
 
+const searchesOrder = (q, o) =>
+  matchesSearch(q.search, [o.orderId, o.customer?.name, o.customer?.email, o.customer?.phone, o.awbCode]);
+
 function filterOrders(orders, q) {
   return orders.filter((o) => {
-    if (q.status && o.status !== q.status) return false;
+    if (q.userId && o.userId !== q.userId) return false;
+    if (q.status && !q.status.includes(o.status)) return false;
     if (q.paymentMethod && o.paymentMethod !== q.paymentMethod) return false;
-    if (q.paymentStatus && effectivePayment(o) !== q.paymentStatus) return false;
-    if (q.shipmentStatus && (o.shipmentStatus || 'not_created') !== q.shipmentStatus) return false;
+    if (q.paymentStatus && !q.paymentStatus.includes(effectivePayment(o))) return false;
+    if (q.shipmentStatus && !q.shipmentStatus.includes(o.shipmentStatus || 'not_created')) return false;
     if (q.courier && o.courierName !== q.courier) return false;
     if (q.deliveryStatus && o.lastTrackingStatus !== q.deliveryStatus) return false;
     if (!inDateRange(o.createdAt, q.dateFrom, q.dateTo)) return false;
-    return matchesSearch(q.search, [
-      o.orderId,
-      o.customer?.name,
-      o.customer?.email,
-      o.customer?.phone,
-      o.awbCode,
-    ]);
+    return searchesOrder(q, o);
   });
+}
+
+const bump = (map, key) => {
+  map[key] = (map[key] || 0) + 1;
+};
+
+// How many orders each filter option would match, within the current search + date range
+// (so the numbers on the chips and tabs move with the date picker).
+function orderCounts(orders, q) {
+  const scope = orders.filter(
+    (o) => inDateRange(o.createdAt, q.dateFrom, q.dateTo) && searchesOrder(q, o) && (!q.userId || o.userId === q.userId)
+  );
+  const counts = { total: scope.length, status: {}, paymentStatus: {}, shipmentStatus: {}, paymentMethod: {} };
+  for (const o of scope) {
+    bump(counts.status, o.status);
+    bump(counts.paymentStatus, effectivePayment(o));
+    bump(counts.shipmentStatus, o.shipmentStatus || 'not_created');
+    bump(counts.paymentMethod, o.paymentMethod);
+  }
+  return counts;
 }
 
 function distinct(values) {
@@ -104,7 +131,8 @@ function queryOrders(orders, q) {
   const sorted = sortItems(filtered, ORDER_SORT[q.sortBy], q.sortDir, newestFirst);
   const { items, pagination } = paginate(sorted, q);
   return {
-    items,
+    // `conflicts`: statuses that contradict each other (shown as a warning on the row).
+    items: items.map((o) => ({ ...o, conflicts: statusConflicts(o) })),
     pagination,
     // Dropdown options come from the real data (couriers/tracking states are
     // free text from Shiprocket), built from ALL orders so choosing one
@@ -112,6 +140,7 @@ function queryOrders(orders, q) {
     facets: {
       couriers: distinct(orders.map((o) => o.courierName)),
       deliveryStatuses: distinct(orders.map((o) => o.lastTrackingStatus)),
+      counts: orderCounts(orders, q),
     },
   };
 }
@@ -125,17 +154,24 @@ function queryOrders(orders, q) {
 function buildCustomerRows(users, orders) {
   const byUser = new Map();
   for (const order of orders) {
-    const entry = byUser.get(order.userId) || { orderCount: 0, totalSpent: 0, lastOrderAt: null };
+    const entry = byUser.get(order.userId) || { orderCount: 0, totalSpent: 0, lastOrderAt: null, codCount: 0, prepaidCount: 0 };
     entry.orderCount += 1;
+    if (order.paymentMethod === 'COD') entry.codCount += 1;
+    else entry.prepaidCount += 1;
     if (classifyOrder(order) === 'collected') entry.totalSpent += Number(order.total || 0);
     if (!entry.lastOrderAt || order.createdAt > entry.lastOrderAt) entry.lastOrderAt = order.createdAt;
     byUser.set(order.userId, entry);
   }
+  // Staff (admin) accounts are listed only when they have placed orders, and are labelled
+  // so they are not mistaken for shoppers.
   return users
-    .filter((u) => u.role !== 'admin')
+    .filter((u) => u.role !== 'admin' || byUser.has(u.userId))
     .map((u) => {
-      const stats = byUser.get(u.userId) || { orderCount: 0, totalSpent: 0, lastOrderAt: null };
+      const stats = byUser.get(u.userId) || { orderCount: 0, totalSpent: 0, lastOrderAt: null, codCount: 0, prepaidCount: 0 };
       return {
+        isStaff: u.role === 'admin',
+        codCount: stats.codCount,
+        prepaidCount: stats.prepaidCount,
         userId: u.userId,
         name: u.name,
         email: u.email,
@@ -150,7 +186,7 @@ function buildCustomerRows(users, orders) {
 
 const customersQuerySchema = z
   .object({
-    ...listShape({ sortFields: ['name', 'createdAt', 'orderCount', 'totalSpent'], defaultSort: 'createdAt' }),
+    ...listShape({ sortFields: ['name', 'createdAt', 'orderCount', 'totalSpent', 'lastOrderAt'], defaultSort: 'createdAt' }),
     ...dateRangeShape,
     hasOrders: optional(z.enum(['yes', 'no'])),
   })
@@ -175,6 +211,7 @@ const CUSTOMER_SORT = {
   createdAt: (c) => c.createdAt,
   orderCount: (c) => c.orderCount,
   totalSpent: (c) => c.totalSpent,
+  lastOrderAt: (c) => c.lastOrderAt,
 };
 
 function queryCustomers(rows, q) {
@@ -327,7 +364,7 @@ function queryCoupons(coupons, q, now = Date.now()) {
 
 // -------------------------------------------------------------- contacts ---
 
-const CONTACT_STATUSES = ['open', 'resolved'];
+const CONTACT_STATUSES = ['open', 'in_progress', 'resolved'];
 
 const contactsQuerySchema = z
   .object({
@@ -350,7 +387,28 @@ function queryContacts(contacts, q) {
   });
   const sorted = sortItems(filtered, (c) => c.createdAt, q.sortDir, newestFirst);
   const { items, pagination } = paginate(sorted, q);
-  return { items: items.map((c) => ({ ...c, status: contactStatus(c) })), pagination };
+  // Counts for the status tabs and the sidebar badge, within the current search/category/date.
+  const scope = contacts.filter(
+    (c) =>
+      (!q.enquiryType || (c.enquiryType || 'general_enquiry') === q.enquiryType) &&
+      inDateRange(c.createdAt, q.dateFrom, q.dateTo) &&
+      matchesSearch(q.search, [c.name, c.email, c.phone, c.message, c.orderId])
+  );
+  const counts = {
+    total: scope.length,
+    status: {},
+    enquiryType: {},
+    unread: contacts.filter((c) => !c.readAt && contactStatus(c) !== 'resolved').length,
+  };
+  for (const c of scope) {
+    bump(counts.status, contactStatus(c));
+    bump(counts.enquiryType, c.enquiryType || 'general_enquiry');
+  }
+  return {
+    items: items.map((c) => ({ ...c, status: contactStatus(c), unread: !c.readAt && contactStatus(c) !== 'resolved' })),
+    pagination,
+    facets: { counts },
+  };
 }
 
 // ------------------------------------------------- shipment sync issues ---

@@ -1,4 +1,4 @@
-const { PutCommand, GetCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+const { PutCommand, GetCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
 const { v4: uuid } = require('uuid');
 const { docClient } = require('../config/dynamo');
 const env = require('../config/env');
@@ -44,7 +44,7 @@ async function updateStatus(contactId, status) {
     new UpdateCommand({
       TableName: TABLE,
       Key: { contactId },
-      UpdateExpression: 'SET #status = :status, resolvedAt = :resolvedAt, updatedAt = :now',
+      UpdateExpression: 'SET #status = :status, resolvedAt = :resolvedAt, updatedAt = :now, readAt = if_not_exists(readAt, :now)',
       ExpressionAttributeNames: { '#status': 'status' },
       ExpressionAttributeValues: {
         ':status': status,
@@ -57,4 +57,41 @@ async function updateStatus(contactId, status) {
   return result.Attributes;
 }
 
-module.exports = { createContact, listContacts, updateStatus };
+// Opening a message marks it read (the unread dot / sidebar count). Idempotent.
+async function markRead(contactId) {
+  try {
+    await docClient.send(
+      new UpdateCommand({
+        TableName: TABLE,
+        Key: { contactId },
+        UpdateExpression: 'SET readAt = :now',
+        ConditionExpression: 'attribute_exists(contactId) AND attribute_not_exists(readAt)',
+        ExpressionAttributeValues: { ':now': new Date().toISOString() },
+      })
+    );
+  } catch (err) {
+    if (err.name !== 'ConditionalCheckFailedException') throw err; // already read, or gone
+  }
+}
+
+// Internal note, never shown to the customer. Returns the updated record, or null.
+async function setNote(contactId, note) {
+  const existing = await docClient.send(new GetCommand({ TableName: TABLE, Key: { contactId } }));
+  if (!existing.Item) return null;
+  const result = await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE,
+      Key: { contactId },
+      UpdateExpression: 'SET adminNote = :note, updatedAt = :now',
+      ExpressionAttributeValues: { ':note': note, ':now': new Date().toISOString() },
+      ReturnValues: 'ALL_NEW',
+    })
+  );
+  return result.Attributes;
+}
+
+async function remove(contactId) {
+  await docClient.send(new DeleteCommand({ TableName: TABLE, Key: { contactId } }));
+}
+
+module.exports = { createContact, listContacts, updateStatus, markRead, setNote, remove };
