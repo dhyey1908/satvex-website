@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Loader2, CheckCircle2, XCircle, ShoppingBag, Zap, ArrowLeft, BadgeCheck, Share2 } from 'lucide-react';
 import { productService } from '../services/productService';
 import { ProductGallery } from '../components/ProductGallery';
+import { ColourPreview } from '../components/ColourPreview';
 import { SellingOptionSelector } from '../components/SellingOptionSelector';
 import { ComboColorSelector } from '../components/ComboColorSelector';
 import { QuantitySelector } from '../components/QuantitySelector';
@@ -278,7 +279,7 @@ export function ProductDetail() {
     if (searchParams.get('color') !== next) {
       const params = new URLSearchParams(searchParams);
       params.set('color', next);
-      setSearchParams(params, { replace: true });
+      setSearchParams(params, { replace: true, state: { keepScroll: true } }); // ScrollToTop leaves the page where it is
     }
     (v.images || []).forEach((p) => {
       const img = new Image();
@@ -619,6 +620,7 @@ export function ProductDetail() {
                 onChange={setSelectedColors}
                 onBlocked={setColorError}
               />
+              <ColourPreview variant={activeVariant} productName={displayName} />
               {colorError && (
                 <p className="pdp-color-error" role="alert">
                   {colorError}

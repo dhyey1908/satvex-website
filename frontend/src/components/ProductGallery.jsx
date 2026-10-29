@@ -18,10 +18,9 @@ export function ProductGallery({ images, lifestyleImages, activeImage, videoUrl,
   const base = images && images.length > 0 ? images : [];
   const gallery = lifestyleImages?.length ? [...base, ...lifestyleImages.filter((u) => !base.includes(u))] : base;
   const [index, setIndex] = useState(0);
-  // When a product has a video, it's the default view. Selecting any image
-  // thumbnail switches to images, same as before; nothing about the image
-  // gallery itself changes.
-  const [showVideo, setShowVideo] = useState(Boolean(videoUrl));
+  // The page opens on the first photo; the video is one tap away on its own thumbnail
+  // and never starts by itself.
+  const [showVideo, setShowVideo] = useState(false);
   // Autoplay genuinely failing (blocked, errored, or the viewer prefers
   // reduced motion) falls back to the plain image view below rather than a
   // stuck, silent black box — see the autoplay effect further down.
@@ -58,7 +57,7 @@ export function ProductGallery({ images, lifestyleImages, activeImage, videoUrl,
   // whenever the product itself changes, so landing on a video product
   // after a non-video one (or vice versa) still opens on the right view.
   useEffect(() => {
-    setShowVideo(Boolean(videoUrl));
+    setShowVideo(false);
     setVideoFailed(false);
   }, [videoUrl]);
 

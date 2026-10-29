@@ -15,13 +15,15 @@ import { useLocation } from 'react-router-dom';
  * ProductDetail scrolls to its own anchor after navigating.
  */
 export function ScrollToTop() {
-  const { pathname, search, hash, key } = useLocation();
+  const { pathname, search, hash, key, state } = useLocation();
   const previousUrl = useRef(null);
 
   useEffect(() => {
     const url = pathname + search;
     const urlChanged = previousUrl.current !== url;
     previousUrl.current = url;
+    // keepScroll: the page only rewrote its own URL (e.g. ?color= on the product page).
+    if (state?.keepScroll) return;
     if (urlChanged || !hash) {
       window.scrollTo(0, 0);
     }
