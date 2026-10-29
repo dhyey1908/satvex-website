@@ -34,8 +34,16 @@ export function galleryFor(product, variantId) {
     altByUrl[img.url] = img.alt || fallbackAlt;
   };
   const name = product.displayName || product.name;
-  colour.forEach((img) => add(img, `SATVEX ${name} – ${variant.colorName}`));
-  common.forEach((img) => add(img, `SATVEX ${name}`));
+  const addColour = () => colour.forEach((img) => add(img, `SATVEX ${name} – ${variant.colorName}`));
+  const addCommon = () => common.forEach((img) => add(img, `SATVEX ${name}`));
+  // The admin picks the order per product; the selected colour's photos lead unless they say otherwise.
+  if (product.galleryOrder === 'common_first') {
+    addCommon();
+    addColour();
+  } else {
+    addColour();
+    addCommon();
+  }
   return { urls, altByUrl };
 }
 

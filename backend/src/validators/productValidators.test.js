@@ -66,3 +66,10 @@ test('a partial update without videos leaves the field untouched', () => {
   const parsed = productUpdateSchema.parse({ name: 'Renamed' });
   assert.equal('testimonialVideos' in parsed, false);
 });
+
+test('galleryOrder accepts only the two known orders', () => {
+  assert.equal(productUpdateSchema.safeParse({ galleryOrder: 'common_first' }).success, true);
+  assert.equal(productUpdateSchema.safeParse({ galleryOrder: 'colour_first' }).success, true);
+  assert.equal(productUpdateSchema.safeParse({ galleryOrder: 'sideways' }).success, false);
+  assert.equal(productUpdateSchema.safeParse({ galleryOrder: 'common_first' }).data.galleryOrder, 'common_first');
+});

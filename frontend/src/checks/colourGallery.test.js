@@ -66,3 +66,10 @@ test('colour slugs and mapping a photo back to its colour', () => {
   assert.equal(variantForUrl(product.variants, 'l2').id, 'lav');
   assert.equal(variantForUrl(product.variants, 'c1'), null);
 });
+
+test('"common photos first" puts the common photos ahead of the colour\'s own', () => {
+  const p = { ...product, galleryOrder: 'common_first' };
+  assert.deepEqual(galleryFor(p, 'pink').urls, ['c1', 'c2', 'p2', 'p1', 'p3']);
+  assert.deepEqual(galleryFor(p, 'red').urls, ['c1', 'c2']);
+  assert.deepEqual(galleryFor({ ...product, galleryOrder: 'colour_first' }, 'pink').urls, ['p2', 'p1', 'p3', 'c1', 'c2']);
+});

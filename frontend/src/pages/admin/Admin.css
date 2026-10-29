@@ -306,3 +306,12 @@
 .unsaved-dot { display: inline-flex; align-items: center; gap: 8px; margin-right: auto; font-size: 0.85rem; font-weight: 600; color: var(--color-warning); }
 .unsaved-dot > span { width: 10px; height: 10px; border-radius: 50%; background: var(--color-warning); }
 .remove-variant-actions { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-3); }
+
+/* product editor: choose which photos the product page lists first */
+.gallery-order { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); margin: 0 0 var(--space-4); padding: 0; border: none; }
+.gallery-order legend { margin-bottom: var(--space-2); padding: 0; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-muted); }
+.gallery-order-option { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3) var(--space-4); border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); cursor: pointer; }
+.gallery-order-option.is-on { border-color: var(--color-primary); background: var(--color-primary-soft); }
+.gallery-order-option input { margin-top: 4px; accent-color: var(--color-primary); }
+.gallery-order-option small { display: block; margin-top: 2px; color: var(--color-text-muted); font-size: 0.8rem; }
+@media (max-width: 560px) { .gallery-order { grid-template-columns: 1fr; } }

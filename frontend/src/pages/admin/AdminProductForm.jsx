@@ -25,6 +25,7 @@ const EMPTY_PRODUCT = {
   basePrice: 0,
   images: [],
   commonImages: [],
+  galleryOrder: 'colour_first',
   videoUrl: '',
   testimonialVideos: [],
   rating: 0,
@@ -472,7 +473,19 @@ export function AdminProductForm() {
 
         <div className="admin-form-section">
           <h3>Common Images</h3>
-          <p className="field-hint">Shown for every colour, after the colour&apos;s own photos.</p>
+          <p className="field-hint">Shown for every colour.</p>
+          <fieldset className="gallery-order">
+            <legend>Photo order on the product page</legend>
+            {[
+              ['colour_first', 'Colour photos first', "The selected colour's photos, then these common photos."],
+              ['common_first', 'Common photos first', "These common photos, then the selected colour's photos."],
+            ].map(([value, label, hint]) => (
+              <label key={value} className={`gallery-order-option ${(form.galleryOrder || 'colour_first') === value ? 'is-on' : ''}`}>
+                <input type="radio" name="galleryOrder" value={value} checked={(form.galleryOrder || 'colour_first') === value} onChange={() => setField('galleryOrder', value)} />
+                <span><strong>{label}</strong><small>{hint}</small></span>
+              </label>
+            ))}
+          </fieldset>
           <UploadZone folder="products" maxFiles={30 - form.commonImages.length} onUploaded={addCommonPhoto} />
           <PhotoGrid
             photos={form.commonImages}

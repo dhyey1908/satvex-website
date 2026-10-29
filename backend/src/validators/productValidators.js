@@ -88,6 +88,8 @@ const productSchema = z.object({
   images: z.array(z.string().trim().min(1)).default([]),
   // Photos shown for EVERY colour (after the colour's own). `images` above mirrors their URLs.
   commonImages: z.array(imageSchema).max(30, 'Up to 30 common images.').optional(),
+  // Which photos the product page lists first: the selected colour's own (default) or the common ones.
+  galleryOrder: z.enum(['colour_first', 'common_first']).optional(),
   videoUrl: z.string().trim().url().optional().or(z.literal('')),
   // Computed from published reviews (see reviewService.recomputeProductAggregate) —
   // not admin-editable. Starts at 0 until the product has real reviews.
