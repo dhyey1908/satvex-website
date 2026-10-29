@@ -13,9 +13,9 @@ export function PriceDisplay({ price, compareAtPrice, size = 'md', offer, showPe
 
   return (
     <span className={`price-display price-${size}`}>
-      {offer?.saveAmount > 0 && <span className="price-discount-badge">Save {inr(offer.saveAmount)}</span>}
       <span className="price-current">₹{price}</span>
       {onSale && <span className="price-compare">₹{compareAtPrice}</span>}
+      {offer?.saveAmount > 0 && <span className="price-discount-badge">Save {inr(offer.saveAmount)}</span>}
       {showPerPiece && offer?.perPiece > 0 && <span className="price-per-piece">{inr(offer.perPiece)} / piece</span>}
     </span>
   );

@@ -27,6 +27,7 @@ const EMPTY_PRODUCT = {
   commonImages: [],
   galleryOrder: 'colour_first',
   videoUrl: '',
+  firstMedia: 'image',
   testimonialVideos: [],
   rating: 0,
   reviewCount: 0,
@@ -451,6 +452,20 @@ export function AdminProductForm() {
               />
             )}
           </div>
+          {form.videoUrl && (
+            <fieldset className="gallery-order">
+              <legend>Product page opens on</legend>
+              {[
+                ['image', 'First photo', 'Shoppers see the photo first; the video is one tap away.'],
+                ['video', 'Product video', 'The video plays first (muted), then the photos.'],
+              ].map(([value, label, hint]) => (
+                <label key={value} className={`gallery-order-option ${(form.firstMedia || 'image') === value ? 'is-on' : ''}`}>
+                  <input type="radio" name="firstMedia" value={value} checked={(form.firstMedia || 'image') === value} onChange={() => setField('firstMedia', value)} />
+                  <span><strong>{label}</strong><small>{hint}</small></span>
+                </label>
+              ))}
+            </fieldset>
+          )}
           <div className="checkbox-field">
             <input
               id="isActive"

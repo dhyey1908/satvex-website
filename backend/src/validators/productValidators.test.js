@@ -67,6 +67,12 @@ test('a partial update without videos leaves the field untouched', () => {
   assert.equal('testimonialVideos' in parsed, false);
 });
 
+test('firstMedia accepts only image or video', () => {
+  assert.equal(productUpdateSchema.safeParse({ firstMedia: 'video' }).data.firstMedia, 'video');
+  assert.equal(productUpdateSchema.safeParse({ firstMedia: 'image' }).success, true);
+  assert.equal(productUpdateSchema.safeParse({ firstMedia: 'gif' }).success, false);
+});
+
 test('galleryOrder accepts only the two known orders', () => {
   assert.equal(productUpdateSchema.safeParse({ galleryOrder: 'common_first' }).success, true);
   assert.equal(productUpdateSchema.safeParse({ galleryOrder: 'colour_first' }).success, true);

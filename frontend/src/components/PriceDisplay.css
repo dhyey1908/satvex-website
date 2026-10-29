@@ -1,7 +1,7 @@
-/* Order follows plain DOM order (badge → selling price → crossed MRP), which
+/* Order follows plain DOM order (selling price → crossed MRP → "Save" badge), which
    is also the order PriceDisplay.jsx renders them in — the selling price
    must read as the strongest, most immediate value, with MRP trailing as a
-   smaller reference, not the other way around. */
+   smaller reference, with the saving after both. */
 .price-display { display: inline-flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .price-current { font-weight: 600; font-family: var(--font-body); color: var(--color-primary); }
 .price-compare { color: var(--color-text-muted); text-decoration: line-through; font-weight: 400; }

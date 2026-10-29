@@ -14,13 +14,15 @@ const SWIPE_THRESHOLD = 40;
 
 // `lifestyleImages` is an optional slot for in-use / model photos: they follow
 // the product photos in the same sequence (thumbnails, arrows, swipe, dots).
-export function ProductGallery({ images, lifestyleImages, activeImage, videoUrl, alt, altByUrl, resetKey, onImageChange }) {
+export function ProductGallery({ images, lifestyleImages, activeImage, videoUrl, videoFirst = false, alt, altByUrl, resetKey, onImageChange }) {
   const base = images && images.length > 0 ? images : [];
   const gallery = lifestyleImages?.length ? [...base, ...lifestyleImages.filter((u) => !base.includes(u))] : base;
   const [index, setIndex] = useState(0);
-  // The page opens on the first photo; the video is one tap away on its own thumbnail
-  // and never starts by itself.
-  const [showVideo, setShowVideo] = useState(false);
+  // The page opens on the first photo, with the video one tap away on its own thumbnail -
+  // unless the admin chose "video first" for this product. Picking a colour or a photo
+  // always goes back to photos.
+  const opensOnVideo = videoFirst && Boolean(videoUrl);
+  const [showVideo, setShowVideo] = useState(opensOnVideo);
   // Autoplay genuinely failing (blocked, errored, or the viewer prefers
   // reduced motion) falls back to the plain image view below rather than a
   // stuck, silent black box — see the autoplay effect further down.
@@ -57,9 +59,9 @@ export function ProductGallery({ images, lifestyleImages, activeImage, videoUrl,
   // whenever the product itself changes, so landing on a video product
   // after a non-video one (or vice versa) still opens on the right view.
   useEffect(() => {
-    setShowVideo(false);
+    setShowVideo(opensOnVideo);
     setVideoFailed(false);
-  }, [videoUrl]);
+  }, [videoUrl, opensOnVideo]);
 
   // A genuinely new activeImage (the customer picked a different color)
   // takes manual browsing back over, same as it always has — and also

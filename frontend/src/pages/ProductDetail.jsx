@@ -508,6 +508,7 @@ export function ProductDetail() {
               resetKey={galleryColorId}
               activeImage={null}
               videoUrl={product.videoUrl}
+              videoFirst={product.firstMedia === 'video'}
               lifestyleImages={product.lifestyleImages}
               alt={displayName}
               onImageChange={setDisplayedImage}
