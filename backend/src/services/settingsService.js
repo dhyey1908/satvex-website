@@ -37,6 +37,8 @@ const DEFAULT_SETTINGS = {
     roundTo: 1,
     fallbackFlatCharge: 59,
     freeThreshold: 700,
+    dispatchDays: 2,
+    transitDays: 5,
     rateIncludesGst: false,
     rateIncludesCodCharge: false,
     courierSelectionRule: 'lowest_rate',
@@ -122,7 +124,7 @@ function toPublicSettings(settings) {
     whyPillars: s.whyPillars,
     cod: { enabled: Boolean(s.cod?.enabled), charge: s.cod?.charge },
     tax: { enabled: Boolean(s.tax?.enabled), percent: s.tax?.percent, pricesIncludeGst: pricesIncludeGst(s) },
-    shipping: { freeThreshold: s.shipping?.freeThreshold },
+    shipping: { freeThreshold: s.shipping?.freeThreshold, dispatchDays: s.shipping?.dispatchDays, transitDays: s.shipping?.transitDays },
   };
 }
 

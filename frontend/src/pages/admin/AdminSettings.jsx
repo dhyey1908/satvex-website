@@ -511,6 +511,32 @@ export function AdminSettings({ section = 'general' }) {
               />
             </div>
             <div className="field">
+              <label htmlFor="dispatchDays">Dispatch Time (days)</label>
+              <input
+                id="dispatchDays"
+                type="number"
+                min="0"
+                max="30"
+                step="1"
+                value={form.shipping?.dispatchDays ?? 2}
+                onChange={(e) => setNestedField('shipping', 'dispatchDays', Math.round(Number(e.target.value)))}
+              />
+              <p className="field-hint">Days before the parcel leaves you. Used for &quot;Estimated delivery&quot; on the site.</p>
+            </div>
+            <div className="field">
+              <label htmlFor="transitDays">Delivery Time After Dispatch (days)</label>
+              <input
+                id="transitDays"
+                type="number"
+                min="0"
+                max="60"
+                step="1"
+                value={form.shipping?.transitDays ?? 5}
+                onChange={(e) => setNestedField('shipping', 'transitDays', Math.round(Number(e.target.value)))}
+              />
+              <p className="field-hint">Courier transit time. Shoppers see today + dispatch to today + dispatch + this.</p>
+            </div>
+            <div className="field">
               <label htmlFor="courierSelectionRule">Courier Selection Rule</label>
               <select
                 id="courierSelectionRule"

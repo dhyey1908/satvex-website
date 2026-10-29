@@ -5,8 +5,8 @@ export const SITE_URL = 'https://www.satvex.co.in';
 export const SITE_NAME = 'Satvex';
 
 // Social-share fallback when a page has no image of its own.
-// TODO: add a 1200x630 /og-default.jpg to frontend/public and set this to '/og-default.jpg'.
-export const DEFAULT_OG_IMAGE = null;
+// public/og-default.jpg is 1200x630 (the size WhatsApp, Facebook and Google show best).
+export const DEFAULT_OG_IMAGE = '/og-default.jpg';
 
 // Absolute URL on the canonical host for a path ("/shop") or a media URL
 // (already absolute, returned as is).

@@ -153,17 +153,6 @@ function buildPaymentParams({ txnid, amount, productinfo, firstname, email, phon
   }
   fields.hash = buildRequestHash(fields);
 
-  // TEMPORARY DEBUG LOG - compare against the Network tab payload, then remove.
-  // Never contains the salt (shown as <SALT>) and masks the merchant key.
-  logger.info('PayU request built [TEMPORARY debug]', {
-    mode: env.payu.env,
-    actionUrl: PAYMENT_ACTION_URL,
-    txnid,
-    txnidLength: String(txnid).length,
-    amount: fields.amount,
-    hashInput: requestHashParts({ ...fields, key: `${String(fields.key).slice(0, 2)}***` }, '<SALT>').join('|'),
-    hash: fields.hash,
-  });
   return { actionUrl: PAYMENT_ACTION_URL, fields };
 }
 

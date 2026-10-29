@@ -6,8 +6,6 @@ import { estimateWindow } from '../utils/deliveryEstimate';
 import { BrandDots } from './BrandLoader';
 import './PincodeCheck.css';
 
-const formatEstimate = estimateWindow;
-
 /**
  * Self-contained "check delivery to your area" widget for the PDP — a
  * display-only convenience, separate from Checkout's own address form.
@@ -23,6 +21,7 @@ const formatEstimate = estimateWindow;
 export function PincodeCheck() {
   const { settings } = useSettings();
   const freeDeliveryThreshold = settings?.shipping?.freeThreshold ?? 0;
+  const formatEstimate = () => estimateWindow(settings?.shipping);
   const codEnabled = settings?.cod?.enabled !== false;
   const [pincode, setPincode] = useState('');
   const [state, setState] = useState('idle'); // idle | loading | found | not-deliverable | not-found

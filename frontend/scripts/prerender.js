@@ -20,7 +20,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { SITE_URL, SITE_NAME, absoluteUrl, buildProductJsonLd } from '../src/utils/seo.js';
+import { SITE_URL, SITE_NAME, DEFAULT_OG_IMAGE, absoluteUrl, buildProductJsonLd } from '../src/utils/seo.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dirname, '..', 'dist');
@@ -123,7 +123,7 @@ async function main() {
   write(
     '_pre/home.html',
     render(template, {
-      head: headBlock({ title: HOME_TITLE, description: HOME_DESC, pathname: '/', image: products[0] && firstImage(products[0]), type: 'website' }),
+      head: headBlock({ title: HOME_TITLE, description: HOME_DESC, pathname: '/', image: absoluteUrl(DEFAULT_OG_IMAGE) || (products[0] && firstImage(products[0])), type: 'website' }),
       body: shell(`<h1>${esc(SITE_NAME)} — Designed for Her. Made to Move.</h1><p>${esc(HOME_DESC)}</p><h2>Shop</h2>${productList(products)}`),
     })
   );

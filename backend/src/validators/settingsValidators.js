@@ -64,6 +64,9 @@ const shippingSettingsSchema = z.object({
   // Free shipping when (taxable amount + GST, after coupon, before shipping
   // and COD fee) is at or above this. Admin-editable, Rs.
   freeThreshold: z.number().min(0).default(700),
+  // Shown to shoppers as "Estimated delivery: <dispatch> to <dispatch + transit> days from today".
+  dispatchDays: z.number().int().min(0).max(30).default(2),
+  transitDays: z.number().int().min(0).max(60).default(5),
   // TODO(confirm): whether Shiprocket's freight_charge already includes
   // GST — not stated anywhere in available docs. Default false (we add
   // settings.tax.percent on top) until a real response is checked via

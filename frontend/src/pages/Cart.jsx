@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
+import { useSettings } from '../context/SettingsContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { orderService } from '../services/orderService';
 import { addressService } from '../services/addressService';
@@ -34,6 +35,7 @@ export function Cart() {
   const cartLoading = loading && items.length === 0 && savedItems.length === 0;
   const holdLoader = useMinimumLoading(cartLoading);
   const { showToast } = useToast();
+  const { settings } = useSettings();
   const confirm = useConfirm();
 
   // Live, backend-computed preview of GST/shipping/total — the Cart page
@@ -250,7 +252,7 @@ export function Cart() {
             </div>
 
             <p className="cart-delivery-estimate">
-              <Truck size={16} aria-hidden="true" /> Estimated delivery: {estimateWindow()}
+              <Truck size={16} aria-hidden="true" /> Estimated delivery: {estimateWindow(settings?.shipping)}
             </p>
 
             <OrderSummary

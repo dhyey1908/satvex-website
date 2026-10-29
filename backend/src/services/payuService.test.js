@@ -88,7 +88,7 @@ test('buildPaymentParams: a pipe inside a hashed value is refused (it would shif
   );
 });
 
-test('the salt never reaches the form fields or the debug log; the log shows the exact hash input with <SALT>', () => {
+test('the salt never reaches the form fields, and building a payment logs nothing', () => {
   const lines = [];
   const orig = console.log;
   console.log = (l) => lines.push(String(l));
@@ -99,15 +99,7 @@ test('the salt never reaches the form fields or the debug log; the log shows the
     console.log = orig;
   }
   assert.ok(!JSON.stringify(fields).includes('testsalt'), 'salt in form fields');
-  const log = lines.find((l) => l.includes('PayU request built'));
-  assert.ok(log, 'debug log written');
-  assert.ok(!log.includes('testsalt'), 'salt in log');
-  assert.ok(!log.includes('"testkey"') && !log.includes('testkey|'), 'merchant key is masked in the log');
-  const entry = JSON.parse(log);
-  assert.equal(entry.meta.amount, '10.00');
-  assert.equal(entry.meta.txnid, 'abc123');
-  assert.equal(entry.meta.hashInput, 'te***|abc123|10.00|Order X|Jane|jane@example.com|||||||||||<SALT>');
-  assert.equal(entry.meta.hash, fields.hash);
+  assert.ok(!lines.some((l) => l.includes('PayU request built') || l.includes('testsalt')), 'no request/hash debug logging');
 });
 
 test('orderIdFromTxnid: a txnid with no hyphen at all is returned unchanged (legacy/malformed input, never crashes)', () => {

@@ -394,13 +394,13 @@ export function AdminProductForm() {
             {touched.description && fieldErrors.description && <p className="field-error">{fieldErrors.description}</p>}
           </div>
           <div className="field">
-            <label htmlFor="howToWear">How to Wear / Fit Notes (optional)</label>
+            <label htmlFor="howToWear">How to Use &amp; Care (optional)</label>
             <textarea
               id="howToWear"
               rows={3}
               value={form.howToWear || ''}
               onChange={(e) => setField('howToWear', e.target.value)}
-              placeholder="Shown as an extra accordion section on the product page. Leave blank to hide it."
+              placeholder="Shown as the &quot;How to Use &amp; Care&quot; section on the product page: how to wear it, fit notes, cleaning and storage. Leave blank to hide the section."
             />
           </div>
           <div className="admin-form-row">

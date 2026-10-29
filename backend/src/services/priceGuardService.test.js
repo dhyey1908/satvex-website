@@ -47,6 +47,7 @@ test('public settings are a whitelist: nothing internal can reach the browser', 
   }
   assert.equal(pub.tax.pricesIncludeGst, true, 'default ON when missing');
   assert.equal(pub.shipping.freeThreshold, 700);
+  assert.ok('dispatchDays' in pub.shipping && 'transitDays' in pub.shipping);
 });
 
 test('coupon: minimum order value is accepted; a flat discount must stay below it', () => {

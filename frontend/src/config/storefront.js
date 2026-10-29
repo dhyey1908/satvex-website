@@ -9,7 +9,7 @@ export const STOREFRONT = {
   featuredOptionLabel: 'Best Value',
 
   // Estimated delivery window shown only after a valid pincode is checked.
-  // TODO(confirm): replace with your real dispatch + transit times.
+  // Fallback only: the admin sets the real days in Settings > Checkout > Shipping.
   delivery: { dispatchDays: 2, transitDays: 5 },
 
   // The product name shown in the page heading (the stored name stays
