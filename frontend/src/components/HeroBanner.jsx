@@ -150,7 +150,6 @@ export function HeroBanner({ banners, fallback }) {
     e.stopPropagation();
   }
 
-  if (count === 0) return fallback;
   // A banner can carry a separate portrait image for phones.
   const [isPhone, setIsPhone] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 640px)').matches);
   useEffect(() => {
@@ -161,6 +160,7 @@ export function HeroBanner({ banners, fallback }) {
     return () => mq.removeEventListener('change', onChange);
   }, []);
 
+  if (count === 0) return fallback;
   if (!displayed) return fallback;
 
   const isExternal = current.link && /^https?:\/\//.test(current.link);
