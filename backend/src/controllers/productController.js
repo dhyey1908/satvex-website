@@ -6,6 +6,7 @@ const { ok, created } = require('../utils/response');
 const { productForViewer } = require('../utils/productVisibility');
 const offerService = require('../services/offerService');
 const settingsService = require('../services/settingsService');
+const { prepareImagesForSave } = require('../utils/productImages');
 const { checkPrices } = require('../services/priceGuardService');
 const { productsQuerySchema, queryProducts } = require('../services/adminListQueries');
 
@@ -71,8 +72,17 @@ async function assertPricesConfirmed(req, sellingOptions, previous) {
   }
 }
 
+// Photo-list problems are the admin's to fix: report them as a normal 400.
+function prepareImagesForSaveOrFail(data) {
+  try {
+    return prepareImagesForSave(data);
+  } catch (err) {
+    throw new AppError(err.message, 400, 'INVALID_IMAGES');
+  }
+}
+
 async function create(req, res) {
-  const data = productSchema.parse(req.body);
+  const data = prepareImagesForSaveOrFail(productSchema.parse(req.body));
   data.variants = assignIdsIfMissing(data.variants, 'var');
   data.sellingOptions = assignIdsIfMissing(data.sellingOptions, 'opt');
   data.testimonialVideos = assignIdsIfMissing(data.testimonialVideos, 'vid');
@@ -82,7 +92,7 @@ async function create(req, res) {
 }
 
 async function update(req, res) {
-  const data = productUpdateSchema.parse(req.body);
+  const data = prepareImagesForSaveOrFail(productUpdateSchema.parse(req.body));
   if (data.variants) data.variants = assignIdsIfMissing(data.variants, 'var');
   if (data.sellingOptions) data.sellingOptions = assignIdsIfMissing(data.sellingOptions, 'opt');
   if (data.testimonialVideos) data.testimonialVideos = assignIdsIfMissing(data.testimonialVideos, 'vid');

@@ -102,11 +102,14 @@ export function ProductCard({ product }) {
     }
   }
 
+  // No colour is chosen on a card: the first common photo, else the first colour's primary photo.
+  const cardImage = product.images?.[0] || product.variants?.find((v) => v.isActive && v.image)?.image || null;
+
   return (
     <Link to={`/product/${product.slug}`} className="product-card">
       <div className="product-card-image">
-        {product.images?.[0] ? (
-          <img src={product.images[0]} alt={product.name} loading="lazy" decoding="async" width="600" height="500" />
+        {cardImage ? (
+          <img src={cardImage} alt={`SATVEX ${product.name}`} loading="lazy" decoding="async" width="600" height="500" />
         ) : (
           <ImagePlaceholder />
         )}

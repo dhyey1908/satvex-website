@@ -52,8 +52,8 @@ export const revealOnScroll = {
 // changing `key` on the element.
 export const crossfade = {
   initial: { opacity: 0 },
-  animate: { opacity: 1, transition: { duration: DURATION.base, ease: EASE } },
-  exit: { opacity: 0, transition: { duration: DURATION.fast, ease: EASE } },
+  animate: { opacity: 1, transition: { duration: 0.18, ease: EASE } },
+  exit: { opacity: 0, transition: { duration: 0.15, ease: EASE } },
 };
 
 // List item exit for AnimatePresence + layout (cart rows, wishlist cards).

@@ -1,0 +1,38 @@
+.so-card { border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); padding: var(--space-4); margin-bottom: var(--space-4); }
+.so-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-3); }
+.so-head h4 { margin: 0; font-family: var(--font-body); font-size: 1rem; font-weight: 700; }
+.so-head-actions { display: flex; align-items: center; gap: var(--space-4); }
+.so-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: 0.9rem; cursor: pointer; }
+.so-remove { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 8px; border: none; background: none; color: var(--color-error); font-weight: 600; font-size: 0.88rem; cursor: pointer; }
+.so-remove:hover { text-decoration: underline; }
+
+/* Five equal columns; every label is one line and every input is 44px, top-aligned. */
+.so-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-3); align-items: start; }
+.so-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.so-field label { display: flex; align-items: center; gap: 6px; height: 20px; font-size: 0.74rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text); white-space: nowrap; overflow: hidden; }
+.so-field label b { color: var(--color-error); }
+.so-optional { padding: 1px 7px; border-radius: var(--radius-pill); background: var(--color-surface-alt); color: var(--color-text-muted); font-size: 0.66rem; letter-spacing: 0.03em; text-transform: none; font-weight: 600; }
+.so-input,
+.so-money { width: 100%; height: 44px; border: var(--input-border); border-radius: var(--input-radius); background: var(--color-surface); color: var(--color-text); }
+.so-input { padding: 0 12px; font-size: 0.95rem; }
+.so-money { display: flex; align-items: center; padding: 0 0 0 12px; }
+.so-money span { color: var(--color-text-muted); margin-right: 6px; }
+.so-money input { flex: 1; min-width: 0; height: 100%; border: 0; background: transparent; padding: 0 12px 0 0; font-size: 0.95rem; color: var(--color-text); }
+.so-money:focus-within, .so-input:focus-visible { border-color: var(--color-primary); }
+.so-money.invalid { border-color: var(--color-error); }
+.so-money input:focus-visible { outline: none; }
+.so-money:focus-within { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+/* Helper text lives in a row of fixed height under ITS input so it never moves another field. */
+.so-help { margin: 0; min-height: 3.1em; font-size: 0.76rem; line-height: 1.35; color: var(--color-text-muted); }
+.so-help .pos { color: var(--color-success); }
+.so-help .neg { color: var(--color-error); }
+
+.so-foot { display: flex; align-items: center; margin-top: var(--space-2); }
+.so-messages { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 0.84rem; font-weight: 600; }
+.so-messages.errors { color: var(--color-error); }
+.so-messages.warnings { color: var(--color-warning); }
+.so-messages.warnings li { padding: 6px 10px; border-radius: var(--radius-sm); background: var(--color-warning-bg); }
+
+@media (max-width: 1100px) { .so-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .so-grid { grid-template-columns: minmax(0, 1fr); } .so-help { min-height: 0; } }

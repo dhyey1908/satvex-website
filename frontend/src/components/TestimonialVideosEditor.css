@@ -83,3 +83,9 @@
   .tve-fields { grid-area: fields; }
   .tve-actions .btn { flex: 1 1 auto; justify-content: center; }
 }
+
+.tve-item { cursor: grab; }
+.tve-item.is-dragging { opacity: 0.45; }
+.tve-add.upload-zone { flex-direction: row; justify-content: flex-start; min-height: 72px; cursor: default; }
+.tve-drop-hint { font-size: 0.82rem; color: var(--color-text-muted); }
+.tve-add.upload-zone { flex-wrap: wrap; }

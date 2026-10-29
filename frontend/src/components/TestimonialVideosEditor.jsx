@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, ImagePlus, Loader2, Trash2, Video as VideoIcon } from 'lucide-react';
 import { adminService } from '../services/adminService';
 import { captureVideoFrame } from '../utils/videoThumbnail';
+import './UploadZone.css';
 import './TestimonialVideosEditor.css';
 
 export const MAX_TESTIMONIAL_VIDEOS = 20;
@@ -36,6 +37,8 @@ export function TestimonialVideosEditor({ videos, onChange }) {
   const [status, setStatus] = useState('');
   const [error, setError] = useState(null);
   const [thumbBusyId, setThumbBusyId] = useState(null);
+  const [dragFrom, setDragFrom] = useState(null);
+  const [dropOver, setDropOver] = useState(false);
 
   const atLimit = videos.length >= MAX_TESTIMONIAL_VIDEOS;
 
@@ -44,6 +47,13 @@ export function TestimonialVideosEditor({ videos, onChange }) {
   }
   function remove(index) {
     onChange(videos.filter((_, i) => i !== index));
+  }
+  function reorderTo(from, to) {
+    if (from === to || to < 0 || to >= videos.length) return;
+    const next = [...videos];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    onChange(next);
   }
   function move(index, delta) {
     const target = index + delta;
@@ -130,7 +140,19 @@ export function TestimonialVideosEditor({ videos, onChange }) {
       {videos.length > 0 && (
         <ol className="tve-list">
           {videos.map((v, i) => (
-            <li key={v.id || v.videoUrl + i} className="tve-item">
+            <li
+              key={v.id || v.videoUrl + i}
+              className={`tve-item ${dragFrom === i ? 'is-dragging' : ''}`}
+              draggable
+              onDragStart={() => setDragFrom(i)}
+              onDragOver={(e) => dragFrom !== null && e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (dragFrom !== null) reorderTo(dragFrom, i);
+                setDragFrom(null);
+              }}
+              onDragEnd={() => setDragFrom(null)}
+            >
               <div className="tve-thumb">
                 {v.thumbnailUrl ? (
                   <img src={v.thumbnailUrl} alt="" />
@@ -213,7 +235,22 @@ export function TestimonialVideosEditor({ videos, onChange }) {
         </ol>
       )}
 
-      <div className="tve-add">
+      <div
+        className={`tve-add upload-zone ${dropOver ? 'is-over' : ''}`}
+        onDragOver={(e) => {
+          if (dragFrom === null) {
+            e.preventDefault();
+            setDropOver(true);
+          }
+        }}
+        onDragLeave={() => setDropOver(false)}
+        onDrop={(e) => {
+          if (dragFrom !== null) return;
+          e.preventDefault();
+          setDropOver(false);
+          if (!atLimit && !uploading) handleVideoChosen({ target: { files: e.dataTransfer.files } });
+        }}
+      >
         <label className={`btn btn-outline btn-sm tve-file ${atLimit || uploading ? 'is-disabled' : ''}`}>
           {uploading ? <Loader2 size={14} className="btn-spinner" /> : <VideoIcon size={14} />}
           {uploading ? status || 'Uploading…' : 'Add video (MP4)'}
@@ -225,6 +262,7 @@ export function TestimonialVideosEditor({ videos, onChange }) {
             disabled={atLimit || uploading}
           />
         </label>
+        <span className="tve-drop-hint">or drop a video here</span>
         <span className="tve-count" aria-live="polite">
           {videos.length} / {MAX_TESTIMONIAL_VIDEOS} videos
           {atLimit ? ' — limit reached' : ''}

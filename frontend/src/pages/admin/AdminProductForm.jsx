@@ -1,11 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, AlertTriangle } from 'lucide-react';
 import { productService } from '../../services/productService';
 import { useToast } from '../../context/ToastContext';
 import { useConfirm } from '../../context/ConfirmContext';
-import { ImageUploader } from '../../components/ImageUploader';
-import { MediaUploader } from '../../components/MediaUploader';
+import { UploadZone } from '../../components/UploadZone';
+import { PhotoGrid } from '../../components/PhotoGrid';
+import { ColorField } from '../../components/ColorField';
+import { SellingOptionCard } from '../../components/SellingOptionCard';
+import { Modal } from '../../components/Modal';
+import { checkSellingOption } from '../../utils/sellingOptionChecks';
 import { TestimonialVideosEditor, MAX_TESTIMONIAL_VIDEOS } from '../../components/TestimonialVideosEditor';
 import { Loader } from '../../components/Loader';
 import { minLength, slug as validateSlug, positiveNumber, runValidators, hasErrors } from '../../utils/validators';
@@ -20,6 +24,7 @@ const EMPTY_PRODUCT = {
   howToWear: '',
   basePrice: 0,
   images: [],
+  commonImages: [],
   videoUrl: '',
   testimonialVideos: [],
   rating: 0,
@@ -58,6 +63,23 @@ export function AdminProductForm() {
   const [error, setError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [touched, setTouched] = useState({});
+  // What the form looked like when it was loaded/saved - "Unsaved changes" is a
+  // comparison against it.
+  const [snapshot, setSnapshot] = useState(JSON.stringify(EMPTY_PRODUCT));
+  const dirty = useMemo(() => JSON.stringify(form) !== snapshot, [form, snapshot]);
+  // Removing a colour that has photos asks what to do with them.
+  const [removingVariant, setRemovingVariant] = useState(null);
+
+  // The browser's own "leave site?" prompt when the tab is closed/reloaded with edits.
+  useEffect(() => {
+    if (!dirty) return undefined;
+    const warn = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
 
   function validate(values) {
     const errors = runValidators({
@@ -71,18 +93,7 @@ export function AdminProductForm() {
     if (values.sellingOptions.length === 0) {
       errors.sellingOptions = 'Add at least one selling option.';
     } else {
-      const optionErrors = values.sellingOptions.map((o) => {
-        const priceError = positiveNumber(o.price, 'Price');
-        if (priceError) return priceError;
-        if (o.compareAtPrice !== '' && o.compareAtPrice !== null && o.compareAtPrice !== undefined) {
-          const mrpError = positiveNumber(o.compareAtPrice, 'Original price');
-          if (mrpError) return mrpError;
-          if (Number(o.price) > Number(o.compareAtPrice)) {
-            return 'Selling price cannot be greater than the original price.';
-          }
-        }
-        return '';
-      });
+      const optionErrors = values.sellingOptions.map((o) => checkSellingOption(o).errors[0] || '');
       if (optionErrors.some(Boolean)) errors.sellingOptionRows = optionErrors;
     }
     return errors;
@@ -93,7 +104,9 @@ export function AdminProductForm() {
     productService
       .getById(id)
       .then(({ product }) => {
-        setForm(product);
+        const loaded = { ...EMPTY_PRODUCT, ...product };
+        setForm(loaded);
+        setSnapshot(JSON.stringify(loaded));
         setSlugTouched(true);
       })
       .catch((err) => setError(err.message))
@@ -120,7 +133,7 @@ export function AdminProductForm() {
       ...prev,
       variants: [
         ...prev.variants,
-        { id: localId('var'), name: '', colorName: '', colorCode: '#000000', image: '', isActive: true, inStock: true },
+        { id: localId('var'), name: '', colorName: '', colorCode: '#000000', image: '', images: [], isActive: true, inStock: true },
       ],
     }));
     if (fieldErrors.variants) setFieldErrors((prev) => ({ ...prev, variants: '' }));
@@ -131,8 +144,66 @@ export function AdminProductForm() {
       variants: prev.variants.map((v, i) => (i === index ? { ...v, ...patch } : v)),
     }));
   }
-  function removeVariant(index) {
-    setForm((prev) => ({ ...prev, variants: prev.variants.filter((_, i) => i !== index) }));
+  // A colour's photo list changed: keep `image` (the primary's URL) in step with it.
+  function setVariantPhotos(index, photos) {
+    updateVariant(index, { images: photos, image: photos.find((p) => p.isPrimary)?.url || '' });
+  }
+  function addVariantPhotos(index, url) {
+    setForm((prev) => ({
+      ...prev,
+      variants: prev.variants.map((v, i) => {
+        if (i !== index) return v;
+        const list = v.images || [];
+        if (list.some((p) => p.url === url) || list.length >= 10) return v;
+        const images = [...list, { url, alt: '', isPrimary: list.length === 0 }];
+        return { ...v, images, image: images.find((p) => p.isPrimary)?.url || '' };
+      }),
+    }));
+  }
+  // "Move to colour…" on a common photo.
+  function moveCommonToColour(photoIndex, variantId) {
+    setForm((prev) => {
+      const photo = prev.commonImages[photoIndex];
+      const target = prev.variants.find((v) => v.id === variantId);
+      if (!photo || !target) return prev;
+      if ((target.images || []).length >= 10) {
+        showToast(`${target.colorName || 'That colour'} already has 10 photos.`, 'warning');
+        return prev;
+      }
+      return {
+        ...prev,
+        commonImages: prev.commonImages.filter((_, i) => i !== photoIndex),
+        variants: prev.variants.map((v) => {
+          if (v.id !== variantId) return v;
+          const images = [...(v.images || []), { ...photo, isPrimary: (v.images || []).length === 0 }];
+          return { ...v, images, image: images.find((p) => p.isPrimary)?.url || '' };
+        }),
+      };
+    });
+    showToast('Photo moved — save the product to apply.', 'success');
+  }
+  function addCommonPhoto(url) {
+    setForm((prev) => (prev.commonImages.some((p) => p.url === url) || prev.commonImages.length >= 30 ? prev : { ...prev, commonImages: [...prev.commonImages, { url, alt: '', isPrimary: false }] }));
+  }
+  // Remove a colour: with photos it asks whether they go too or become common photos.
+  function requestRemoveVariant(index) {
+    const v = form.variants[index];
+    if ((v.images || []).length > 0) setRemovingVariant(index);
+    else confirmRemoveVariant(index, 'none');
+  }
+  async function confirmRemoveVariant(index, photoChoice) {
+    const v = form.variants[index];
+    if (photoChoice === 'none') {
+      const ok = await confirm({ title: `Remove ${v.colorName || 'this colour'}?`, message: 'The colour disappears from the product when you save.', confirmLabel: 'Remove', danger: true });
+      if (!ok) return;
+    }
+    setForm((prev) => ({
+      ...prev,
+      commonImages: photoChoice === 'move' ? [...prev.commonImages, ...(v.images || []).map((p) => ({ ...p, isPrimary: false })).filter((p) => !prev.commonImages.some((c) => c.url === p.url))].slice(0, 30) : prev.commonImages,
+      variants: prev.variants.filter((_, i) => i !== index),
+    }));
+    setRemovingVariant(null);
+    showToast(`Colour removed${photoChoice === 'move' ? ' — its photos are now common photos' : ''}. Save the product to apply.`, 'success');
   }
 
   // Selling options
@@ -158,16 +229,12 @@ export function AdminProductForm() {
       }));
     }
   }
-  function removeSellingOption(index) {
+  async function removeSellingOption(index) {
+    const o = form.sellingOptions[index];
+    const ok = await confirm({ title: `Remove ${o.name || `option ${index + 1}`}?`, message: 'Customers can no longer buy this pack once you save. Existing orders are not affected.', confirmLabel: 'Remove', danger: true });
+    if (!ok) return;
     setForm((prev) => ({ ...prev, sellingOptions: prev.sellingOptions.filter((_, i) => i !== index) }));
-  }
-
-  // Product images
-  function addProductImage(url) {
-    setForm((prev) => ({ ...prev, images: [...prev.images, url] }));
-  }
-  function removeProductImage(index) {
-    setForm((prev) => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }));
+    showToast('Option removed — save the product to apply.', 'success');
   }
 
   async function handleSubmit(e) {
@@ -179,15 +246,37 @@ export function AdminProductForm() {
     if (hasErrors(errors)) return;
     setSaving(true);
 
+    // Prices that look wrong (the amber warnings on the cards) are confirmed ONCE here; the
+    // server's own guardrail is then told they were confirmed.
+    const warnings = form.sellingOptions.flatMap((o) => checkSellingOption(o).warnings.map((w) => `${o.name || 'An option'}: ${w}`));
+    let confirmedPrices = false;
+    if (warnings.length > 0) {
+      const yes = await confirm({ title: 'Are you sure about these prices?', message: warnings.join(' '), confirmLabel: 'Yes, save these prices', danger: true });
+      if (!yes) {
+        setSaving(false);
+        return;
+      }
+      confirmedPrices = true;
+    }
+
     const payload = {
       ...form,
+      ...(confirmedPrices ? { confirmPriceWarnings: true } : {}),
+      // Photos: common ones, and each colour's own (primary flag + alt text) - the server validates and derives the rest.
+      images: form.commonImages.map((p) => p.url),
+      commonImages: form.commonImages.map((p) => ({ url: p.url, alt: p.alt || '' })),
       basePrice: Number(form.basePrice),
       // New videos carry a temporary client id; the server assigns the real one.
       testimonialVideos: (form.testimonialVideos || []).slice(0, MAX_TESTIMONIAL_VIDEOS).map((v) => ({
         ...v,
         id: !v.id || v.id.includes('_local_') ? undefined : v.id,
       })),
-      variants: form.variants.map((v) => ({ ...v, id: v.id.includes('_local_') ? undefined : v.id })),
+      variants: form.variants.map((v) => ({
+        ...v,
+        id: v.id.includes('_local_') ? undefined : v.id,
+        image: v.image || '',
+        images: (v.images || []).map((p) => ({ url: p.url, alt: p.alt || '', isPrimary: Boolean(p.isPrimary) })),
+      })),
       sellingOptions: form.sellingOptions.map((o) => ({
         ...o,
         id: o.id.includes('_local_') ? undefined : o.id,
@@ -231,6 +320,7 @@ export function AdminProductForm() {
       const saved = await save();
       if (!saved) return; // the admin chose to fix the price
       showToast(isNew ? 'Product created' : 'Product updated', 'success');
+      setSnapshot(JSON.stringify(form)); // saved: nothing unsaved any more
       navigate('/admin/products');
     } catch (err) {
       const serverErrors = mapServerFieldErrors(err);
@@ -348,7 +438,16 @@ export function AdminProductForm() {
                 </button>
               </div>
             ) : (
-              <MediaUploader folder="videos" kind="video" onUploaded={(url) => setField('videoUrl', url)} />
+              <UploadZone
+                folder="videos"
+                types={['video/mp4']}
+                maxMb={60}
+                multiple={false}
+                maxFiles={1}
+                label="Drop an MP4 here or click to upload"
+                hint="MP4 · up to 60 MB"
+                onUploaded={(url) => setField('videoUrl', url)}
+              />
             )}
           </div>
           <div className="checkbox-field">
@@ -372,17 +471,16 @@ export function AdminProductForm() {
         </div>
 
         <div className="admin-form-section">
-          <h3>Images</h3>
-          {form.images.map((img, i) => (
-            <div key={img + i} className="repeatable-row">
-              <img src={img} alt="" />
-              <span style={{ flex: 2, fontSize: '0.8rem', wordBreak: 'break-all' }}>{img}</span>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeProductImage(i)}>
-                <Trash2 size={14} /> Remove
-              </button>
-            </div>
-          ))}
-          <ImageUploader folder="products" onUploaded={addProductImage} />
+          <h3>Common Images</h3>
+          <p className="field-hint">Shown for every colour, after the colour&apos;s own photos.</p>
+          <UploadZone folder="products" maxFiles={30 - form.commonImages.length} onUploaded={addCommonPhoto} />
+          <PhotoGrid
+            photos={form.commonImages}
+            onChange={(next) => setField('commonImages', next)}
+            moveTargets={form.variants.map((v, i) => ({ id: v.id, label: v.colorName || `Colour ${i + 1}` }))}
+            onMoveToColour={moveCommonToColour}
+          />
+          {form.commonImages.length === 0 && <p className="field-hint">No common photos yet.</p>}
         </div>
 
         <div className="admin-form-section">
@@ -395,35 +493,47 @@ export function AdminProductForm() {
 
         <div className="admin-form-section">
           <h3>Color Variants</h3>
-          {form.variants.map((v, i) => (
-            <div key={v.id} className="repeatable-row">
-              {v.image && <img src={v.image} alt="" />}
-              <div className="field">
-                <label>Color Name</label>
-                <input required value={v.colorName} onChange={(e) => updateVariant(i, { colorName: e.target.value, name: `${form.name} - ${e.target.value}` })} />
-              </div>
-              <div className="field">
-                <label>Color Code</label>
-                <input type="color" value={v.colorCode} onChange={(e) => updateVariant(i, { colorCode: e.target.value })} />
-              </div>
-              <ImageUploader folder="variants" onUploaded={(url) => updateVariant(i, { image: url })} />
-              <label className="checkbox-field">
-                <input type="checkbox" checked={v.isActive} onChange={(e) => updateVariant(i, { isActive: e.target.checked })} />
-                Active
-              </label>
-              <label className="checkbox-field">
-                <input
-                  type="checkbox"
-                  checked={v.inStock !== false}
-                  onChange={(e) => updateVariant(i, { inStock: e.target.checked })}
+          {form.variants.map((v, i) => {
+            const photos = v.images || [];
+            const noPhotos = v.isActive && photos.length === 0;
+            return (
+              <div key={v.id} className="variant-card">
+                <div className="variant-row">
+                  <span className="variant-thumb" aria-hidden="true">
+                    {v.image ? <img src={v.image} alt="" /> : <span style={{ background: v.colorCode }} />}
+                  </span>
+                  <div className="field variant-name">
+                    <label htmlFor={`vn-${v.id}`}>Colour name</label>
+                    <input id={`vn-${v.id}`} required value={v.colorName} onChange={(e) => updateVariant(i, { colorName: e.target.value, name: `${form.name} - ${e.target.value}` })} />
+                  </div>
+                  <div className="field variant-code">
+                    <label htmlFor={`vc-${v.id}`}>Colour code</label>
+                    <ColorField id={`vc-${v.id}`} value={v.colorCode} onChange={(code) => updateVariant(i, { colorCode: code })} />
+                  </div>
+                  <label className="variant-check">
+                    <input type="checkbox" checked={v.isActive} onChange={(e) => updateVariant(i, { isActive: e.target.checked })} /> Active
+                  </label>
+                  <label className="variant-check">
+                    <input type="checkbox" checked={v.inStock !== false} onChange={(e) => updateVariant(i, { inStock: e.target.checked })} /> In stock
+                  </label>
+                  <button type="button" className="so-remove" onClick={() => requestRemoveVariant(i)}>
+                    <Trash2 size={14} aria-hidden="true" /> Remove
+                  </button>
+                </div>
+                {noPhotos && (
+                  <p className="variant-warning"><AlertTriangle size={14} aria-hidden="true" /> No photos — this colour will show only the common images.</p>
+                )}
+                <UploadZone
+                  folder="variants"
+                  maxFiles={10 - photos.length}
+                  onUploaded={(url) => addVariantPhotos(i, url)}
+                  label={`Drop ${v.colorName || 'this colour'} photos here or click to upload`}
+                  hint={`JPG, PNG or WebP · up to 5 MB each · ${photos.length}/10 · ★ marks the primary photo`}
                 />
-                In Stock
-              </label>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeVariant(i)}>
-                <Trash2 size={14} /> Remove
-              </button>
-            </div>
-          ))}
+                <PhotoGrid photos={photos} primary label={`${v.colorName || 'colour'} photo`} onChange={(next) => setVariantPhotos(i, next)} />
+              </div>
+            );
+          })}
           <button type="button" className="btn btn-outline btn-sm" onClick={addVariant}>
             <Plus size={16} /> Add Color
           </button>
@@ -433,83 +543,16 @@ export function AdminProductForm() {
         <div className="admin-form-section">
           <h3>Selling Options</h3>
           {form.sellingOptions.map((o, i) => (
-            <div key={o.id} className="repeatable-row">
-              <div className="field">
-                <label>Name</label>
-                <input required value={o.name} onChange={(e) => updateSellingOption(i, { name: e.target.value })} />
-              </div>
-              <div className="field">
-                <label>Quantity (colors required)</label>
-                <input
-                  type="number"
-                  min="1"
-                  required
-                  value={o.quantity}
-                  onChange={(e) => updateSellingOption(i, { quantity: e.target.value })}
-                />
-              </div>
-              <div className="field">
-                <label>Selling Price (₹)</label>
-                <input
-                  type="number"
-                  min="0"
-                  required
-                  value={o.price}
-                  onChange={(e) => updateSellingOption(i, { price: e.target.value })}
-                />
-              </div>
-              <div className="field">
-                <label>Original Price / MRP (₹, optional)</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={o.compareAtPrice ?? ''}
-                  onChange={(e) => updateSellingOption(i, { compareAtPrice: e.target.value })}
-                  placeholder="Leave blank for no discount"
-                />
-              </div>
-              <div className="field">
-                <label>Your Cost Price (₹, optional)</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={o.costPrice ?? ''}
-                  onChange={(e) => updateSellingOption(i, { costPrice: e.target.value })}
-                  placeholder="What this pack costs you — admin only"
-                />
-                <p className="field-hint">Never shown to customers. Used for profit in Analytics.</p>
-              </div>
-              {(() => {
-                const mrp = Number(o.compareAtPrice);
-                const price = Number(o.price);
-                const showDiscount = o.compareAtPrice !== '' && mrp > price && price >= 0;
-                const pct = showDiscount ? Math.round(((mrp - price) / mrp) * 100) : 0;
-                return showDiscount ? (
-                  <p className="field-hint admin-discount-preview">{pct}% off — customers will see ₹{price} struck through from ₹{mrp}</p>
-                ) : null;
-              })()}
-              <label className="checkbox-field">
-                <input
-                  type="checkbox"
-                  checked={o.allowDuplicateColors}
-                  onChange={(e) => updateSellingOption(i, { allowDuplicateColors: e.target.checked })}
-                />
-                Allow duplicate colors
-              </label>
-              <label className="checkbox-field">
-                <input type="checkbox" checked={o.isActive} onChange={(e) => updateSellingOption(i, { isActive: e.target.checked })} />
-                Active
-              </label>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeSellingOption(i)}>
-                <Trash2 size={14} /> Remove
-              </button>
-              {fieldErrors.sellingOptionRows?.[i] && (
-                <p className="field-error" style={{ width: '100%', marginTop: 4 }}>{fieldErrors.sellingOptionRows[i]}</p>
-              )}
-            </div>
+            <SellingOptionCard
+              key={o.id}
+              option={o}
+              index={i}
+              onChange={(patch) => updateSellingOption(i, patch)}
+              onRemove={() => removeSellingOption(i)}
+            />
           ))}
           <button type="button" className="btn btn-outline btn-sm" onClick={addSellingOption}>
-            <Plus size={16} /> Add Selling Option
+            <Plus size={16} /> Add selling option
           </button>
           {fieldErrors.sellingOptions && <p className="field-error" style={{ marginTop: 8 }}>{fieldErrors.sellingOptions}</p>}
         </div>
@@ -517,7 +560,18 @@ export function AdminProductForm() {
         {error && <p className="field-error">{error}</p>}
 
         <div className="admin-form-sticky-actions">
-          <button type="button" className="btn btn-outline" onClick={() => navigate('/admin/products')}>
+          {dirty && <span className="unsaved-dot" role="status"><span aria-hidden="true" /> Unsaved changes</span>}
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={async () => {
+              if (dirty) {
+                const leave = await confirm({ title: 'Leave without saving?', message: 'Your changes to this product will be lost.', confirmLabel: 'Leave', danger: true });
+                if (!leave) return;
+              }
+              navigate('/admin/products');
+            }}
+          >
             Cancel
           </button>
           <button type="submit" className="btn btn-primary" disabled={saving}>
@@ -525,6 +579,24 @@ export function AdminProductForm() {
           </button>
         </div>
       </form>
+      <Modal
+        open={removingVariant !== null}
+        onClose={() => setRemovingVariant(null)}
+        title={`Remove ${form.variants[removingVariant]?.colorName || 'this colour'}?`}
+      >
+        <p>
+          This colour has {(form.variants[removingVariant]?.images || []).length} photo(s). What should happen to them?
+        </p>
+        <div className="remove-variant-actions">
+          <button type="button" className="btn btn-outline" onClick={() => confirmRemoveVariant(removingVariant, 'move')}>
+            Keep them as common images
+          </button>
+          <button type="button" className="btn btn-danger" onClick={() => confirmRemoveVariant(removingVariant, 'delete')}>
+            Delete the photos too
+          </button>
+          <button type="button" className="btn btn-ghost" onClick={() => setRemovingVariant(null)}>Cancel</button>
+        </div>
+      </Modal>
     </div>
   );
 }

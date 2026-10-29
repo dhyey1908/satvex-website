@@ -14,7 +14,7 @@ const SWIPE_THRESHOLD = 40;
 
 // `lifestyleImages` is an optional slot for in-use / model photos: they follow
 // the product photos in the same sequence (thumbnails, arrows, swipe, dots).
-export function ProductGallery({ images, lifestyleImages, activeImage, videoUrl, alt, onImageChange }) {
+export function ProductGallery({ images, lifestyleImages, activeImage, videoUrl, alt, altByUrl, resetKey, onImageChange }) {
   const base = images && images.length > 0 ? images : [];
   const gallery = lifestyleImages?.length ? [...base, ...lifestyleImages.filter((u) => !base.includes(u))] : base;
   const [index, setIndex] = useState(0);
@@ -27,6 +27,9 @@ export function ProductGallery({ images, lifestyleImages, activeImage, videoUrl,
   // stuck, silent black box — see the autoplay effect further down.
   const [videoFailed, setVideoFailed] = useState(false);
   const [zoomOpen, setZoomOpen] = useState(false);
+  // The colour changed: its photos replace the old ones, so go back to the first
+  // photo (the colour's primary). The very first render keeps the video default.
+  const firstResetKey = useRef(resetKey);
   const [magnified, setMagnified] = useState(false);
   const pointerStart = useRef(null);
   // Set when a gesture turned out to be a swipe/drag, so the click that can
@@ -108,6 +111,14 @@ export function ProductGallery({ images, lifestyleImages, activeImage, videoUrl,
     onImageChange?.(videoVisible ? null : mainImage || null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mainImage, videoVisible]);
+
+  useEffect(() => {
+    if (firstResetKey.current === resetKey) return;
+    firstResetKey.current = resetKey;
+    setManualOverride(false);
+    setShowVideo(false);
+    setIndex(0);
+  }, [resetKey]);
 
   function selectImage(i) {
     setManualOverride(true);
@@ -275,7 +286,7 @@ export function ProductGallery({ images, lifestyleImages, activeImage, videoUrl,
                 <motion.img
                   key={mainImage}
                   src={mainImage}
-                  alt={alt}
+                  alt={altByUrl?.[mainImage] || alt}
                   loading="eager"
                   draggable={false}
                   initial={crossfade.initial}

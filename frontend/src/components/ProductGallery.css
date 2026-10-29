@@ -16,7 +16,7 @@
 .gallery-main {
   position: relative;
   min-width: 0;
-  aspect-ratio: 3 / 2;
+  aspect-ratio: 3678 / 3300;
   border-radius: var(--radius-lg);
   overflow: hidden;
   background: var(--color-surface-alt);
@@ -243,8 +243,8 @@
   .product-gallery { flex-direction: column-reverse; }
 
   .gallery-main {
-    aspect-ratio: 1 / 1;
-    max-height: calc(100vh - var(--header-height) - var(--space-7) - 150px);
+    aspect-ratio: 3678 / 3300;
+    max-height: none;
     background: var(--color-surface-alt);
   }
   .gallery-main-video { background: var(--color-surface-alt); }

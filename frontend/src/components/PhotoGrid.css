@@ -1,0 +1,51 @@
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: var(--space-3);
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+}
+.photo-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  cursor: grab;
+}
+.photo-card.is-dragging { opacity: 0.45; }
+.photo-card.is-over { outline: 2px dashed var(--color-primary); outline-offset: 2px; }
+
+.photo-thumb { position: relative; aspect-ratio: 1; border-radius: var(--radius-sm); overflow: hidden; background: var(--color-surface-alt); }
+.photo-thumb img { width: 100%; height: 100%; object-fit: contain; }
+.photo-handle,
+.photo-star,
+.photo-remove {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}
+.photo-handle { top: 4px; left: 4px; cursor: grab; }
+.photo-star { bottom: 4px; left: 4px; cursor: pointer; }
+.photo-star.on { background: var(--color-primary); color: var(--color-primary-contrast); }
+.photo-remove { top: 4px; right: 4px; cursor: pointer; color: var(--color-error); }
+.photo-star:hover:not(.on),
+.photo-remove:hover { background: var(--color-surface); }
+
+.photo-order { display: flex; align-items: center; justify-content: space-between; font-size: 0.78rem; color: var(--color-text-muted); }
+.photo-order button { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); cursor: pointer; color: var(--color-text); }
+.photo-order button:disabled { color: var(--color-text-muted); background: var(--color-surface-alt); cursor: not-allowed; }
+
+.photo-alt,
+.photo-move { width: 100%; min-height: 32px; padding: 4px 8px; border: var(--input-border); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text); font-size: 0.78rem; }

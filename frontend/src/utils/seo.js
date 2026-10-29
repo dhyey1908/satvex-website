@@ -27,7 +27,8 @@ export function buildProductJsonLd(product, { reviewSummary, path } = {}) {
   const active = (product.sellingOptions || []).filter((o) => o.isActive);
   const prices = active.map((o) => o.price);
   const variantImages = (product.variants || []).filter((v) => v.isActive && v.image).map((v) => v.image);
-  const images = [...new Set([...(product.images || []), ...variantImages])].map(absoluteUrl);
+  // The primary photo of each colour, plus the common photos.
+  const images = [...new Set([...variantImages, ...(product.images || [])])].map(absoluteUrl);
   const inStock = product.isActive && active.length > 0 && (product.variants || []).some((v) => v.isActive && v.inStock !== false);
 
   const ld = {

@@ -72,7 +72,8 @@ test('colour pairs meet WCAG AA', () => {
 // Only these may hold a literal colour: the theme itself, the eight real
 // product colours (catalog data), a "new colour" form default and a validator
 // message. Everything else must use a var(--color-*) token.
-const ALLOWED = new Set(['styles/theme.css', 'constants/brandColors.js', 'pages/admin/AdminProductForm.jsx', 'utils/validators.js']);
+// (ColorField edits a product's own colour codes, so its '#000000' fallback is data, not theme.)
+const ALLOWED = new Set(['styles/theme.css', 'constants/brandColors.js', 'pages/admin/AdminProductForm.jsx', 'components/ColorField.jsx', 'utils/validators.js']);
 const RAW = /#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(/;
 
 function walk(dir) {

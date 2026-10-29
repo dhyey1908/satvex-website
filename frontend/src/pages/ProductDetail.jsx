@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Loader2, CheckCircle2, XCircle, ShoppingBag, Zap, ArrowLeft, BadgeCheck, Share2 } from 'lucide-react';
 import { productService } from '../services/productService';
@@ -28,6 +28,7 @@ import { useSettings } from '../context/SettingsContext';
 import { useDocumentMeta, setProductStructuredData } from '../hooks/useDocumentMeta';
 import { deriveSku } from '../utils/sku';
 import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
+import { colourSlug, defaultColourId, galleryFor, variantForUrl } from '../utils/colourGallery';
 import { STOREFRONT } from '../config/storefront';
 import './ProductDetail.css';
 
@@ -40,6 +41,7 @@ const DEFAULT_HIGHLIGHTS = [
 
 export function ProductDetail() {
   const { slug } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated } = useAuth();
   const { requireAuth } = useAuthGate();
   const { addItem, isInCart, items: cartItems, itemCount: cartCount } = useCart();
@@ -159,12 +161,18 @@ export function ProductDetail() {
   // product/cart item) without needing a reset at each call site. Newly
   // adding a color previews that one immediately; removing the previewed
   // one falls back to whichever selection is now last.
+  const previousSelectionLength = useRef(0);
   useEffect(() => {
     if (selectedColors.length === 0) {
+      previousSelectionLength.current = 0;
       setPreviewColorId(null);
       return;
     }
-    if (!selectedColors.includes(previewColorId)) {
+    // The gallery follows the MOST RECENTLY picked colour: a pick adds to the end of the
+    // list, so the last entry is the newest; removing one falls back to whatever is last.
+    const grew = selectedColors.length > previousSelectionLength.current;
+    previousSelectionLength.current = selectedColors.length;
+    if (grew || !selectedColors.includes(previewColorId)) {
       setPreviewColorId(selectedColors[selectedColors.length - 1]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -258,6 +266,27 @@ export function ProductDetail() {
     // columns' relative heights completely different.
   }, [product]);
 
+  // Picking a colour puts it in the link (?color=pink) without a reload, so a shared link
+  // opens on that colour; and its photos are fetched ahead of the swap.
+  // (previewColorId already follows the most recently picked colour, for single packs and combos alike.)
+  const pickedColourId = product ? previewColorId : null;
+  useEffect(() => {
+    if (!product || !pickedColourId) return;
+    const v = product.variants.find((x) => x.id === pickedColourId);
+    if (!v) return;
+    const next = colourSlug(v.colorName);
+    if (searchParams.get('color') !== next) {
+      const params = new URLSearchParams(searchParams);
+      params.set('color', next);
+      setSearchParams(params, { replace: true });
+    }
+    (v.images || []).forEach((p) => {
+      const img = new Image();
+      img.src = p.url;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickedColourId, product]);
+
   if (error) return <ErrorState message={error} />;
   if (!product || holdLoader) return <Loader label="Loading product…" />;
 
@@ -267,6 +296,9 @@ export function ProductDetail() {
   // selected colors the main image currently shows.
   const previewVariantId = sellingOption?.quantity === 1 ? selectedColors[0] : previewColorId;
   const activeVariant = previewVariantId ? product.variants.find((v) => v.id === previewVariantId) : null;
+  // The colour whose photos the gallery shows: the one the customer picked (for a combo, the
+  // most recently picked), else the one in the link (?color=lavender), else the first colour in stock.
+  const galleryColorId = previewVariantId || defaultColourId(product.variants, searchParams.get('color'));
 
   const activeOptions = product.sellingOptions.filter((o) => o.isActive);
   const activeVariants = product.variants.filter((v) => v.isActive);
@@ -276,14 +308,8 @@ export function ProductDetail() {
   const rawSku = deriveSku(product.productId, activeVariant?.id);
   const sku = rawSku && !/-XX$/.test(rawSku) ? rawSku : '';
 
-  // Whenever this product has its own color photos, the gallery shows only
-  // those (one per color) instead of the separate generic product.images —
-  // so every thumbnail the customer browses is always a real, nameable
-  // color (matched back below via displayedImage), never an unlabeled
-  // "which color is this?" photo. Falls back to product.images untouched
-  // for a product with no variant photos at all.
-  const variantImages = activeVariants.filter((v) => v.image).map((v) => v.image);
-  const galleryImages = variantImages.length > 0 ? variantImages : product.images;
+  // Gallery = the selected colour's photos (primary first) + the common photos.
+  const { urls: galleryImages, altByUrl: galleryAlts } = galleryFor({ ...product, displayName }, galleryColorId);
 
   function handleSellingOptionSelect(option) {
     setSellingOptionId(option.id);
@@ -427,7 +453,7 @@ export function ProductDetail() {
   // (galleryImages above), this match is exact and reliable — it tracks the
   // real photo through every way it can change, including just browsing the
   // gallery's own thumbnails (not only an explicit color pick).
-  const displayedVariant = displayedImage ? product.variants.find((v) => v.image && v.image === displayedImage) : null;
+  const displayedVariant = displayedImage ? variantForUrl(product.variants, displayedImage) : null;
   // Always follows whatever photo is genuinely on screen, not which color
   // was last explicitly selected — ProductGallery's own manualOverride
   // (browsing away via the nav arrows/swipe/thumbnails) means the visible
@@ -477,7 +503,9 @@ export function ProductDetail() {
           >
             <ProductGallery
               images={galleryImages}
-              activeImage={activeVariant?.image}
+              altByUrl={galleryAlts}
+              resetKey={galleryColorId}
+              activeImage={null}
               videoUrl={product.videoUrl}
               lifestyleImages={product.lifestyleImages}
               alt={displayName}

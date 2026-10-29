@@ -1,5 +1,14 @@
 const { z } = require('zod');
 
+// One photo of a colour / one common photo. alt text is optional (the storefront
+// falls back to "SATVEX <product> - <colour>").
+const photoUrl = z.string().trim().url().refine((v) => /^https?:\/\//i.test(v), 'Must be an http(s) URL.');
+const imageSchema = z.object({
+  url: photoUrl,
+  alt: z.string().trim().max(160).optional().default(''),
+  isPrimary: z.boolean().optional().default(false),
+});
+
 const variantSchema = z.object({
   id: z.string().min(1),
   name: z.string().trim().min(1).max(60),
@@ -11,6 +20,9 @@ const variantSchema = z.object({
   // Empty until a real image is uploaded via the admin panel — the frontend
   // shows a neutral placeholder in the meantime rather than a fake photo.
   image: z.string().trim().default(''),
+  // All photos of THIS colour (up to 10), shown only while the colour is selected;
+  // exactly one is the primary (swatch / cards / cart). `image` above is kept as the primary's URL.
+  images: z.array(imageSchema).max(10, 'Up to 10 photos per colour.').optional(),
   isActive: z.boolean().default(true),
   // Distinct from isActive: isActive controls whether this color is part of
   // the product's lineup at all (hidden entirely when false); inStock
@@ -74,6 +86,8 @@ const productSchema = z.object({
   basePrice: z.number().min(0),
   // Empty until real photos are uploaded via the admin panel.
   images: z.array(z.string().trim().min(1)).default([]),
+  // Photos shown for EVERY colour (after the colour's own). `images` above mirrors their URLs.
+  commonImages: z.array(imageSchema).max(30, 'Up to 30 common images.').optional(),
   videoUrl: z.string().trim().url().optional().or(z.literal('')),
   // Computed from published reviews (see reviewService.recomputeProductAggregate) —
   // not admin-editable. Starts at 0 until the product has real reviews.

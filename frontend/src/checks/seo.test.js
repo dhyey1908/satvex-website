@@ -33,7 +33,8 @@ test('Product JSON-LD: INR offer, image list, availability, canonical url', () =
   assert.equal(ld.offers.highPrice, 349);
   assert.equal(ld.offers.availability, 'https://schema.org/InStock');
   assert.equal(ld.offers.url, 'https://www.satvex.co.in/product/butterfly');
-  assert.deepEqual(ld.image, ['https://cdn.example.com/a.jpg', 'https://cdn.example.com/b.jpg']);
+  // each colour's primary photo first, then the common photos
+  assert.deepEqual(ld.image, ['https://cdn.example.com/b.jpg', 'https://cdn.example.com/a.jpg']);
 });
 
 test('aggregateRating only when there are reviews and every shown review is a verified purchase', () => {

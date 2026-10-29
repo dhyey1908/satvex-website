@@ -15,22 +15,24 @@ const TABLE = env.tables.products;
 
 // Catalog is small by design (a handful of products/variants), so a Scan here is
 // negligible in cost and avoids maintaining a GSI purely for slug lookups.
+const { normalizeProductImages } = require('../utils/productImages');
+
 async function listProducts({ onlyActive = false } = {}) {
   let items = await scanAll(docClient, TABLE);
   if (onlyActive) {
     items = items.filter((item) => item.isActive);
   }
-  return items.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  return items.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)).map(normalizeProductImages);
 }
 
 async function findById(productId) {
   const result = await docClient.send(new GetCommand({ TableName: TABLE, Key: { productId } }));
-  return result.Item || null;
+  return normalizeProductImages(result.Item) || null;
 }
 
 async function findBySlug(slug) {
   const result = await docClient.send(new ScanCommand({ TableName: TABLE }));
-  return (result.Items || []).find((item) => item.slug === slug) || null;
+  return normalizeProductImages((result.Items || []).find((item) => item.slug === slug)) || null;
 }
 
 async function assertSlugAvailable(slug, excludeProductId) {
