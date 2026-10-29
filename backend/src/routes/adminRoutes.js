@@ -10,10 +10,17 @@ const mediaController = require('../controllers/mediaController');
 const couponController = require('../controllers/couponController');
 const reviewController = require('../controllers/reviewController');
 const productController = require('../controllers/productController');
+const adminSecurityController = require('../controllers/adminSecurityController');
 
 const router = express.Router();
 
 router.use(requireAuth, requireAdmin);
+
+// Two-step sign-in (authenticator app) for the admin account itself.
+router.get('/security', asyncHandler(adminSecurityController.status));
+router.post('/security/totp/setup', asyncHandler(adminSecurityController.totpSetup));
+router.post('/security/totp/enable', asyncHandler(adminSecurityController.totpEnable));
+router.post('/security/totp/disable', asyncHandler(adminSecurityController.totpDisable));
 
 router.get('/dashboard', asyncHandler(adminController.dashboard));
 

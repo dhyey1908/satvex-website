@@ -853,7 +853,7 @@ Resources:
           /^\/orders\/[^\/]+$/,
           /^\/account(\/(orders|addresses|profile))?$/,
           /^\/account\/orders\/[^\/]+$/,
-          /^\/admin(\/(products|products\/new|orders|analytics|shipment-issues|customers|contacts|coupons|reviews|banners|announcements|settings))?$/,
+          /^\/admin(\/(products|products\/new|orders|analytics|shipment-issues|customers|contacts|coupons|reviews|banners|announcements|settings|settings\/(general|checkout|integrations|security)))?$/,
           /^\/admin\/(products|orders|contacts)\/[^\/]+$/
         ];
 

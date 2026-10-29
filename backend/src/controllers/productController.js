@@ -5,6 +5,8 @@ const AppError = require('../utils/AppError');
 const { ok, created } = require('../utils/response');
 const { productForViewer } = require('../utils/productVisibility');
 const offerService = require('../services/offerService');
+const settingsService = require('../services/settingsService');
+const { checkPrices } = require('../services/priceGuardService');
 const { productsQuerySchema, queryProducts } = require('../services/adminListQueries');
 
 function assignIdsIfMissing(list, prefix) {
@@ -56,11 +58,25 @@ async function getBySlug(req, res) {
   ok(res, { product: await forResponse(product, isAdmin) });
 }
 
+// Price guardrails: a price below the configured minimum, or more than the allowed
+// % under the MRP, is not saved until the admin explicitly confirms it (the
+// browser re-sends the same request with confirmPriceWarnings: true). Enforced
+// here, so it cannot be skipped by calling the API directly.
+async function assertPricesConfirmed(req, sellingOptions, previous) {
+  if (!sellingOptions || req.body?.confirmPriceWarnings === true) return;
+  const settings = await settingsService.getSettings();
+  const warnings = checkPrices(sellingOptions, previous, settings.pricing);
+  if (warnings.length > 0) {
+    throw new AppError('Please confirm these prices before saving.', 409, 'PRICE_CONFIRMATION_REQUIRED', { warnings });
+  }
+}
+
 async function create(req, res) {
   const data = productSchema.parse(req.body);
   data.variants = assignIdsIfMissing(data.variants, 'var');
   data.sellingOptions = assignIdsIfMissing(data.sellingOptions, 'opt');
   data.testimonialVideos = assignIdsIfMissing(data.testimonialVideos, 'vid');
+  await assertPricesConfirmed(req, data.sellingOptions, []);
   const product = await productService.createProduct(data);
   created(res, { product });
 }
@@ -70,6 +86,10 @@ async function update(req, res) {
   if (data.variants) data.variants = assignIdsIfMissing(data.variants, 'var');
   if (data.sellingOptions) data.sellingOptions = assignIdsIfMissing(data.sellingOptions, 'opt');
   if (data.testimonialVideos) data.testimonialVideos = assignIdsIfMissing(data.testimonialVideos, 'vid');
+  if (data.sellingOptions) {
+    const existing = await productService.findById(req.params.id);
+    await assertPricesConfirmed(req, data.sellingOptions, existing?.sellingOptions || []);
+  }
   const product = await productService.updateProduct(req.params.id, data);
   ok(res, { product });
 }

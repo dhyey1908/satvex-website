@@ -166,10 +166,132 @@ function isPhoneVerified(user, phone) {
   return Date.now() - new Date(user.phoneVerifiedAt).getTime() < PHONE_VERIFICATION_VALIDITY_MS;
 }
 
+// ---- sign-in protection: failed-attempt counter and temporary lock ----------------
+// Counted for wrong passwords and wrong second-step codes alike; reaching the
+// limit locks the account for LOCK_MINUTES and resets the counter.
+async function recordFailedAuth(userId, { max, lockMs }) {
+  const result = await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE,
+      Key: { userId },
+      UpdateExpression: 'ADD failedAuthCount :one SET updatedAt = :now',
+      ExpressionAttributeValues: { ':one': 1, ':now': new Date().toISOString() },
+      ReturnValues: 'UPDATED_NEW',
+    })
+  );
+  const count = result.Attributes?.failedAuthCount || 1;
+  if (count >= max) {
+    const lockedUntil = new Date(Date.now() + lockMs).toISOString();
+    await docClient.send(
+      new UpdateCommand({
+        TableName: TABLE,
+        Key: { userId },
+        UpdateExpression: 'SET lockedUntil = :until, failedAuthCount = :zero',
+        ExpressionAttributeValues: { ':until': lockedUntil, ':zero': 0 },
+      })
+    );
+    return { locked: true, lockedUntil, attemptsLeft: 0 };
+  }
+  return { locked: false, attemptsLeft: max - count };
+}
+
+async function clearFailedAuth(userId) {
+  await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE,
+      Key: { userId },
+      UpdateExpression: 'SET failedAuthCount = :zero REMOVE lockedUntil',
+      ExpressionAttributeValues: { ':zero': 0 },
+    })
+  );
+}
+
+// ---- admin two-step sign-in (authenticator app) ------------------------------------------
+async function setTotpPending(userId, secret) {
+  await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE,
+      Key: { userId },
+      UpdateExpression: 'SET totpPendingSecret = :s, updatedAt = :now',
+      ExpressionAttributeValues: { ':s': secret, ':now': new Date().toISOString() },
+    })
+  );
+}
+
+async function enableTotp(userId, secret, recoveryHashes) {
+  await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE,
+      Key: { userId },
+      UpdateExpression:
+        'SET totpEnabled = :true, totpSecret = :s, totpRecoveryHashes = :r, totpEnabledAt = :now, updatedAt = :now REMOVE totpPendingSecret',
+      ExpressionAttributeValues: { ':true': true, ':s': secret, ':r': recoveryHashes, ':now': new Date().toISOString() },
+    })
+  );
+}
+
+async function disableTotp(userId) {
+  await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE,
+      Key: { userId },
+      UpdateExpression: 'SET totpEnabled = :false, updatedAt = :now REMOVE totpSecret, totpPendingSecret, totpRecoveryHashes, totpEnabledAt',
+      ExpressionAttributeValues: { ':false': false, ':now': new Date().toISOString() },
+    })
+  );
+}
+
+// A recovery code works once: it is removed from the stored list as it is used.
+async function consumeRecoveryCode(user, codeHash) {
+  const hashes = user.totpRecoveryHashes || [];
+  if (!hashes.includes(codeHash)) return false;
+  try {
+    await docClient.send(
+      new UpdateCommand({
+        TableName: TABLE,
+        Key: { userId: user.userId },
+        UpdateExpression: 'SET totpRecoveryHashes = :next',
+        ConditionExpression: 'totpRecoveryHashes = :current',
+        ExpressionAttributeValues: { ':next': hashes.filter((h) => h !== codeHash), ':current': hashes },
+      })
+    );
+    return true;
+  } catch (err) {
+    if (err.name === 'ConditionalCheckFailedException') return false; // used in parallel elsewhere
+    throw err;
+  }
+}
+
+// "Log out all devices": every admin access token carries the version it was
+// issued under, so bumping it ends every session at once.
+async function bumpTokenVersion(userId) {
+  const result = await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE,
+      Key: { userId },
+      UpdateExpression: 'ADD tokenVersion :one SET updatedAt = :now',
+      ExpressionAttributeValues: { ':one': 1, ':now': new Date().toISOString() },
+      ReturnValues: 'UPDATED_NEW',
+    })
+  );
+  return result.Attributes?.tokenVersion || 1;
+}
+
 function toPublicUser(user) {
   if (!user) return null;
-  const { passwordHash, resetTokenHash, resetTokenExpiry, ...publicUser } = user;
-  return publicUser;
+  const {
+    passwordHash,
+    resetTokenHash,
+    resetTokenExpiry,
+    totpSecret,
+    totpPendingSecret,
+    totpRecoveryHashes,
+    failedAuthCount,
+    lockedUntil,
+    tokenVersion,
+    ...publicUser
+  } = user;
+  return { ...publicUser, totpEnabled: Boolean(user.totpEnabled) };
 }
 
 module.exports = {
@@ -184,5 +306,12 @@ module.exports = {
   updatePassword,
   markPhoneVerified,
   isPhoneVerified,
+  recordFailedAuth,
+  clearFailedAuth,
+  setTotpPending,
+  enableTotp,
+  disableTotp,
+  consumeRecoveryCode,
+  bumpTokenVersion,
   toPublicUser,
 };

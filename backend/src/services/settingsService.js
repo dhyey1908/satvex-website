@@ -20,7 +20,12 @@ const DEFAULT_SETTINGS = {
   aboutImage: '',
   // pricesIncludeGst (the PRICES_INCLUDE_GST flag): false = GST is added on top of
   // the listed price (current behaviour); true = listed prices already include it.
-  tax: { enabled: true, percent: 18, pricesIncludeGst: false },
+  // "Prices include GST" (default ON): listed prices already contain GST, so the
+  // storefront/cart show them as inclusive and GST is a breakup INSIDE the price,
+  // not added on top. Turn off to add GST on top of listed prices.
+  tax: { enabled: true, percent: 18, pricesIncludeGst: true },
+  // Guardrails when saving a product's prices (admin asks "Are you sure?").
+  pricing: { minSellingPrice: 50, maxDiscountPercent: 90 },
   // Dynamic, Shiprocket-rate-based shipping — see pricingService.js /
   // shippingRateService.js. fallbackFlatCharge keeps pricing working even
   // before Shiprocket is connected (shiprocket.enabled stays false until
@@ -80,6 +85,35 @@ const DEFAULT_SETTINGS = {
   ],
 };
 
+// An older settings record has no flag at all: that means ON (the default), only an
+// explicit false turns it off.
+function pricesIncludeGst(settings) {
+  return settings?.tax?.pricesIncludeGst !== false;
+}
+
+// The ONLY settings a visitor's browser receives. A whitelist (not "everything
+// except a few secrets"), so a field added later - shipment alert email,
+// Shiprocket pickup details, payment test users, finance assumptions - can never
+// leak to the public by default.
+function toPublicSettings(settings) {
+  const s = settings || {};
+  return {
+    brandName: s.brandName,
+    logoUrl: s.logoUrl,
+    contactPhone: s.contactPhone,
+    contactEmail: s.contactEmail,
+    instagramUrl: s.instagramUrl,
+    pinterestUrl: s.pinterestUrl,
+    heroBanners: s.heroBanners,
+    authImage: s.authImage,
+    aboutImage: s.aboutImage,
+    whyPillars: s.whyPillars,
+    cod: { enabled: Boolean(s.cod?.enabled), charge: s.cod?.charge },
+    tax: { enabled: Boolean(s.tax?.enabled), percent: s.tax?.percent, pricesIncludeGst: pricesIncludeGst(s) },
+    shipping: { freeThreshold: s.shipping?.freeThreshold },
+  };
+}
+
 async function getSettings() {
   const result = await docClient.send(new GetCommand({ TableName: TABLE, Key: { settingsId: SETTINGS_ID } }));
   return result.Item ? { ...DEFAULT_SETTINGS, ...result.Item } : DEFAULT_SETTINGS;
@@ -125,4 +159,4 @@ async function getActiveAnnouncements(announcements) {
   return checked.filter(Boolean);
 }
 
-module.exports = { getSettings, updateSettings, getActiveAnnouncements, isAnnouncementCouponValid };
+module.exports = { pricesIncludeGst, toPublicSettings, getSettings, updateSettings, getActiveAnnouncements, isAnnouncementCouponValid };

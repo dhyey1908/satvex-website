@@ -19,7 +19,7 @@ function requireAuth(req, res, next) {
   }
   try {
     const payload = verifyAccessToken(token);
-    req.user = { id: payload.sub, role: payload.role };
+    req.user = { id: payload.sub, role: payload.role, v: payload.v || 0, iat: payload.iat };
     return next();
   } catch (err) {
     return next(new AppError('Invalid or expired session.', 401, 'UNAUTHENTICATED'));

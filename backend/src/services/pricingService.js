@@ -105,6 +105,16 @@ async function validateCoupon(code, subtotal, userId) {
     }
   }
 
+  // A coupon can require a minimum order value; checked on the server every time
+  // it is applied or an order is priced, never trusted from the browser.
+  if (coupon.minOrderValue > 0 && toPaise(subtotal) < toPaise(coupon.minOrderValue)) {
+    throw new AppError(
+      `Add ₹${fromPaise(toPaise(coupon.minOrderValue) - toPaise(subtotal)).toFixed(2)} more to use this coupon (minimum order ₹${coupon.minOrderValue}).`,
+      400,
+      'COUPON_MIN_ORDER'
+    );
+  }
+
   // Computed in paise and rounded once (see utils/money.js).
   const subtotalPaise = toPaise(subtotal);
   const rawPaise =
@@ -160,7 +170,7 @@ async function calculateTotals({ items, couponCode, paymentMethod, userId, deliv
   // PRICES_INCLUDE_GST (settings.tax.pricesIncludeGst, default false): when
   // true the listed prices already contain GST, so the GST figure is the part
   // INSIDE the price and nothing is added on top. GST is rounded once either way.
-  const pricesIncludeGst = gstEnabled && Boolean(settings.tax?.pricesIncludeGst);
+  const pricesIncludeGst = gstEnabled && settingsService.pricesIncludeGst(settings);
   const gstPaise = !gstEnabled
     ? 0
     : pricesIncludeGst

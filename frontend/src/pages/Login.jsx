@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { MfaForm } from '../components/MfaForm';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -11,7 +12,9 @@ import './Auth.css';
 
 export function Login() {
   useDocumentMeta({ title: 'Log in', path: '/login', noindex: true });
-  const { login } = useAuth();
+  const { login, completeMfa } = useAuth();
+  // Set when the account needs a second step after the password.
+  const [challenge, setChallenge] = useState(null);
   const { showToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -37,6 +40,27 @@ export function Login() {
     setTouched((prev) => ({ ...prev, [key]: true }));
   }
 
+  function finish(user) {
+    showToast('Welcome back!', 'success');
+    const redirectTo = location.state?.from?.pathname || (user.role === 'admin' ? '/admin' : '/');
+    navigate(redirectTo, { replace: true });
+  }
+
+  async function handleMfa(payload) {
+    setError(null);
+    setSubmitting(true);
+    try {
+      const { user, usedRecoveryCode } = await completeMfa(payload);
+      if (usedRecoveryCode) showToast('Signed in with a recovery code. Consider generating new ones in Settings → Security.', 'warning');
+      finish(user);
+    } catch (err) {
+      setError(err.message);
+      if (err.code === 'MFA_EXPIRED') setChallenge(null);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
@@ -47,10 +71,12 @@ export function Login() {
 
     setSubmitting(true);
     try {
-      const user = await login(form);
-      showToast('Welcome back!', 'success');
-      const redirectTo = location.state?.from?.pathname || (user.role === 'admin' ? '/admin' : '/');
-      navigate(redirectTo, { replace: true });
+      const result = await login(form);
+      if (result.mfaRequired) {
+        setChallenge(result);
+        return;
+      }
+      finish(result);
     } catch (err) {
       const serverErrors = mapServerFieldErrors(err);
       if (serverErrors) setFieldErrors((prev) => ({ ...prev, ...serverErrors }));
@@ -66,6 +92,9 @@ export function Login() {
         <h1 className="text-headline-lg">Welcome Back</h1>
         <p className="auth-subcopy">Sign in to view your orders, wishlist, and saved addresses.</p>
 
+        {challenge ? (
+          <MfaForm challenge={challenge} onSubmit={handleMfa} submitting={submitting} error={error} />
+        ) : (
         <form onSubmit={handleSubmit} noValidate>
           <div className={`field ${touched.identifier && fieldErrors.identifier ? 'invalid' : ''}`}>
             <label htmlFor="identifier">Email or Mobile Number</label>
@@ -97,6 +126,7 @@ export function Login() {
             {submitting ? <Loader2 size={16} className="btn-spinner" /> : 'Log In'}
           </button>
         </form>
+        )}
       </div>
     </AuthLayout>
   );

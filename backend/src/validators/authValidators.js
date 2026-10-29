@@ -66,7 +66,19 @@ const changePasswordSchema = z.object({
   newPassword: z.string().min(8, 'Password must be at least 8 characters').max(72),
 });
 
+// Second step of an admin sign-in: ONE of an authenticator code, a recovery
+// code, or the account password, along with the token from the first step.
+const mfaSchema = z
+  .object({
+    mfaToken: z.string().min(10),
+    code: z.string().trim().max(10).optional(),
+    recoveryCode: z.string().trim().max(20).optional(),
+    password: z.string().max(200).optional(),
+  })
+  .refine((v) => v.code || v.recoveryCode || v.password, { message: 'Enter your code.', path: ['code'] });
+
 module.exports = {
+  mfaSchema,
   registerSchema,
   loginSchema,
   forgotPasswordSchema,

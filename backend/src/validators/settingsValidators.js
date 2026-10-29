@@ -34,7 +34,13 @@ const pillarSchema = z.object({
 const taxSettingsSchema = z.object({
   enabled: z.boolean().default(true),
   percent: z.number().min(0).max(100).default(18),
-  pricesIncludeGst: z.boolean().default(false),
+  pricesIncludeGst: z.boolean().default(true),
+});
+
+// Guardrails checked when an admin saves a product's prices.
+const pricingSettingsSchema = z.object({
+  minSellingPrice: z.number().min(0).max(100000).default(50),
+  maxDiscountPercent: z.number().min(0).max(100).default(90),
 });
 
 // Dynamic, Shiprocket-rate-based shipping (replaces the old flat
@@ -159,6 +165,7 @@ const updateSettingsSchema = z.object({
   notifications: notificationsSettingsSchema.optional(),
   finance: financeSettingsSchema.optional(),
   reviews: reviewsSettingsSchema.optional(),
+  pricing: pricingSettingsSchema.optional(),
 });
 
 module.exports = { updateSettingsSchema };

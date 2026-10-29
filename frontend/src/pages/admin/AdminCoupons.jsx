@@ -21,6 +21,7 @@ const EMPTY_FORM = {
   discountValue: '',
   isActive: true,
   usageLimit: '',
+  minOrderValue: '',
   oneUsePerCustomer: false,
   expiresAt: '',
 };
@@ -96,6 +97,7 @@ export function AdminCoupons() {
       discountValue: coupon.discountValue,
       isActive: coupon.isActive,
       usageLimit: coupon.usageLimit || '',
+      minOrderValue: coupon.minOrderValue || '',
       oneUsePerCustomer: coupon.oneUsePerCustomer || false,
       expiresAt: isoToIstDate(coupon.expiresAt),
     });
@@ -127,6 +129,8 @@ export function AdminCoupons() {
       isActive: form.isActive,
       oneUsePerCustomer: form.oneUsePerCustomer,
       ...(form.usageLimit ? { usageLimit: Number(form.usageLimit) } : {}),
+      // 0 clears an existing minimum on edit.
+      minOrderValue: form.minOrderValue ? Number(form.minOrderValue) : 0,
       // '' clears an existing expiry on edit (the API accepts it).
       ...(form.expiresAt ? { expiresAt: istEndOfDayIso(form.expiresAt) } : editingCode ? { expiresAt: '' } : {}),
     };
@@ -245,7 +249,7 @@ export function AdminCoupons() {
                       {c.usageCount}{c.usageLimit ? ` / ${c.usageLimit}` : ''}
                     </button>
                   </td>
-                  <td>{c.oneUsePerCustomer ? 'One use' : 'Unlimited'}</td>
+                  <td>{c.oneUsePerCustomer ? 'One use' : 'Unlimited'}{c.minOrderValue > 0 ? ` · min ₹${c.minOrderValue}` : ''}</td>
                   <td>{c.expiresAt ? formatDate(c.expiresAt) : 'No expiry'}</td>
                   <td>
                     <span className={`pill ${STATUS_PILL[c.effectiveStatus] || 'pill-inactive'}`}>
@@ -324,6 +328,17 @@ export function AdminCoupons() {
               onBlur={() => markTouched('usageLimit')}
             />
             {touched.usageLimit && fieldErrors.usageLimit && <p className="field-error">{fieldErrors.usageLimit}</p>}
+          </div>
+          <div className="field">
+            <label htmlFor="coupon-min">Minimum order value (₹, optional)</label>
+            <input
+              id="coupon-min"
+              type="number"
+              min="0"
+              value={form.minOrderValue}
+              onChange={(e) => setField('minOrderValue', e.target.value)}
+            />
+            <p className="field-hint">The coupon only works when the cart is at least this much. A flat discount must be smaller than it.</p>
           </div>
           <div className="field">
             <label htmlFor="coupon-expires">Expires on (optional)</label>

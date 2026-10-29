@@ -128,7 +128,11 @@ export default function App() {
           <Route path="reviews" element={<AdminReviews />} />
           <Route path="banners" element={<AdminBanners />} />
           <Route path="announcements" element={<AdminAnnouncements />} />
-          <Route path="settings" element={<AdminSettings />} />
+          <Route path="settings" element={<Navigate to="/admin/settings/general" replace />} />
+          <Route path="settings/general" element={<AdminSettings section="general" />} />
+          <Route path="settings/checkout" element={<AdminSettings section="checkout" />} />
+          <Route path="settings/integrations" element={<AdminSettings section="integrations" />} />
+          <Route path="settings/security" element={<AdminSettings section="security" />} />
         </Route>
       </Route>
       </Routes>

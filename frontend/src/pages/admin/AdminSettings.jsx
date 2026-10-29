@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { NavLink } from 'react-router-dom';
+import { AdminSecurity } from './AdminSecurity';
 import { adminService } from '../../services/adminService';
 import { useToast } from '../../context/ToastContext';
 import { useSettings } from '../../context/SettingsContext';
@@ -18,7 +20,17 @@ function validate(values) {
   });
 }
 
-export function AdminSettings() {
+// Each tab has its own URL (/admin/settings/general ...), so a link or a refresh
+// always lands on the same page. All tabs are parts of ONE form with one Save
+// button - switching tabs never loses what you typed.
+const SETTINGS_TABS = [
+  { section: 'general', label: 'General' },
+  { section: 'checkout', label: 'Checkout & Pricing' },
+  { section: 'integrations', label: 'Integrations' },
+  { section: 'security', label: 'Security' },
+];
+
+export function AdminSettings({ section = 'general' }) {
   const [form, setForm] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -109,8 +121,16 @@ export function AdminSettings() {
       <div className="admin-page-header">
         <h1>Settings</h1>
       </div>
-      <form className="admin-form admin-form-wide" onSubmit={handleSubmit} noValidate>
-        <div className="admin-form-section">
+      <nav className="settings-tabs" aria-label="Settings sections">
+        {SETTINGS_TABS.map((t) => (
+          <NavLink key={t.section} to={`/admin/settings/${t.section}`} className={({ isActive }) => `settings-tab ${isActive ? 'active' : ''}`}>
+            {t.label}
+          </NavLink>
+        ))}
+      </nav>
+      {section === 'security' && <AdminSecurity />}
+      <form className="admin-form admin-form-wide" onSubmit={handleSubmit} noValidate hidden={section === 'security'}>
+        <div className="admin-form-section" hidden={section !== 'general'}>
           <h3>Brand</h3>
           <div className="admin-form-grid">
             <div className="field" style={{ gridColumn: '1 / -1' }}>
@@ -138,7 +158,7 @@ export function AdminSettings() {
           </div>
         </div>
 
-        <div className="admin-form-section">
+        <div className="admin-form-section" hidden={section !== 'general'}>
           <h3>Site Images</h3>
           <div className="admin-form-grid">
             <div className="field">
@@ -168,7 +188,7 @@ export function AdminSettings() {
           </div>
         </div>
 
-        <div className="admin-form-section">
+        <div className="admin-form-section" hidden={section !== 'general'}>
           <h3>Why Satvex — Homepage &amp; About Pillars</h3>
           <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: 12 }}>
             Shown as 4 cards on the Homepage and About page. Fill in real, specific claims
@@ -191,7 +211,7 @@ export function AdminSettings() {
           ))}
         </div>
 
-        <div className="admin-form-section">
+        <div className="admin-form-section" hidden={section !== 'general'}>
           <h3>Contact Info</h3>
           <div className="admin-form-grid">
             <div className={`field ${touched.contactPhone && fieldErrors.contactPhone ? 'invalid' : ''}`}>
@@ -228,7 +248,7 @@ export function AdminSettings() {
           </div>
         </div>
 
-        <div className="admin-form-section">
+        <div className="admin-form-section" hidden={section !== 'checkout'}>
           <h3>Tax (GST)</h3>
           <label className="checkbox-field">
             <input
@@ -238,6 +258,20 @@ export function AdminSettings() {
             />
             Enable GST
           </label>
+          <label className="checkbox-field">
+            <input
+              type="checkbox"
+              checked={form.tax?.pricesIncludeGst !== false}
+              onChange={(e) => setNestedField('tax', 'pricesIncludeGst', e.target.checked)}
+            />
+            Prices include GST
+          </label>
+          <p className="field-hint">
+            {form.tax?.pricesIncludeGst !== false
+              ? 'ON: the price you list is what the customer pays. The store and cart say "Inclusive of all taxes" and GST is shown as a breakup inside the price.'
+              : 'OFF: GST is added on top of the listed price at checkout.'}{' '}
+            Changing this changes what customers are charged for new orders.
+          </p>
           {form.tax?.enabled && (
             <div className="field" style={{ maxWidth: 220 }}>
               <label htmlFor="gstPercent">GST Percentage (%)</label>
@@ -254,7 +288,35 @@ export function AdminSettings() {
           )}
         </div>
 
-        <div className="admin-form-section">
+        <div className="admin-form-section" hidden={section !== 'checkout'}>
+          <h3>Price Guardrails</h3>
+          <p className="field-hint">When you save a product, you are asked to confirm any price below the minimum or too far under the MRP.</p>
+          <div className="field" style={{ maxWidth: 260 }}>
+            <label htmlFor="minSellingPrice">Minimum selling price (₹)</label>
+            <input
+              id="minSellingPrice"
+              type="number"
+              min="0"
+              step="1"
+              value={form.pricing?.minSellingPrice ?? 50}
+              onChange={(e) => setNestedField('pricing', 'minSellingPrice', Number(e.target.value))}
+            />
+          </div>
+          <div className="field" style={{ maxWidth: 260 }}>
+            <label htmlFor="maxDiscountPercent">Largest discount below MRP (%)</label>
+            <input
+              id="maxDiscountPercent"
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              value={form.pricing?.maxDiscountPercent ?? 90}
+              onChange={(e) => setNestedField('pricing', 'maxDiscountPercent', Number(e.target.value))}
+            />
+          </div>
+        </div>
+
+        <div className="admin-form-section" hidden={section !== 'integrations'}>
           <h3>Shiprocket Connection</h3>
           <label className="checkbox-field">
             <input
@@ -376,7 +438,7 @@ export function AdminSettings() {
           </div>
         </div>
 
-        <div className="admin-form-section">
+        <div className="admin-form-section" hidden={section !== 'checkout'}>
           <h3>Dynamic Shipping (Shiprocket rate)</h3>
           <div className="admin-form-grid">
             <div className="field">
@@ -482,7 +544,7 @@ export function AdminSettings() {
           </p>
         </div>
 
-        <div className="admin-form-section">
+        <div className="admin-form-section" hidden={section !== 'checkout'}>
           <h3>Cash on Delivery</h3>
           <label className="checkbox-field">
             <input
@@ -536,7 +598,7 @@ export function AdminSettings() {
           </div>
         </div>
 
-        <div className="admin-form-section">
+        <div className="admin-form-section" hidden={section !== 'integrations'}>
           <h3>Online Payments (PayU)</h3>
           <label className="checkbox-field">
             <input
@@ -573,7 +635,7 @@ export function AdminSettings() {
           </div>
         </div>
 
-        <div className="admin-form-section">
+        <div className="admin-form-section" hidden={section !== 'checkout'}>
           <h3>Delivery Eligibility</h3>
           <label className="checkbox-field">
             <input

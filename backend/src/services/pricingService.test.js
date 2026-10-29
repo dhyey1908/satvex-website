@@ -15,7 +15,9 @@ const originalAssertDeliverable = deliveryEligibilityService.assertDeliverable;
 // free-shipping threshold, and COD/prepaid-discount logic.
 function stubSettings(overrides = {}) {
   settingsService.getSettings = async () => ({
-    tax: { enabled: true, percent: 18 },
+    // These tests describe the GST-on-top mode; the default (flag missing) is inclusive - see the
+    // "default" test at the bottom.
+    tax: { enabled: true, percent: 18, pricesIncludeGst: false, ...overrides.tax },
     shipping: {
       fallbackFlatCharge: 59,
       freeThreshold: 700,
@@ -241,7 +243,7 @@ test('PRICES_INCLUDE_GST: GST is the part inside the price; nothing is added on 
   assert.equal(totals.total, 708); // not 835.44
 });
 
-test('PRICES_INCLUDE_GST off (default): GST is added on top as before', async () => {
+test('PRICES_INCLUDE_GST explicitly off: GST is added on top', async () => {
   stubSettings();
   const totals = await calculateTotals({ items: [{ subtotal: 600 }], paymentMethod: 'Online' });
   assert.equal(totals.pricesIncludeGst, false);
@@ -257,4 +259,32 @@ test('savingsAmount = MRP markdown on every pack + coupon discount, computed ser
   assert.equal(totals.productSavings, 100); // (299-249) x 2
   assert.equal(totals.discountAmount, 49.8);
   assert.equal(totals.savingsAmount, 149.8);
+});
+
+test('default: with no pricesIncludeGst flag stored, prices are GST-inclusive (default ON)', async () => {
+  stubSettings({ tax: { pricesIncludeGst: undefined } });
+  const totals = await calculateTotals({ items: [{ subtotal: 708 }], paymentMethod: 'Online' });
+  assert.equal(totals.pricesIncludeGst, true);
+  assert.equal(totals.gstAmount, 108);
+  assert.equal(totals.total, 708);
+});
+
+test('coupon minimum order value is enforced on the server', async () => {
+  stubSettings();
+  couponService.findByCode = async () => ({ code: 'BIG', isActive: true, discountType: 'flat', discountValue: 50, minOrderValue: 500, usageCount: 0 });
+  await assert.rejects(
+    () => calculateTotals({ items: [{ subtotal: 499 }], paymentMethod: 'Online', couponCode: 'BIG' }),
+    (e) => e.code === 'COUPON_MIN_ORDER' && /Add ₹1\.00 more/.test(e.message)
+  );
+  const ok = await calculateTotals({ items: [{ subtotal: 500 }], paymentMethod: 'Online', couponCode: 'BIG' });
+  assert.equal(ok.discountAmount, 50);
+});
+
+test('a flat coupon bigger than the order can never make the total negative', async () => {
+  stubSettings();
+  couponService.findByCode = async () => ({ code: 'HUGE', isActive: true, discountType: 'flat', discountValue: 5000, usageCount: 0 });
+  const totals = await calculateTotals({ items: [{ subtotal: 100 }], paymentMethod: 'Online', couponCode: 'HUGE' });
+  assert.equal(totals.discountAmount, 100); // capped at the subtotal
+  assert.equal(totals.taxableAmount, 0);
+  assert.ok(totals.total >= 0, `total ${totals.total} must not be negative`);
 });

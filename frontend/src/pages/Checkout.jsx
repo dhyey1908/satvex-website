@@ -261,6 +261,10 @@ export function Checkout() {
       })
       .catch((err) => {
         if (cancelled) return;
+        if (/^(COUPON_|INVALID_COUPON)/.test(err.code || '')) {
+          clearCoupon();
+          showToast(`${err.message} The coupon was removed.`, 'warning');
+        }
         setQuote(null);
         setQuoteKey(null);
         // Surfaced prominently (e.g. a disabled-state pincode) rather than

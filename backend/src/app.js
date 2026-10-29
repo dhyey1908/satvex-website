@@ -20,6 +20,8 @@ app.use(
   cors({
     origin: allowedOrigins,
     credentials: true,
+    // The renewed admin session token (see middleware/admin.js) is readable by the app.
+    exposedHeaders: ['X-Access-Token'],
   })
 );
 app.use(express.json({ limit: '1mb' }));

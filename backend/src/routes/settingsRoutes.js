@@ -23,9 +23,8 @@ router.get(
       onlineEnabled || (req.user && (onlineTestUserIds || []).includes(req.user.id))
     );
     const activeAnnouncements = await settingsService.getActiveAnnouncements(settings.announcements);
-    // finance holds the admin-only cost assumptions behind the profit
-    // analytics (e.g. the payment-gateway fee %) — never sent to the public.
-    const { payments, finance, ...publicSettings } = settings;
+    // Whitelisted: only what the storefront shows (see toPublicSettings).
+    const publicSettings = settingsService.toPublicSettings(settings);
     // Who actually delivers the login code, so the sign-in screens can tell
     // customers whose name to expect on the message (MiniMoth's, not ours) —
     // and say nothing when the SNS fallback is active.

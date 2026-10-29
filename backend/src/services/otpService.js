@@ -13,6 +13,18 @@ const RESEND_COOLDOWN_MS = 60 * 1000; // wait between two sends to the same numb
 const MAX_SENDS_PER_WINDOW = 3; // codes per number per window (mirrors MiniMoth's own cap)
 const SEND_WINDOW_MS = 10 * 60 * 1000;
 const MAX_VERIFY_ATTEMPTS = 5; // wrong guesses per issued code
+// After a code is locked by wrong guesses the NUMBER is blocked for a while, so
+// requesting a fresh code cannot be used to keep guessing.
+const BLOCK_MS = 15 * 60 * 1000;
+const blockedError = (record, now = Date.now()) => {
+  const minutes = Math.max(1, Math.ceil((record.blockedUntil - now) / 60000));
+  return new AppError(
+    `Too many wrong codes. Please try again in ${plural(minutes, 'minute')}.`,
+    429,
+    'OTP_BLOCKED',
+    { retryAfterSeconds: Math.ceil((record.blockedUntil - now) / 1000) }
+  );
+};
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const secondsUntil = (ms) => Math.max(1, Math.ceil(ms / 1000));
@@ -94,6 +106,7 @@ function planSend(record, phone, now) {
 async function sendOtp(phone) {
   const existing = await docClient.send(new GetCommand({ TableName: TABLE, Key: { phone } }));
   const now = Date.now();
+  if (existing.Item?.blockedUntil > now) throw blockedError(existing.Item, now);
   const { sendCount, windowStartedAt } = planSend(existing.Item, phone, now);
 
   const base = {
@@ -140,11 +153,13 @@ async function rejectWrongCode(record) {
   const attempts = (record.attempts || 0) + 1;
   const attemptsRemaining = Math.max(0, MAX_VERIFY_ATTEMPTS - attempts);
   const locked = attemptsRemaining === 0;
-  await docClient.send(new PutCommand({ TableName: TABLE, Item: { ...record, attempts, locked } }));
+  await docClient.send(
+    new PutCommand({ TableName: TABLE, Item: { ...record, attempts, locked, ...(locked ? { blockedUntil: Date.now() + BLOCK_MS } : {}) } })
+  );
 
   if (locked) {
     throw new AppError(
-      "That code isn't correct and is now locked. Please request a new code.",
+      `That code isn't correct and is now locked. Please wait ${BLOCK_MS / 60000} minutes, then request a new code.`,
       429,
       'OTP_TOO_MANY_ATTEMPTS',
       { attemptsRemaining: 0 }
@@ -199,7 +214,7 @@ async function verifyOtp(phone, code) {
     } catch (err) {
       if (err.code === 'OTP_INCORRECT') return rejectWrongCode(record);
       if (err.code === 'OTP_TOO_MANY_ATTEMPTS') {
-        await docClient.send(new PutCommand({ TableName: TABLE, Item: { ...record, locked: true } }));
+        await docClient.send(new PutCommand({ TableName: TABLE, Item: { ...record, locked: true, blockedUntil: Date.now() + BLOCK_MS } }));
         throw lockedError();
       }
       if (err.code === 'OTP_NOT_FOUND') {

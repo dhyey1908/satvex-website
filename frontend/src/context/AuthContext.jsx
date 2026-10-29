@@ -7,6 +7,8 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  // An admin who has not turned on two-step sign-in yet is nudged to (banner).
+  const [mfaSetupRequired, setMfaSetupRequired] = useState(false);
 
   const loadUser = useCallback(async () => {
     try {
@@ -23,12 +25,38 @@ export function AuthProvider({ children }) {
     loadUser();
   }, [loadUser]);
 
-  const login = useCallback(async (credentials) => {
-    const { user: loggedInUser, token } = await authService.login(credentials);
-    setAuthToken(token);
-    setUser(loggedInUser);
-    return loggedInUser;
+  // The admin session ended (30 minutes without using the admin): drop it here
+  // so the admin screens send the person back to sign in.
+  useEffect(() => {
+    function onSessionEnded() {
+      setAuthToken(null);
+      setUser(null);
+    }
+    window.addEventListener('satvex:session-ended', onSessionEnded);
+    return () => window.removeEventListener('satvex:session-ended', onSessionEnded);
   }, []);
+
+  // Both sign-in routes can answer "one more step" for an admin: { mfaRequired,
+  // mfaToken, methods }. The caller shows the second step and finishes it with
+  // completeMfa. Everyone else gets a session straight away.
+  const startSession = useCallback((data) => {
+    setAuthToken(data.token);
+    setUser(data.user);
+    setMfaSetupRequired(Boolean(data.mfaSetupRequired));
+  }, []);
+
+  const login = useCallback(async (credentials) => {
+    const data = await authService.login(credentials);
+    if (data.mfaRequired) return data;
+    startSession(data);
+    return data.user;
+  }, [startSession]);
+
+  const completeMfa = useCallback(async (payload) => {
+    const data = await authService.mfa(payload);
+    startSession(data);
+    return { user: data.user, usedRecoveryCode: Boolean(data.usedRecoveryCode) };
+  }, [startSession]);
 
   const register = useCallback(async (data) => {
     const { user: newUser, token } = await authService.register(data);
@@ -48,11 +76,11 @@ export function AuthProvider({ children }) {
   // — isNewAccount lets the caller show a "Welcome!" vs "Welcome back!"
   // toast without a second round trip.
   const loginWithOtp = useCallback(async (phone, code) => {
-    const { user: loggedInUser, token, isNewAccount } = await authService.verifyOtp(phone, code);
-    setAuthToken(token);
-    setUser(loggedInUser);
-    return { user: loggedInUser, isNewAccount };
-  }, []);
+    const data = await authService.verifyOtp(phone, code);
+    if (data.mfaRequired) return data;
+    startSession(data);
+    return { user: data.user, isNewAccount: data.isNewAccount };
+  }, [startSession]);
 
   const value = {
     user,
@@ -60,6 +88,8 @@ export function AuthProvider({ children }) {
     isAuthenticated: Boolean(user),
     isAdmin: user?.role === 'admin',
     login,
+    completeMfa,
+    mfaSetupRequired,
     register,
     logout,
     loginWithOtp,

@@ -60,6 +60,10 @@ async function doFetch(path, { method = 'GET', body, params } = {}) {
     body: body ? JSON.stringify(body) : undefined,
   });
 
+  // Admin sessions slide: the server hands back a fresh 30-minute token now and then.
+  const renewed = res.headers.get('x-access-token');
+  if (renewed) setAuthToken(renewed);
+
   let payload = null;
   try {
     payload = await res.json();
@@ -84,7 +88,7 @@ async function doFetch(path, { method = 'GET', body, params } = {}) {
 // access/refresh split: it's what lets a returning device go up to ~2
 // years between real OTP sends instead of needing one every time the
 // access token lapses.
-const NO_REFRESH_RETRY_PATHS = new Set(['/auth/login', '/auth/register', '/auth/verify-otp', '/auth/refresh', '/auth/logout']);
+const NO_REFRESH_RETRY_PATHS = new Set(['/auth/login', '/auth/register', '/auth/verify-otp', '/auth/mfa', '/auth/refresh', '/auth/logout', '/auth/logout-all']);
 let refreshPromise = null;
 
 // Several requests can all 401 at the same moment (e.g. a page firing a
@@ -118,6 +122,9 @@ async function request(path, options = {}) {
     if (err instanceof ApiError && err.status === 401 && !NO_REFRESH_RETRY_PATHS.has(path)) {
       const refreshed = await refreshAccessToken();
       if (refreshed) return doFetch(path, options);
+      // An admin who was idle for 30 minutes has no silent refresh: tell the app so it
+      // can sign them out cleanly instead of showing a wall of errors.
+      if (path.startsWith('/admin')) window.dispatchEvent(new Event('satvex:session-ended'));
     }
     throw err;
   }

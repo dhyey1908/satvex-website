@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Plus, Trash2 } from 'lucide-react';
 import { productService } from '../../services/productService';
 import { useToast } from '../../context/ToastContext';
+import { useConfirm } from '../../context/ConfirmContext';
 import { ImageUploader } from '../../components/ImageUploader';
 import { MediaUploader } from '../../components/MediaUploader';
 import { TestimonialVideosEditor, MAX_TESTIMONIAL_VIDEOS } from '../../components/TestimonialVideosEditor';
@@ -48,6 +49,7 @@ export function AdminProductForm() {
   const isNew = !id || id === 'new';
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const confirm = useConfirm();
 
   const [form, setForm] = useState(EMPTY_PRODUCT);
   const [slugTouched, setSlugTouched] = useState(false);
@@ -204,14 +206,31 @@ export function AdminProductForm() {
       })),
     };
 
-    try {
-      if (isNew) {
-        await productService.create(payload);
-        showToast('Product created', 'success');
-      } else {
-        await productService.update(id, payload);
-        showToast('Product updated', 'success');
+    // The server refuses prices below the minimum / too far under the MRP until
+    // they are confirmed. Ask once, then send the same request again, confirmed.
+    async function save(extra = {}) {
+      try {
+        if (isNew) await productService.create({ ...payload, ...extra });
+        else await productService.update(id, { ...payload, ...extra });
+      } catch (err) {
+        if (err.code !== 'PRICE_CONFIRMATION_REQUIRED') throw err;
+        const warnings = err.details?.warnings || [];
+        const yes = await confirm({
+          title: `Are you sure? Price is ₹${warnings[0]?.price ?? ''}`,
+          message: `${warnings.map((w) => w.message).join(' ')} Save anyway?`,
+          confirmLabel: 'Yes, save these prices',
+          danger: true,
+        });
+        if (!yes) return false;
+        await save({ confirmPriceWarnings: true });
       }
+      return true;
+    }
+
+    try {
+      const saved = await save();
+      if (!saved) return; // the admin chose to fix the price
+      showToast(isNew ? 'Product created' : 'Product updated', 'success');
       navigate('/admin/products');
     } catch (err) {
       const serverErrors = mapServerFieldErrors(err);

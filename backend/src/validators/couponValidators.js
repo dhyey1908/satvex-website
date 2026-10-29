@@ -10,6 +10,8 @@ const couponBaseSchema = z.object({
   discountValue: z.number().positive(),
   isActive: z.boolean().default(true),
   expiresAt: z.string().datetime().optional().or(z.literal('')),
+  // Smallest order (after nothing is deducted: the cart subtotal) the coupon works on.
+  minOrderValue: z.number().min(0).max(1000000).optional(),
   usageLimit: z.number().int().positive().optional(),
   oneUsePerCustomer: z.boolean().default(false),
 });
@@ -21,8 +23,16 @@ function withPercentageCap(schema) {
   });
 }
 
-const couponSchema = withPercentageCap(couponBaseSchema);
-const couponUpdateSchema = withPercentageCap(couponBaseSchema.omit({ code: true }).partial());
+// A flat coupon worth more than the minimum order it needs would be a free order.
+function withFlatBelowMinimum(schema) {
+  return schema.refine(
+    (data) => data.discountType !== 'flat' || !data.minOrderValue || !data.discountValue || data.discountValue < data.minOrderValue,
+    { message: 'A flat discount must be smaller than the minimum order value.', path: ['discountValue'] }
+  );
+}
+
+const couponSchema = withFlatBelowMinimum(withPercentageCap(couponBaseSchema));
+const couponUpdateSchema = withFlatBelowMinimum(withPercentageCap(couponBaseSchema.omit({ code: true }).partial()));
 
 const applyCouponSchema = z.object({
   code: z.string().trim().min(1),

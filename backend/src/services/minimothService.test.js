@@ -331,6 +331,14 @@ test('a locked code keeps the send counters, so locking cannot be used to dodge 
   assert.equal(rows.get('9876543210').sendCount, 1);
 
   age(rows, '9876543210', 70_000);
+  // Five wrong guesses also block the number for 15 minutes: a fresh code cannot be used to keep guessing.
+  await assert.rejects(otpService.sendOtp('9876543210'), (err) => {
+    assert.equal(err.code, 'OTP_BLOCKED');
+    assert.equal(err.statusCode, 429);
+    assert.match(err.message, /try again in 15 minutes/);
+    return true;
+  });
+  rows.set('9876543210', { ...rows.get('9876543210'), blockedUntil: Date.now() - 1000 }); // the block has run out
   const next = await otpService.sendOtp('9876543210');
   assert.equal(next.sendsRemaining, 1, 'counter continued (2 of 3 used), not reset');
   assert.equal(rows.get('9876543210').locked, false, 'a fresh code starts unlocked');

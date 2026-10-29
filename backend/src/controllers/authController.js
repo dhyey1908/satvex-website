@@ -14,13 +14,15 @@ const otpService = require('../services/otpService');
 const refreshTokenService = require('../services/refreshTokenService');
 const { sendPasswordResetEmail } = require('../services/emailService');
 const { hashPassword, verifyPassword, generateRawToken, hashToken } = require('../utils/password');
-const { signAccessToken } = require('../utils/jwt');
+const { signMfaToken, verifyMfaToken } = require('../utils/jwt');
+const { cookieOptions, accessTokenFor } = require('../utils/session');
+const adminSecurity = require('../services/adminSecurityService');
+const { mfaSchema } = require('../validators/authValidators');
 const AppError = require('../utils/AppError');
 const { ok, created } = require('../utils/response');
 const env = require('../config/env');
 
 const COOKIE_NAME = 'accessToken';
-const COOKIE_MAX_AGE_MS = 60 * 60 * 1000; // matches jwt.accessTokenExpiresIn's default (1h)
 const REFRESH_COOKIE_NAME = 'refreshToken';
 const REFRESH_COOKIE_MAX_AGE_MS = env.auth.refreshTokenMaxAgeDays * 24 * 60 * 60 * 1000;
 // Scoped to only the auth routes that actually need it (refresh, logout) —
@@ -28,23 +30,10 @@ const REFRESH_COOKIE_MAX_AGE_MS = env.auth.refreshTokenMaxAgeDays * 24 * 60 * 60
 // so there's no reason for the browser to attach it to every request.
 const REFRESH_COOKIE_PATH = '/api/auth';
 
-// The deployed frontend (CloudFront) and API (API Gateway) are always on
-// different domains — a cross-site request from the browser's perspective.
-// Cross-site fetch requests only carry cookies marked SameSite=None (which
-// in turn requires Secure). Locally, frontend/backend differ only by port,
-// which browsers treat as the same "site", so Lax + non-Secure works there.
-const isCrossSiteDeployment = env.nodeEnv === 'production';
-
-function cookieOptions() {
-  return {
-    httpOnly: true,
-    secure: isCrossSiteDeployment,
-    sameSite: isCrossSiteDeployment ? 'none' : 'lax',
-  };
-}
-
-function setAuthCookie(res, token) {
-  res.cookie(COOKIE_NAME, token, { ...cookieOptions(), maxAge: COOKIE_MAX_AGE_MS });
+// Cookie flags (SameSite=None; Secure when deployed cross-site) live in
+// utils/session.js, shared with the admin middleware's sliding renewal.
+function setAuthCookie(res, token, maxAgeMs) {
+  res.cookie(COOKIE_NAME, token, { ...cookieOptions(), maxAge: maxAgeMs });
 }
 
 function setRefreshCookie(res, token) {
@@ -61,11 +50,32 @@ function clearRefreshCookie(res) {
 // REFRESH_TOKEN_MAX_AGE_DAYS instead of needing a fresh one every
 // ACCESS_TOKEN_EXPIRES_IN.
 async function issueSession(req, res, user) {
-  const token = signAccessToken({ sub: user.userId, role: user.role });
-  setAuthCookie(res, token);
-  const refreshToken = await refreshTokenService.createFamily(user.userId, req.headers['user-agent']);
-  setRefreshCookie(res, refreshToken);
+  const { token, maxAgeMs } = accessTokenFor(user);
+  setAuthCookie(res, token, maxAgeMs);
+  // Admins get a 30-minute session that renews while they work and NO long-lived
+  // refresh token: stop using the admin and you are signed out.
+  if (user.role !== 'admin') {
+    const refreshToken = await refreshTokenService.createFamily(user.userId, req.headers['user-agent']);
+    setRefreshCookie(res, refreshToken);
+  }
   return token;
+}
+
+// What the browser is told right after a successful sign-in.
+function sessionResponse(user, token, extra = {}) {
+  return {
+    user: userService.toPublicUser(user),
+    token,
+    // An admin who has not turned on two-step sign-in yet is asked to (a banner).
+    mfaSetupRequired: user.role === 'admin' && !user.totpEnabled,
+    ...extra,
+  };
+}
+
+// First factor passed but this account needs a second step (admins with two-step
+// turned on): hand back a 5-minute "second step" token instead of a session.
+function mfaChallenge(res, user, methods) {
+  ok(res, { mfaRequired: true, methods, mfaToken: signMfaToken({ sub: user.userId, methods }) });
 }
 
 async function register(req, res) {
@@ -110,13 +120,59 @@ async function login(req, res) {
     throw new AppError('Invalid credentials.', 401, 'INVALID_CREDENTIALS');
   }
 
-  const validPassword = await verifyPassword(password, user.passwordHash);
+  adminSecurity.assertNotLocked(user);
+
+  const validPassword = user.passwordHash ? await verifyPassword(password, user.passwordHash) : false;
   if (!validPassword) {
-    throw new AppError('Invalid credentials.', 401, 'INVALID_CREDENTIALS');
+    // Wrong password: count it. Five in a row lock the account for 15 minutes.
+    await adminSecurity.failAttempt(user, 'Invalid credentials.', 'INVALID_CREDENTIALS');
   }
 
+  // An admin with two-step sign-in on still needs the code; the failed-attempt
+  // counter is NOT reset until that second step also passes.
+  if (user.role === 'admin' && user.totpEnabled) {
+    return mfaChallenge(res, user, ['totp', 'recovery']);
+  }
+
+  await userService.clearFailedAuth(user.userId);
   const token = await issueSession(req, res, user);
-  ok(res, { user: userService.toPublicUser(user), token });
+  ok(res, sessionResponse(user, token));
+}
+
+// Second step of an admin sign-in: an authenticator code, a recovery code, or
+// (for the phone-code route only) the account password.
+async function mfa(req, res) {
+  const { mfaToken, code, recoveryCode, password } = mfaSchema.parse(req.body);
+  let payload;
+  try {
+    payload = verifyMfaToken(mfaToken);
+  } catch {
+    throw new AppError('This sign-in step expired. Please start again.', 401, 'MFA_EXPIRED');
+  }
+  const user = await userService.findById(payload.sub);
+  if (!user || user.role !== 'admin') throw new AppError('This sign-in step expired. Please start again.', 401, 'MFA_EXPIRED');
+  adminSecurity.assertNotLocked(user);
+
+  const method = await adminSecurity.checkSecondFactor(
+    user,
+    { code, recoveryCode, password },
+    { allowPassword: (payload.methods || []).includes('password') }
+  );
+  if (!method) await adminSecurity.failAttempt(user, 'That code is not correct.', 'INVALID_MFA');
+
+  await userService.clearFailedAuth(user.userId);
+  const token = await issueSession(req, res, user);
+  const fresh = await userService.findById(user.userId);
+  ok(res, sessionResponse(fresh, token, { usedRecoveryCode: method === 'recovery' }));
+}
+
+// "Log out all devices": ends every session of the signed-in user at once.
+async function logoutAll(req, res) {
+  await refreshTokenService.revokeAllForUser(req.user.id);
+  await userService.bumpTokenVersion(req.user.id);
+  res.clearCookie(COOKIE_NAME, cookieOptions());
+  clearRefreshCookie(res);
+  ok(res, { loggedOut: true });
 }
 
 // Previously a no-op server-side (purely cleared the cookie) since there
@@ -150,9 +206,14 @@ async function refresh(req, res) {
   if (!user) {
     throw new AppError('Session expired. Please log in again.', 401, 'REFRESH_INVALID');
   }
+  // Admin sessions never refresh silently (30-minute idle timeout).
+  if (user.role === 'admin') {
+    await refreshTokenService.revokeAllForUser(user.userId);
+    throw new AppError('Session expired. Please log in again.', 401, 'REFRESH_INVALID');
+  }
 
-  const token = signAccessToken({ sub: user.userId, role: user.role });
-  setAuthCookie(res, token);
+  const { token, maxAgeMs } = accessTokenFor(user);
+  setAuthCookie(res, token, maxAgeMs);
   setRefreshCookie(res, newRefreshToken);
   ok(res, { user: userService.toPublicUser(user), token });
 }
@@ -270,8 +331,19 @@ async function verifyOtp(req, res) {
     user = await userService.createUser({ phone, verifiedPhone: phone, role: 'customer' });
   }
 
+  // An admin who signs in with only a phone code is not let in yet: with two-step
+  // sign-in on they must also give the authenticator code (or password); without
+  // it they get in once but are told to turn it on.
+  if (user.role === 'admin') {
+    adminSecurity.assertNotLocked(user);
+    if (user.totpEnabled || user.passwordHash) {
+      const methods = [...(user.totpEnabled ? ['totp', 'recovery'] : []), ...(user.passwordHash ? ['password'] : [])];
+      return mfaChallenge(res, user, methods);
+    }
+  }
+
   const token = await issueSession(req, res, user);
-  ok(res, { user: userService.toPublicUser(user), token, isNewAccount: !existingUser });
+  ok(res, sessionResponse(user, token, { isNewAccount: !existingUser }));
 }
 
 async function updateProfile(req, res) {
@@ -299,6 +371,8 @@ async function changePassword(req, res) {
 }
 
 module.exports = {
+  mfa,
+  logoutAll,
   register,
   login,
   logout,

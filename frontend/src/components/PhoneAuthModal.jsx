@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Modal } from './Modal';
+import { MfaForm } from './MfaForm';
 import { OtpSenderNote } from './OtpSenderNote';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/authService';
@@ -22,7 +23,9 @@ import './PhoneAuthModal.css';
 // every timer/count shown here comes from the server's response, so the two
 // can never drift apart.
 export function PhoneAuthModal({ open, onClose, onVerified }) {
-  const { loginWithOtp } = useAuth();
+  const { loginWithOtp, completeMfa } = useAuth();
+  const [challenge, setChallenge] = useState(null); // admin second step
+  const [mfaSubmitting, setMfaSubmitting] = useState(false);
   const { showToast } = useToast();
 
   const [step, setStep] = useState('phone'); // 'phone' | 'otp'
@@ -44,6 +47,7 @@ export function PhoneAuthModal({ open, onClose, onVerified }) {
   const codeInputRef = useRef(null);
 
   function reset() {
+    setChallenge(null);
     setStep('phone');
     setPhone('');
     setCode('');
@@ -107,6 +111,23 @@ export function PhoneAuthModal({ open, onClose, onVerified }) {
     limit.clear();
   }
 
+  async function handleMfa(payload) {
+    setError(null);
+    setMfaSubmitting(true);
+    try {
+      await completeMfa(payload);
+      showToast('Welcome back!', 'success');
+      setChallenge(null);
+      reset();
+      onVerified?.(false);
+    } catch (err) {
+      setError(err.message);
+      if (err.code === 'MFA_EXPIRED' || err.code === 'ACCOUNT_LOCKED') setChallenge(null);
+    } finally {
+      setMfaSubmitting(false);
+    }
+  }
+
   async function handleSend(e) {
     e.preventDefault();
     await requestCode();
@@ -118,10 +139,15 @@ export function PhoneAuthModal({ open, onClose, onVerified }) {
     setError(null);
     setVerifying(true);
     try {
-      const { isNewAccount } = await loginWithOtp(phone, code);
-      showToast(isNewAccount ? 'Account created — welcome to SATVEX!' : 'Welcome back!', 'success');
+      const result = await loginWithOtp(phone, code);
+      if (result.mfaRequired) {
+        setChallenge(result);
+        setError(null);
+        return;
+      }
+      showToast(result.isNewAccount ? 'Account created — welcome to SATVEX!' : 'Welcome back!', 'success');
       reset();
-      onVerified?.(isNewAccount);
+      onVerified?.(result.isNewAccount);
     } catch (err) {
       const info = describeOtpError(err);
       setError(info.message);
@@ -138,8 +164,10 @@ export function PhoneAuthModal({ open, onClose, onVerified }) {
   const canResendNow = resend.seconds === 0 && !resendBlocked && !sending;
 
   return (
-    <Modal open={open} onClose={handleModalClose} title={step === 'phone' ? 'Sign In' : 'Enter Verification Code'}>
-      {step === 'phone' ? (
+    <Modal open={open} onClose={handleModalClose} title={challenge ? 'Confirm it is you' : step === 'phone' ? 'Sign In' : 'Enter Verification Code'}>
+      {challenge ? (
+        <MfaForm challenge={challenge} onSubmit={handleMfa} submitting={mfaSubmitting} error={error} />
+      ) : step === 'phone' ? (
         <form className="phone-auth-form" onSubmit={handleSend}>
           <p className="phone-auth-copy">Enter your WhatsApp/mobile number to continue. We&apos;ll send you a 6-digit code.</p>
           <div className="field">

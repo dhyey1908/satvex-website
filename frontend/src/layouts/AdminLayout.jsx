@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { adminService } from '../services/adminService';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
@@ -17,6 +17,7 @@ import {
   Megaphone,
   Mail,
   Settings,
+  ShieldAlert,
 } from 'lucide-react';
 import './AdminLayout.css';
 
@@ -44,6 +45,9 @@ export function AdminLayout() {
   useDocumentMeta({ title: 'Admin', noindex: true });
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const location = useLocation();
+  // An admin who has not turned on two-step sign-in yet is asked to, on every admin page.
+  const needsTwoStep = user?.role === 'admin' && user?.totpEnabled === false && !location.pathname.startsWith('/admin/settings/security');
   const [syncIssueCount, setSyncIssueCount] = useState(0);
 
   useEffect(() => {
@@ -106,7 +110,14 @@ export function AdminLayout() {
           </NavLink>
         </div>
         <div className="admin-content">
-          <Outlet />
+          {needsTwoStep && (
+          <div className="admin-security-banner" role="status">
+            <ShieldAlert size={18} aria-hidden="true" />
+            <span>Protect the admin with two-step sign-in. It takes two minutes.</span>
+            <NavLink to="/admin/settings/security" className="btn btn-primary btn-sm">Set it up</NavLink>
+          </div>
+        )}
+        <Outlet />
         </div>
       </div>
     </div>

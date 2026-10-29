@@ -80,8 +80,14 @@ export function Cart() {
         setQuote(data);
         setQuoteKey(key);
       })
-      .catch(() => {
+      .catch((err) => {
         if (cancelled) return;
+        // A coupon that no longer qualifies (e.g. the cart dropped below its
+        // minimum order value) is removed, with the reason.
+        if (/^(COUPON_|INVALID_COUPON)/.test(err.code || '')) {
+          clearCoupon();
+          showToast(`${err.message} The coupon was removed.`, 'warning');
+        }
         setQuote(null);
         setQuoteKey(null);
       });

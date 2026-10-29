@@ -10,6 +10,10 @@ const router = express.Router();
 router.post('/register', authLimiter, asyncHandler(authController.register));
 router.post('/login', authLimiter, asyncHandler(authController.login));
 router.post('/logout', asyncHandler(authController.logout));
+// Ends every session of the signed-in user ("Log out all devices").
+router.post('/logout-all', requireAuth, asyncHandler(authController.logoutAll));
+// Second step of an admin sign-in (authenticator / recovery code / password).
+router.post('/mfa', authLimiter, asyncHandler(authController.mfa));
 // No requireAuth — by definition the access token is expired/missing when
 // this is called. Authorization comes entirely from the refresh cookie
 // itself (validated inside the controller).
