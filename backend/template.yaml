@@ -912,7 +912,7 @@ Resources:
           }
 
           // Files (assets, sitemap.xml, robots.txt, 404.html...) go to S3 as is.
-          if (/\.[A-Za-z0-9]{1,10}$/.test(uri)) return request;
+          if (/\.[A-Za-z0-9]{1,12}$/.test(uri)) return request;
 
           var path = uri.length > 1 ? uri.replace(/\/+$/, '') : uri;
 

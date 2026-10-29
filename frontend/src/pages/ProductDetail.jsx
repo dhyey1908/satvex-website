@@ -525,6 +525,12 @@ export function ProductDetail() {
                 </motion.span>
               )}
             </AnimatePresence>
+          </div>
+        </div>
+
+        <div className="pdp-head">
+          <div className="pdp-title-row">
+            <h1 className="text-headline-lg">{displayName}</h1>
             <div className="pdp-gallery-actions">
               <button
                 type="button"
@@ -551,10 +557,6 @@ export function ProductDetail() {
               </motion.button>
             </div>
           </div>
-        </div>
-
-        <div className="pdp-head">
-          <h1 className="text-headline-lg">{displayName}</h1>
           {/* Once the review list has loaded, show ITS figures (the reviews a visitor can
               actually read) rather than the product's stored aggregate. */}
           <RatingDisplay
