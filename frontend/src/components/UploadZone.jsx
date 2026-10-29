@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { UploadCloud } from 'lucide-react';
 import { adminService } from '../services/adminService';
+import { fitImage, MAX_IMAGE_BYTES } from '../utils/fitImage';
 import './UploadZone.css';
 
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -35,9 +36,9 @@ export function UploadZone({
   multiple = true,
   disabled = false,
   types = IMAGE_TYPES,
-  maxMb = 5,
+  maxMb = 60, // for non-image files (video); photos are never refused for size, see fitImage
   label = 'Drop images here or click to upload',
-  hint = 'JPG, PNG or WebP · up to 5 MB each',
+  hint = 'JPG, PNG or WebP · any size (over 10 MB is shrunk automatically)',
 }) {
   const maxBytes = maxMb * 1024 * 1024;
   const typeNames = types.map((t) => NAMES[t] || t).join(', ');
@@ -48,8 +49,14 @@ export function UploadZone({
 
   const update = (id, patch) => setJobs((list) => list.map((j) => (j.id === id ? { ...j, ...patch } : j)));
 
-  async function uploadOne(file, id) {
+  async function uploadOne(original, id) {
     try {
+      let file = original;
+      if (original.type.startsWith('image/') && original.size > MAX_IMAGE_BYTES) {
+        update(id, { note: 'Shrinking to 10 MB…' });
+        file = await fitImage(original);
+        update(id, { note: null });
+      }
       const { uploadUrl, publicUrl } = await adminService.getUploadUrl({ folder, filename: file.name, contentType: file.type });
       await putWithProgress(uploadUrl, file, (progress) => update(id, { progress }));
       update(id, { progress: 100, done: true });
@@ -68,7 +75,7 @@ export function UploadZone({
     const problems = [];
     for (const f of files) {
       if (!types.includes(f.type)) problems.push(`${f.name}: use ${typeNames}.`);
-      else if (f.size > maxBytes) problems.push(`${f.name}: larger than ${maxMb} MB.`);
+      else if (!f.type.startsWith('image/') && f.size > maxBytes) problems.push(`${f.name}: larger than ${maxMb} MB.`);
       else accepted.push(f);
     }
     const room = Math.max(0, maxFiles);
@@ -133,6 +140,8 @@ export function UploadZone({
               <span className="upload-job-name">{j.name}</span>
               {j.error ? (
                 <span className="upload-job-error">{j.error}</span>
+              ) : j.note ? (
+                <span className="upload-job-note">{j.note}</span>
               ) : (
                 <span className="upload-progress" role="progressbar" aria-valuenow={j.progress} aria-valuemin={0} aria-valuemax={100}>
                   <span style={{ width: `${j.progress}%` }} />

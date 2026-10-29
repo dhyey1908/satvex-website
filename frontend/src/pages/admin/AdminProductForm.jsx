@@ -528,7 +528,7 @@ export function AdminProductForm() {
                   maxFiles={10 - photos.length}
                   onUploaded={(url) => addVariantPhotos(i, url)}
                   label={`Drop ${v.colorName || 'this colour'} photos here or click to upload`}
-                  hint={`JPG, PNG or WebP · up to 5 MB each · ${photos.length}/10 · ★ marks the primary photo`}
+                  hint={`JPG, PNG or WebP · any size · ${photos.length}/10 · ★ marks the primary photo`}
                 />
                 <PhotoGrid photos={photos} primary label={`${v.colorName || 'colour'} photo`} onChange={(next) => setVariantPhotos(i, next)} />
               </div>
