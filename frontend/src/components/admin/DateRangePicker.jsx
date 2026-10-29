@@ -69,7 +69,7 @@ function Month({ month, from, to, hover, min, max, picking, onPick, onHover }) {
  *  - mode "single": value is `from`, onChange({ from, to: from })
  */
 export function DateRangePicker({ from = '', to = '', onChange, mode = 'range', min, max, label = 'Date', emptyText = 'Any date', fullWidth = false }) {
-  const { open, setOpen, ref, flip } = usePopover();
+  const { open, setOpen, ref, placement } = usePopover();
   const single = mode === 'single';
   const today = todayIST();
   const [draft, setDraft] = useState({ from, to });
@@ -132,7 +132,7 @@ export function DateRangePicker({ from = '', to = '', onChange, mode = 'range', 
       {open && (
         <>
           <div className="ui-pop-backdrop" onClick={() => setOpen(false)} />
-          <div className={`ui-pop-panel ui-calendar ${single ? 'is-single' : ''} ${flip ? 'ui-pop-panel-end' : ''}`} role="dialog" aria-label={`Choose ${label.toLowerCase()}`}>
+          <div className={`ui-pop-panel ui-calendar ${single ? 'is-single' : ''}${placement}`} role="dialog" aria-label={`Choose ${label.toLowerCase()}`}>
             <div className="ui-sheet-title">{label}</div>
             <div className="ui-calendar-body">
               {!single && (

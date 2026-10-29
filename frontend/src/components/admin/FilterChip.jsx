@@ -10,7 +10,7 @@ const toList = (value) => (value ? String(value).split(',').filter(Boolean) : []
  * options: [{ value, label, tone?, count? }]; `tone` paints the dot like its badge.
  */
 export function FilterChip({ label, icon: Icon, options, value, onChange, multi = false }) {
-  const { open, setOpen, ref, flip } = usePopover();
+  const { open, setOpen, ref, placement } = usePopover();
   const selected = toList(value);
   const labelOf = (v) => options.find((o) => o.value === v)?.label ?? v;
   const summary = selected.length === 0 ? 'All' : selected.length === 1 ? labelOf(selected[0]) : `${selected.length} selected`;
@@ -51,7 +51,7 @@ export function FilterChip({ label, icon: Icon, options, value, onChange, multi 
       {open && (
         <>
           <div className="ui-pop-backdrop" onClick={() => setOpen(false)} />
-          <div className={`ui-pop-panel ui-options ${flip ? 'ui-pop-panel-end' : ''}`} role="listbox" aria-label={label} aria-multiselectable={multi}>
+          <div className={`ui-pop-panel ui-options${placement}`} role="listbox" aria-label={label} aria-multiselectable={multi}>
             <div className="ui-sheet-title">{label}</div>
             {options.map((o) => {
               const on = selected.includes(o.value);

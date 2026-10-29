@@ -7,7 +7,7 @@ import './ui.css';
  * items: [{ label, icon, onClick, danger, href, hidden }]
  */
 export function RowMenu({ items, label = 'More actions' }) {
-  const { open, setOpen, ref } = usePopover();
+  const { open, setOpen, ref, placement } = usePopover();
   const visible = items.filter((i) => !i.hidden);
   return (
     <div className="ui-pop" ref={ref} data-no-row>
@@ -25,7 +25,7 @@ export function RowMenu({ items, label = 'More actions' }) {
       {open && (
         <>
           <div className="ui-pop-backdrop" />
-          <div className="ui-pop-panel ui-pop-panel-end ui-menu" role="menu">
+          <div className={`ui-pop-panel ui-pop-panel-end ui-menu${placement}`} role="menu">
             {visible.map((item) => {
               const Icon = item.icon;
               const cls = `ui-menu-item ${item.danger ? 'is-danger' : ''}`;

@@ -1,38 +1,25 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { RefreshCw } from 'lucide-react';
+import { CheckCircle2, RefreshCw, Tag, Truck } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { useToast } from '../../context/ToastContext';
 import { useConfirm } from '../../context/ConfirmContext';
 import { Loader } from '../../components/Loader';
 import { LinkShipmentModal } from '../../components/LinkShipmentModal';
 import { ErrorState } from '../../components/ErrorState';
-import { EmptyState } from '../../components/EmptyState';
-import { Pagination } from '../../components/Pagination';
-import { AdminSearchField, SortableTh, ResetFiltersButton, DateFilter, ResultCount } from '../../components/AdminListControls';
+import { PageHeader, countLabel } from '../../components/admin/PageHeader';
+import { FilterBar } from '../../components/admin/FilterBar';
+import { DataTable, TableEmpty, TableFooter } from '../../components/admin/DataTable';
+import { StatusBadge } from '../../components/admin/StatusBadge';
 import { useAdminList } from '../../hooks/useAdminList';
-import { formatDateTime } from '../../utils/date';
+import { SHIPMENT_LABELS } from '../../utils/statusTones';
+import { formatShortDateTime } from '../../utils/dateRange';
+import { rupees } from '../../utils/csv';
 import './Admin.css';
+import './AdminLists.css';
 
-const BUCKET_LABELS = {
-  retrying: 'Retrying',
-  failed: 'Failed — Needs Action',
-  no_job: 'Not Synced',
-};
-const BUCKET_PILL_CLASS = {
-  retrying: 'pill-warning',
-  failed: 'pill-danger',
-  no_job: 'pill-danger',
-};
-const SHIPMENT_STATUS_LABELS = {
-  not_created: 'Not Created',
-  order_created: 'Order Created',
-  awb_assigned: 'AWB Assigned',
-  pickup_scheduled: 'Pickup Scheduled',
-  label_generated: 'Label Ready',
-  sync_failed: 'Sync Failed',
-};
-const PAGE_SIZE = 20;
+const BUCKET_LABELS = { retrying: 'Retrying', failed: 'Failed — needs action', no_job: 'Not synced' };
+const BUCKET_TONE = { retrying: 'amber', failed: 'red', no_job: 'red' };
 const LIST_DEFAULTS = {
   sortBy: 'paidAt',
   sortDir: 'desc',
@@ -42,15 +29,9 @@ const LIST_DEFAULTS = {
 export function AdminShipmentIssues() {
   const { showToast } = useToast();
   const confirm = useConfirm();
-  const list = useAdminList({
-    fetcher: adminService.shipmentSyncIssues,
-    resultKey: 'issues',
-    defaults: LIST_DEFAULTS,
-    pageSize: PAGE_SIZE,
-  });
+  const list = useAdminList({ fetcher: adminService.shipmentSyncIssues, resultKey: 'issues', defaults: LIST_DEFAULTS, pageSize: 25, urlSync: true });
   const { items: issues, data, filters, setFilter, facets } = list;
   const load = list.reload;
-  const sortProps = { sortBy: list.sortBy, sortDir: list.sortDir, onSort: list.toggleSort };
   const [retryingId, setRetryingId] = useState(null);
   const [retryingAll, setRetryingAll] = useState(false);
   // The order whose "Shipped manually" dialog is open.
@@ -95,137 +76,87 @@ export function AdminShipmentIssues() {
   // Counts always describe every sync issue, whatever the filters on screen.
   const { counts } = data;
   const nothingAtAll = counts.total === 0;
+  const total = list.pagination?.total ?? 0;
+
+  const columns = [
+    { key: 'order', header: 'Order', className: 'ui-cell-primary', render: (i) => <Link className="ui-cell-main" to={`/admin/orders/${i.orderId}`}>#{i.orderId.slice(0, 8)}</Link> },
+    { key: 'customer', header: 'Customer', render: (i) => i.customerName || <span className="ui-muted">—</span> },
+    { key: 'amount', header: 'Amount', sortField: 'total', firstDir: 'desc', className: 'ui-num', render: (i) => <span className="ui-cell-main">{rupees(i.total)}</span> },
+    { key: 'paid', header: 'Paid', sortField: 'paidAt', firstDir: 'desc', render: (i) => (i.paidAt ? formatShortDateTime(i.paidAt) : '—') },
+    { key: 'status', header: 'Status', sortField: 'bucket', render: (i) => <StatusBadge tone={BUCKET_TONE[i.bucket]} label={BUCKET_LABELS[i.bucket]} /> },
+    { key: 'attempts', header: 'Attempts', sortField: 'attempts', firstDir: 'desc', className: 'ui-num', render: (i) => i.attempts },
+    { key: 'courier', header: 'Courier', render: (i) => i.courierName || <span className="ui-muted">—</span> },
+    { key: 'error', header: 'Last error', className: 'ui-wrap', render: (i) => <span className="ui-cell-sub-clamp" style={{ margin: 0 }}>{i.lastError || '—'}</span> },
+    {
+      key: 'actions',
+      header: '',
+      className: 'ui-cell-actions',
+      render: (i) => (
+        <div style={{ display: 'inline-flex', gap: 'var(--space-2)' }}>
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => handleRetryOne(i.orderId)} disabled={retryingId === i.orderId || retryingAll}>
+            {retryingId === i.orderId ? 'Retrying…' : 'Retry'}
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setLinkingId(i.orderId)} disabled={retryingAll}>
+            Shipped manually
+          </button>
+        </div>
+      ),
+    },
+  ];
+
+  const chips = [
+    { key: 'bucket', label: 'Retry', icon: RefreshCw, options: Object.entries(BUCKET_LABELS).map(([value, label]) => ({ value, label, tone: BUCKET_TONE[value] })) },
+    { key: 'shipmentStatus', label: 'Shipping', icon: Truck, options: Object.entries(SHIPMENT_LABELS).map(([value, label]) => ({ value, label })) },
+  ];
+  if (facets.couriers?.length) chips.push({ key: 'courier', label: 'Courier', icon: Tag, secondary: true, options: facets.couriers.map((c) => ({ value: c, label: c })) });
+  if (facets.deliveryStatuses?.length) chips.push({ key: 'deliveryStatus', label: 'Delivery', icon: Truck, secondary: true, options: facets.deliveryStatuses.map((c) => ({ value: c, label: c })) });
 
   return (
     <div>
-      <div className="admin-page-header">
-        <h1>Shipment Sync Issues</h1>
-        {!nothingAtAll && (
-          <button type="button" className="btn btn-primary btn-sm" onClick={handleRetryAll} disabled={retryingAll}>
-            <RefreshCw size={14} /> {retryingAll ? 'Retrying…' : 'Retry All Failed'}
-          </button>
-        )}
-      </div>
+      <PageHeader
+        title="Shipment sync issues"
+        subtitle={nothingAtAll ? 'Nothing to fix' : countLabel(counts.total, 'order')}
+        actions={
+          !nothingAtAll && (
+            <button type="button" className="btn btn-primary btn-sm" onClick={handleRetryAll} disabled={retryingAll}>
+              <RefreshCw size={14} /> {retryingAll ? 'Retrying…' : 'Retry all failed'}
+            </button>
+          )
+        }
+      />
 
       {!nothingAtAll && (
-        <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: 'var(--space-5)' }}>
-          {counts.total} order(s) paid/confirmed but not yet shipped to Shiprocket — {counts.retrying} still retrying
-          automatically, {counts.failed} exhausted retries and need action, {counts.noJob} never got a sync job queued
-          (e.g. Shiprocket was disabled when the order was paid). Already booked one yourself in the Shiprocket
-          panel? Use <strong>Shipped manually</strong> on that row so it stops showing here and is not booked twice.
+        <p className="ui-muted" style={{ marginTop: 0, maxWidth: '52rem' }}>
+          {counts.retrying} still retrying automatically, {counts.failed} used all retries and need action, {counts.noJob} never got a sync job (for example
+          Shiprocket was off when the order was paid). Already booked one yourself in Shiprocket? Use <strong>Shipped manually</strong> so it stops showing here and is not booked twice.
         </p>
       )}
 
-      {nothingAtAll && <EmptyState title="No shipment sync issues" message="Every paid order has synced to Shiprocket." />}
-
-      {!nothingAtAll && (
-        <div className="admin-filters">
-          <AdminSearchField
-            value={list.searchInput}
-            onChange={list.setSearchInput}
-            placeholder="Search by order id or customer…"
-            label="Search shipment issues"
-          />
-          <select value={filters.bucket} onChange={(e) => setFilter('bucket', e.target.value)} aria-label="Retry status">
-            <option value="">All retry states</option>
-            {Object.entries(BUCKET_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
-          <select
-            value={filters.shipmentStatus}
-            onChange={(e) => setFilter('shipmentStatus', e.target.value)}
-            aria-label="Shipment status"
-          >
-            <option value="">All shipment statuses</option>
-            {Object.entries(SHIPMENT_STATUS_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
-          {facets.couriers?.length > 0 && (
-            <select value={filters.courier} onChange={(e) => setFilter('courier', e.target.value)} aria-label="Courier">
-              <option value="">All couriers</option>
-              {facets.couriers.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          )}
-          {facets.deliveryStatuses?.length > 0 && (
-            <select
-              value={filters.deliveryStatus}
-              onChange={(e) => setFilter('deliveryStatus', e.target.value)}
-              aria-label="Delivery status"
-            >
-              <option value="">All delivery statuses</option>
-              {facets.deliveryStatuses.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          )}
-          <DateFilter label="Paid from" value={filters.dateFrom} max={filters.dateTo} onChange={(v) => setFilter('dateFrom', v)} />
-          <DateFilter label="to" value={filters.dateTo} min={filters.dateFrom} onChange={(v) => setFilter('dateTo', v)} />
-          <ResetFiltersButton visible={list.hasActiveFilters} onClick={list.reset} />
-        </div>
-      )}
-
-      {list.error && data && <ErrorState message={list.error} onRetry={load} />}
-
-      {!nothingAtAll && issues?.length === 0 && (
-        <EmptyState title="No issues match these filters" message="Try a different search or reset the filters." />
-      )}
-
-      {issues?.length > 0 && (
+      {nothingAtAll ? (
+        <TableEmpty icon={CheckCircle2} title="No shipment sync issues" message="Every paid order has synced to Shiprocket." />
+      ) : (
         <>
-        <ResultCount pagination={list.pagination} loading={list.loading} label="orders" />
-        <div className={`admin-table-wrap ${list.loading ? 'is-refreshing' : ''}`}>
-          <table className="admin-table admin-table-compact">
-            <thead>
-              <tr>
-                <th>Order</th>
-                <th>Customer</th>
-                <SortableTh label="Amount" field="total" firstDir="desc" {...sortProps} />
-                <SortableTh label="Paid" field="paidAt" firstDir="desc" {...sortProps} />
-                <SortableTh label="Status" field="bucket" {...sortProps} />
-                <SortableTh label="Attempts" field="attempts" firstDir="desc" {...sortProps} />
-                <th>Courier</th>
-                <th>Last Error</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {issues.map((i) => (
-                <tr key={i.orderId}>
-                  <td>
-                    <Link to={`/admin/orders/${i.orderId}`}>{i.orderId.slice(0, 8)}</Link>
-                  </td>
-                  <td>{i.customerName || '—'}</td>
-                  <td>₹{Number(i.total || 0).toFixed(2)}</td>
-                  <td>{i.paidAt ? formatDateTime(i.paidAt) : '—'}</td>
-                  <td>
-                    <span className={`pill ${BUCKET_PILL_CLASS[i.bucket]}`}>{BUCKET_LABELS[i.bucket]}</span>
-                  </td>
-                  <td>{i.attempts}</td>
-                  <td>{i.courierName || '—'}</td>
-                  <td style={{ whiteSpace: 'normal', maxWidth: 280 }}>{i.lastError || '—'}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => handleRetryOne(i.orderId)}
-                      disabled={retryingId === i.orderId || retryingAll}
-                    >
-                      {retryingId === i.orderId ? 'Retrying…' : 'Retry Shipment'}
-                    </button>{' '}
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setLinkingId(i.orderId)} disabled={retryingAll}>
-                      Shipped manually
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {list.paginationProps && <Pagination {...list.paginationProps} itemLabel="orders" />}
-        </div>
+          <FilterBar
+            search={{ value: list.searchInput, onChange: list.setSearchInput, placeholder: 'Search order ID or customer…' }}
+            chips={chips}
+            values={filters}
+            onChange={setFilter}
+            date={{ label: 'Paid', from: filters.dateFrom, to: filters.dateTo, onChange: ({ from, to }) => { setFilter('dateFrom', from); setFilter('dateTo', to); } }}
+            onClearAll={list.clearFilters}
+            resultText={issues ? `Showing ${issues.length} of ${total} orders` : null}
+            searchLabel="Search shipment issues"
+          />
+          {list.error && <ErrorState message={list.error} onRetry={load} />}
+          <DataTable
+            columns={columns}
+            rows={issues}
+            rowKey={(i) => i.orderId}
+            loading={list.loading}
+            sort={{ sortBy: list.sortBy, sortDir: list.sortDir, onSort: list.toggleSort }}
+            caption="Shipment sync issues"
+            empty={<TableEmpty title="No issues match these filters" message="Try a different search or clear the filters." filtered onClear={list.clearFilters} />}
+          />
+          <TableFooter paginationProps={list.paginationProps} pageSize={list.pageSize} onPageSize={list.setPageSize} itemLabel="orders" />
         </>
       )}
 

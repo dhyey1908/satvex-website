@@ -45,7 +45,8 @@ export function FilterBar({ search, chips = [], values, onChange, date, onClearA
       });
     }
   }
-  if (date && (date.from || date.to)) {
+  // `isDefault`: the page's own opening range (e.g. last 30 days) is not a filter the admin chose.
+  if (date && (date.from || date.to) && !date.isDefault) {
     active.push({ id: 'date', text: `${date.label}: ${formatRange(date.from, date.to)}`, remove: () => date.onChange({ from: '', to: '' }) });
   }
   if (search?.value) active.push({ id: 'search', text: `Search: “${search.value}”`, remove: () => search.onChange('') });

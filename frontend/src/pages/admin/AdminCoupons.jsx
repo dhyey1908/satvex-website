@@ -4,16 +4,24 @@ import { adminService } from '../../services/adminService';
 import { useToast } from '../../context/ToastContext';
 import { useConfirm } from '../../context/ConfirmContext';
 import { formatDate } from '../../utils/date';
+import { formatDay } from '../../utils/dateRange';
 import { Modal } from '../../components/Modal';
 import { Loader } from '../../components/Loader';
 import { EmptyState } from '../../components/EmptyState';
 import { couponCode as validateCouponCode, positiveNumber, runValidators, hasErrors } from '../../utils/validators';
 import { mapServerFieldErrors } from '../../utils/formErrors';
-import { Pagination } from '../../components/Pagination';
 import { ErrorState } from '../../components/ErrorState';
-import { AdminSearchField, SortableTh, ResetFiltersButton, ResultCount } from '../../components/AdminListControls';
+import { PageHeader, countLabel } from '../../components/admin/PageHeader';
+import { FilterBar } from '../../components/admin/FilterBar';
+import { DataTable, TableEmpty, TableFooter } from '../../components/admin/DataTable';
+import { StatusBadge } from '../../components/admin/StatusBadge';
+import { RowMenu } from '../../components/admin/RowMenu';
+import { DateRangePicker } from '../../components/admin/DateRangePicker';
 import { useAdminList } from '../../hooks/useAdminList';
+import { todayIST } from '../../utils/dateRange';
+import { Percent, Ticket } from 'lucide-react';
 import './Admin.css';
+import './AdminLists.css';
 
 const EMPTY_FORM = {
   code: '',
@@ -25,7 +33,6 @@ const EMPTY_FORM = {
   oneUsePerCustomer: false,
   expiresAt: '',
 };
-const PAGE_SIZE = 20;
 
 const LIST_DEFAULTS = {
   sortBy: 'createdAt',
@@ -34,7 +41,7 @@ const LIST_DEFAULTS = {
 };
 
 const STATUS_LABELS = { active: 'Active', inactive: 'Inactive', expired: 'Expired', exhausted: 'Limit reached' };
-const STATUS_PILL = { active: 'pill-active', inactive: 'pill-inactive', expired: 'pill-danger', exhausted: 'pill-warning' };
+const STATUS_TONE = { active: 'green', inactive: 'grey', expired: 'red', exhausted: 'amber' };
 
 // The store operates in India: an expiry date means the END of that day, IST.
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
@@ -66,11 +73,12 @@ export function AdminCoupons() {
     fetcher: adminService.getCoupons,
     resultKey: 'coupons',
     defaults: LIST_DEFAULTS,
-    pageSize: PAGE_SIZE,
+    pageSize: 25,
+    urlSync: true,
   });
   const { items: coupons, filters, setFilter } = list;
+  const total = list.pagination?.total ?? 0;
   const load = list.reload;
-  const sortProps = { sortBy: list.sortBy, sortDir: list.sortDir, onSort: list.toggleSort };
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCode, setEditingCode] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -178,102 +186,102 @@ export function AdminCoupons() {
       .catch(() => setRedemptions([]));
   }
 
+  const day = (iso) => {
+    const d = isoToIstDate(iso);
+    return d ? formatDay(d) : '—';
+  };
+
+  const columns = [
+    { key: 'code', header: 'Code', sortField: 'code', className: 'ui-cell-primary', render: (c) => <span className="ui-cell-main">{c.code}</span> },
+    { key: 'discount', header: 'Discount', render: (c) => (c.discountType === 'percentage' ? `${c.discountValue}%` : `₹${c.discountValue}`) },
+    {
+      key: 'usage',
+      header: 'Usage',
+      sortField: 'usageCount',
+      firstDir: 'desc',
+      render: (c) => (
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => openHistory(c.code)}>
+          {c.usageCount}{c.usageLimit ? ` / ${c.usageLimit}` : ''}
+        </button>
+      ),
+    },
+    {
+      key: 'perCustomer',
+      header: 'Per customer',
+      render: (c) => (
+        <>
+          {c.oneUsePerCustomer ? 'One use' : 'Unlimited'}
+          {c.minOrderValue > 0 && <span className="ui-cell-sub">Min order ₹{c.minOrderValue}</span>}
+        </>
+      ),
+    },
+    { key: 'expires', header: 'Expires', sortField: 'expiresAt', render: (c) => (c.expiresAt ? day(c.expiresAt) : <span className="ui-muted">No expiry</span>) },
+    { key: 'status', header: 'Status', sortField: 'status', render: (c) => <StatusBadge tone={STATUS_TONE[c.effectiveStatus] || (c.isActive ? 'green' : 'grey')} label={STATUS_LABELS[c.effectiveStatus] || (c.isActive ? 'Active' : 'Inactive')} /> },
+    { key: 'created', header: 'Created', sortField: 'createdAt', firstDir: 'desc', render: (c) => day(c.createdAt) },
+    {
+      key: 'menu',
+      header: '',
+      className: 'ui-cell-actions',
+      render: (c) => (
+        <RowMenu
+          items={[
+            { label: 'Edit', icon: Pencil, onClick: () => openEdit(c) },
+            { label: 'Usage history', icon: Users, onClick: () => openHistory(c.code) },
+            { label: 'Delete', icon: Trash2, danger: true, onClick: () => handleDelete(c.code) },
+          ]}
+        />
+      ),
+    },
+  ];
+
+  const chips = [
+    { key: 'status', label: 'Status', icon: Ticket, options: Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label, tone: STATUS_TONE[value] })) },
+    { key: 'discountType', label: 'Type', icon: Percent, options: [{ value: 'percentage', label: 'Percentage' }, { value: 'flat', label: 'Flat amount' }] },
+  ];
+
   return (
     <div>
-      <div className="admin-page-header">
-        <h1>Coupons</h1>
-        <button type="button" className="btn btn-primary" onClick={openNew}>
-          <Plus size={16} /> Add Coupon
-        </button>
-      </div>
-
-      <div className="admin-filters">
-        <AdminSearchField
-          value={list.searchInput}
-          onChange={list.setSearchInput}
-          placeholder="Search by coupon code…"
-          label="Search coupons"
-        />
-        <select value={filters.status} onChange={(e) => setFilter('status', e.target.value)} aria-label="Status">
-          <option value="">All statuses</option>
-          {Object.entries(STATUS_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </select>
-        <select
-          value={filters.discountType}
-          onChange={(e) => setFilter('discountType', e.target.value)}
-          aria-label="Discount type"
-        >
-          <option value="">All discount types</option>
-          <option value="percentage">Percentage</option>
-          <option value="flat">Flat amount</option>
-        </select>
-        <ResetFiltersButton visible={list.hasActiveFilters} onClick={list.reset} />
-      </div>
-
-      {list.error && <ErrorState message={list.error} onRetry={list.reload} />}
-      {!list.error && !coupons && <Loader label="Loading coupons…" />}
-
-      {!list.error && coupons?.length === 0 ? (
-        <EmptyState
-          title={list.hasActiveFilters ? 'No coupons match these filters' : 'No coupons yet'}
-          message={list.hasActiveFilters ? 'Try a different search or reset the filters.' : undefined}
-        />
-      ) : null}
-
-      {!list.error && coupons?.length > 0 && (
+      <PageHeader
+        title="Coupons"
+        subtitle={coupons ? countLabel(total, 'coupon') : ' '}
+        actions={
+          <button type="button" className="btn btn-primary btn-sm" onClick={openNew}>
+            <Plus size={16} /> Add coupon
+          </button>
+        }
+      />
+      <FilterBar
+        search={{ value: list.searchInput, onChange: list.setSearchInput, placeholder: 'Search coupon code…' }}
+        chips={chips}
+        values={filters}
+        onChange={setFilter}
+        onClearAll={list.clearFilters}
+        resultText={coupons ? `Showing ${coupons.length} of ${total} coupons` : null}
+        searchLabel="Search coupons"
+      />
+      {list.error ? (
+        <ErrorState message={list.error} onRetry={list.reload} />
+      ) : (
         <>
-        <ResultCount pagination={list.pagination} loading={list.loading} label="coupons" />
-        <div className={`admin-table-wrap ${list.loading ? 'is-refreshing' : ''}`}>
-          <table className="admin-table admin-table-compact">
-            <thead>
-              <tr>
-                <SortableTh label="Code" field="code" {...sortProps} />
-                <th>Discount</th>
-                <SortableTh label="Usage" field="usageCount" firstDir="desc" {...sortProps} />
-                <th>Per Customer</th>
-                <SortableTh label="Expires" field="expiresAt" {...sortProps} />
-                <SortableTh label="Status" field="status" {...sortProps} />
-                <SortableTh label="Created" field="createdAt" firstDir="desc" {...sortProps} />
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {coupons.map((c) => (
-                <tr key={c.code}>
-                  <td>{c.code}</td>
-                  <td>{c.discountType === 'percentage' ? `${c.discountValue}%` : `₹${c.discountValue}`}</td>
-                  <td>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => openHistory(c.code)}>
-                      {c.usageCount}{c.usageLimit ? ` / ${c.usageLimit}` : ''}
-                    </button>
-                  </td>
-                  <td>{c.oneUsePerCustomer ? 'One use' : 'Unlimited'}{c.minOrderValue > 0 ? ` · min ₹${c.minOrderValue}` : ''}</td>
-                  <td>{c.expiresAt ? formatDate(c.expiresAt) : 'No expiry'}</td>
-                  <td>
-                    <span className={`pill ${STATUS_PILL[c.effectiveStatus] || 'pill-inactive'}`}>
-                      {STATUS_LABELS[c.effectiveStatus] || (c.isActive ? 'Active' : 'Inactive')}
-                    </span>
-                  </td>
-                  <td>{formatDate(c.createdAt)}</td>
-                  <td style={{ display: 'flex', gap: 8 }}>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => openHistory(c.code)}>
-                      <Users size={14} /> Usage
-                    </button>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => openEdit(c)}>
-                      <Pencil size={14} /> Edit
-                    </button>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => handleDelete(c.code)}>
-                      <Trash2 size={14} /> Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {list.paginationProps && <Pagination {...list.paginationProps} itemLabel="coupons" />}
-        </div>
+          <DataTable
+            columns={columns}
+            rows={coupons}
+            rowKey={(c) => c.code}
+            loading={list.loading}
+            sort={{ sortBy: list.sortBy, sortDir: list.sortDir, onSort: list.toggleSort }}
+            onRowClick={openEdit}
+            caption="Coupons"
+            empty={
+              <TableEmpty
+                icon={Ticket}
+                title={list.hasActiveFilters ? 'No coupons match these filters' : 'No coupons yet'}
+                message={list.hasActiveFilters ? 'Try a different search or clear the filters.' : 'Create a coupon to offer a discount.'}
+                filtered={list.hasActiveFilters}
+                onClear={list.clearFilters}
+              />
+            }
+          />
+          <TableFooter paginationProps={list.paginationProps} pageSize={list.pageSize} onPageSize={list.setPageSize} itemLabel="coupons" />
         </>
       )}
 
@@ -342,11 +350,15 @@ export function AdminCoupons() {
           </div>
           <div className="field">
             <label htmlFor="coupon-expires">Expires on (optional)</label>
-            <input
-              id="coupon-expires"
-              type="date"
-              value={form.expiresAt}
-              onChange={(e) => setField('expiresAt', e.target.value)}
+            <DateRangePicker
+              mode="single"
+              label="Expires on"
+              emptyText="No expiry"
+              from={form.expiresAt}
+              to={form.expiresAt}
+              min={todayIST()}
+              onChange={({ from }) => setField('expiresAt', from)}
+              fullWidth
             />
             <p className="field-hint">Valid through the end of this day (IST). Leave empty for no expiry.</p>
           </div>

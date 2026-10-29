@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Download, FileSpreadsheet, Info, Loader2 } from 'lucide-react';
+import { CreditCard, Download, FileSpreadsheet, Info, Loader2, Package, Wallet } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { useToast } from '../../context/ToastContext';
 import { Loader } from '../../components/Loader';
@@ -10,10 +10,13 @@ import { Pagination } from '../../components/Pagination';
 import { TrendChart } from '../../components/TrendChart';
 import { BarChart, ShareBars } from '../../components/BarChart';
 import { usePagination } from '../../hooks/usePagination';
-import { ResetFiltersButton } from '../../components/AdminListControls';
+import { PageHeader } from '../../components/admin/PageHeader';
+import { FilterBar } from '../../components/admin/FilterBar';
+import { StatusBadge } from '../../components/admin/StatusBadge';
 import { formatDate } from '../../utils/date';
 import { buildCsv, buildXlsx, downloadFile, CSV_MIME, XLSX_MIME } from '../../utils/exportReport';
 import './Admin.css';
+import './AdminLists.css';
 import './AdminAnalytics.css';
 
 // IMPORTANT: this page only DISPLAYS what GET /admin/analytics/financial
@@ -21,15 +24,6 @@ import './AdminAnalytics.css';
 // backend (financialAnalyticsService.js) — the browser never does price math.
 
 const PAGE_SIZE = 20;
-
-const PRESETS = [
-  { id: 'today', label: 'Today' },
-  { id: 'yesterday', label: 'Yesterday' },
-  { id: 'last7', label: 'Last 7 days' },
-  { id: 'last30', label: 'Last 30 days' },
-  { id: 'month', label: 'This month' },
-  { id: 'custom', label: 'Custom' },
-];
 
 const STATUSES = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 
@@ -42,16 +36,15 @@ const BUCKET_LABELS = {
   cancelled: 'Cancelled',
   expired: 'Expired',
 };
-const BUCKET_PILL = {
-  collected: 'pill-active',
-  cod_pending: 'pill-warning',
-  awaiting_payment: 'pill-warning',
-  refunded: 'pill-danger',
-  rto: 'pill-danger',
-  cancelled: 'pill-inactive',
-  expired: 'pill-inactive',
+const BUCKET_TONE = {
+  collected: 'green',
+  cod_pending: 'amber',
+  awaiting_payment: 'amber',
+  refunded: 'red',
+  rto: 'red',
+  cancelled: 'red',
+  expired: 'red',
 };
-
 // Dates here are IST calendar days (the store's timezone) — the same basis
 // the backend buckets orders by.
 const IST_OFFSET_MS = 330 * 60 * 1000;
@@ -84,11 +77,11 @@ function pct(value) {
 }
 
 const BASIS_LABEL = { actual: 'Actual', estimated: 'Estimated', unavailable: 'Unavailable' };
-const BASIS_PILL = { actual: 'pill-active', estimated: 'pill-warning', unavailable: 'pill-inactive' };
+const BASIS_TONE = { actual: 'green', estimated: 'amber', unavailable: 'grey' };
 
 function BasisTag({ basis }) {
   if (!basis) return null;
-  return <span className={`pill ${BASIS_PILL[basis] || 'pill-inactive'} analytics-basis`}>{BASIS_LABEL[basis] || basis}</span>;
+  return <StatusBadge tone={BASIS_TONE[basis] || 'grey'} label={BASIS_LABEL[basis] || basis} />;
 }
 
 function Tile({ label, value, sub, basis, tone }) {
@@ -194,7 +187,6 @@ function buildSheets(report) {
 export function AdminAnalytics() {
   const { showToast } = useToast();
   const initial = presetRange('last30');
-  const [preset, setPreset] = useState('last30');
   const [from, setFrom] = useState(initial.from);
   const [to, setTo] = useState(initial.to);
   const [paymentMethod, setPaymentMethod] = useState('');
@@ -224,23 +216,14 @@ export function AdminAnalytics() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [from, to, paymentMethod, status, bucket]);
 
-  function choosePreset(id) {
-    setPreset(id);
-    const range = presetRange(id);
-    if (range) {
-      setFrom(range.from);
-      setTo(range.to);
-    }
-  }
-
   // Back to the screen's opening view: last 30 days, nothing filtered.
   function resetFilters() {
-    choosePreset('last30');
+    setFrom(initial.from);
+    setTo(initial.to);
     setPaymentMethod('');
     setStatus('');
     setBucket('');
   }
-  const filtersChanged = preset !== 'last30' || Boolean(paymentMethod || status || bucket);
 
   const { page, setPage, totalPages, pageItems, total, rangeStart, rangeEnd } = usePagination(
     report?.orders || [],
@@ -300,80 +283,43 @@ export function AdminAnalytics() {
 
   return (
     <div className={`analytics-page ${loading ? 'analytics-loading' : ''}`}>
-      <div className="admin-page-header">
-        <h1>Pricing &amp; Financial Analytics</h1>
-        <div className="analytics-actions">
-          <button type="button" className="btn btn-outline btn-sm" onClick={exportCsv}>
-            <Download size={14} /> CSV
-          </button>
-          <button type="button" className="btn btn-primary btn-sm" onClick={exportXlsx}>
-            <FileSpreadsheet size={14} /> Excel (.xlsx)
-          </button>
-        </div>
-      </div>
-
-      <div className="analytics-filters">
-        <div className="analytics-presets" role="group" aria-label="Date range">
-          {PRESETS.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              className={`analytics-chip ${preset === p.id ? 'active' : ''}`}
-              onClick={() => choosePreset(p.id)}
-            >
-              {p.label}
+      <PageHeader
+        title="Pricing & financial analytics"
+        subtitle={`${meta.totalMatching} order(s) · dates are ${meta.dateBasis}, ${meta.timezone}`}
+        actions={
+          <>
+            {loading && <Loader2 size={16} className="btn-spinner" aria-label="Updating" />}
+            <button type="button" className="btn btn-outline btn-sm" onClick={exportCsv}>
+              <Download size={14} /> CSV
             </button>
-          ))}
-        </div>
-        <div className="admin-filters">
-          <input
-            type="date"
-            value={from}
-            max={to || undefined}
-            aria-label="From date"
-            onChange={(e) => {
-              setPreset('custom');
-              setFrom(e.target.value);
-            }}
-          />
-          <input
-            type="date"
-            value={to}
-            min={from || undefined}
-            aria-label="To date"
-            onChange={(e) => {
-              setPreset('custom');
-              setTo(e.target.value);
-            }}
-          />
-          <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} aria-label="Payment method">
-            <option value="">COD &amp; Prepaid</option>
-            <option value="COD">COD only</option>
-            <option value="Online">Prepaid (PayU) only</option>
-          </select>
-          <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Order status">
-            <option value="">All order statuses</option>
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-          <select value={bucket} onChange={(e) => setBucket(e.target.value)} aria-label="Payment state">
-            <option value="">All payment states</option>
-            {Object.entries(BUCKET_LABELS).map(([id, label]) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
-          </select>
-          {loading && <Loader2 size={16} className="btn-spinner" aria-label="Updating" />}
-          <ResetFiltersButton visible={filtersChanged} onClick={resetFilters} />
-        </div>
-        <p className="analytics-basis-note">
-          {meta.totalMatching} order(s) · dates are {meta.dateBasis}, {meta.timezone}
-        </p>
-      </div>
+            <button type="button" className="btn btn-primary btn-sm" onClick={exportXlsx}>
+              <FileSpreadsheet size={14} /> Excel (.xlsx)
+            </button>
+          </>
+        }
+      />
+
+      <FilterBar
+        chips={[
+          { key: 'paymentMethod', label: 'Method', icon: Wallet, options: [{ value: 'COD', label: 'COD only' }, { value: 'Online', label: 'Prepaid (PayU) only' }] },
+          { key: 'status', label: 'Order status', icon: Package, options: STATUSES.map((s) => ({ value: s, label: s })) },
+          { key: 'bucket', label: 'Payment state', icon: CreditCard, options: Object.entries(BUCKET_LABELS).map(([value, label]) => ({ value, label })) },
+        ]}
+        values={{ paymentMethod, status, bucket }}
+        onChange={(key, value) => ({ paymentMethod: setPaymentMethod, status: setStatus, bucket: setBucket })[key](value)}
+        date={{
+          label: 'Dates',
+          from,
+          to,
+          isDefault: from === initial.from && to === initial.to,
+          // Cleared = back to the opening range: reports always cover a period.
+          onChange: ({ from: f, to: t }) => {
+            setFrom(f || initial.from);
+            setTo(t || f || initial.to);
+          },
+        }}
+        onClearAll={resetFilters}
+      />
 
       {error && <p className="field-error">{error}</p>}
 
@@ -586,7 +532,7 @@ export function AdminAnalytics() {
                       <td>{o.customerName || '—'}</td>
                       <td>{o.paymentMethod === 'Online' ? 'Prepaid' : 'COD'}</td>
                       <td>
-                        <span className={`pill ${BUCKET_PILL[o.bucket] || 'pill-inactive'}`}>{BUCKET_LABELS[o.bucket] || o.bucket}</span>
+                        <StatusBadge tone={BUCKET_TONE[o.bucket] || 'grey'} label={BUCKET_LABELS[o.bucket] || o.bucket} />
                       </td>
                       <td>{inr(o.total)}</td>
                       <td>{inr(o.gstAmount)}</td>

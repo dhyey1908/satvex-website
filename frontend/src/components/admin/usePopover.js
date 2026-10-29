@@ -9,6 +9,8 @@ export function usePopover() {
   const ref = useRef(null);
   // Set when the panel would run off the right edge of the screen: it then opens right-aligned.
   const [flip, setFlip] = useState(false);
+  // ...and likewise when it would run off the bottom: it then opens upward instead.
+  const [up, setUp] = useState(false);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -36,9 +38,14 @@ export function usePopover() {
     const panel = ref.current.querySelector('.ui-pop-panel');
     if (!panel) return;
     setFlip(false);
+    setUp(false);
     const rect = panel.getBoundingClientRect();
     if (rect.right > window.innerWidth - 8) setFlip(true);
+    const trigger = ref.current.getBoundingClientRect();
+    if (rect.bottom > window.innerHeight - 8 && trigger.top - rect.height - 6 > 8) setUp(true);
   }, [open]);
 
-  return { open, setOpen, ref, flip };
+  // Extra class names for the panel.
+  const placement = `${flip ? ' ui-pop-panel-end' : ''}${up ? ' ui-pop-panel-up' : ''}`;
+  return { open, setOpen, ref, flip, up, placement };
 }
