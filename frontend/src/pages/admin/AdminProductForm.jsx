@@ -11,6 +11,7 @@ import { SellingOptionCard } from '../../components/SellingOptionCard';
 import { Modal } from '../../components/Modal';
 import { ProofSectionEditor } from '../../components/ProofSectionEditor';
 import { TopHighlightEditor } from '../../components/TopHighlightEditor';
+import { ProductFormNav } from '../../components/admin/ProductFormNav';
 import { HotspotEditor } from '../../components/HotspotEditor';
 import { EMPTY_HOTSPOT_SECTION, checkHotspotSection, hasHotspotErrors } from '../../utils/hotspots';
 import { EMPTY_TOP_HIGHLIGHT, checkTopHighlight, hasHighlightErrors } from '../../utils/topHighlight';
@@ -418,8 +419,21 @@ export function AdminProductForm() {
         <h1>{isNew ? 'Add Product' : 'Edit Product'}</h1>
       </div>
 
+      <ProductFormNav
+        sections={[
+          { id: 'sec-basics', label: 'Basics', error: Boolean(fieldErrors.name || fieldErrors.slug || fieldErrors.shortDescription || fieldErrors.description || fieldErrors.basePrice) },
+          { id: 'sec-photos', label: 'Photos' },
+          { id: 'sec-colours', label: 'Colours', error: Boolean(fieldErrors.variants) },
+          { id: 'sec-packs', label: 'Packs & prices', error: Boolean(fieldErrors.sellingOptions || fieldErrors.sellingOptionRows?.some(Boolean)) },
+          { id: 'top-highlight-card', label: 'Top highlight', on: Boolean(form.topHighlight?.enabled), error: hasHighlightErrors(highlightErrors) },
+          { id: 'hotspots-card', label: 'Feature hotspots', on: Boolean(form.hotspotSection?.enabled), error: hasHotspotErrors(hotspotErrors) },
+          { id: 'sec-videos', label: 'Customer videos' },
+          { id: 'proof-stats-card', label: 'Proof stats', on: Boolean(form.proofSection?.enabled), error: hasProofErrors(proofErrors) },
+        ]}
+      />
+
       <form className="admin-form" onSubmit={handleSubmit} noValidate>
-        <div className="admin-form-section">
+        <div className="admin-form-section" id="sec-basics" data-pf-section>
           <h3>Basics</h3>
           <div className={`field ${touched.name && fieldErrors.name ? 'invalid' : ''}`}>
             <label htmlFor="name">Name</label>
@@ -563,7 +577,7 @@ export function AdminProductForm() {
           </div>
         </div>
 
-        <div className="admin-form-section">
+        <div className="admin-form-section" id="sec-photos" data-pf-section>
           <h3>Common Images</h3>
           <p className="field-hint">Shown for every colour.</p>
           <fieldset className="gallery-order">
@@ -588,48 +602,7 @@ export function AdminProductForm() {
           {form.commonImages.length === 0 && <p className="field-hint">No common photos yet.</p>}
         </div>
 
-        <div className="admin-form-section">
-          <h3>Customer Videos</h3>
-          <TestimonialVideosEditor
-            videos={form.testimonialVideos || []}
-            onChange={(next) => setField('testimonialVideos', next)}
-          />
-        </div>
-
-        <div id="hotspots-card">
-          <HotspotEditor
-            value={form.hotspotSection || EMPTY_HOTSPOT_SECTION}
-            onChange={(next) => {
-              setField('hotspotSection', next);
-              if (hasHotspotErrors(hotspotErrors)) setHotspotErrors(checkHotspotSection(next));
-            }}
-            errors={hotspotErrors}
-          />
-        </div>
-
-        <div id="top-highlight-card">
-          <TopHighlightEditor
-            value={form.topHighlight || EMPTY_TOP_HIGHLIGHT}
-            onChange={(next) => {
-              setField('topHighlight', next);
-              if (hasHighlightErrors(highlightErrors)) setHighlightErrors(checkTopHighlight(next));
-            }}
-            errors={highlightErrors}
-          />
-        </div>
-
-        <div id="proof-stats-card">
-          <ProofSectionEditor
-            value={form.proofSection || EMPTY_PROOF_SECTION}
-            onChange={(next) => {
-              setField('proofSection', next);
-              if (hasProofErrors(proofErrors)) setProofErrors(checkProofSection(next));
-            }}
-            errors={proofErrors}
-          />
-        </div>
-
-        <div className="admin-form-section">
+        <div className="admin-form-section" id="sec-colours" data-pf-section>
           <h3>Color Variants</h3>
           {form.variants.map((v, i) => {
             const photos = v.images || [];
@@ -678,7 +651,7 @@ export function AdminProductForm() {
           {fieldErrors.variants && <p className="field-error" style={{ marginTop: 8 }}>{fieldErrors.variants}</p>}
         </div>
 
-        <div className="admin-form-section">
+        <div className="admin-form-section" id="sec-packs" data-pf-section>
           <h3>Selling Options</h3>
           {form.sellingOptions.map((o, i) => (
             <SellingOptionCard
@@ -696,6 +669,47 @@ export function AdminProductForm() {
         </div>
 
         {error && <p id="product-form-error" className="field-error" role="alert">{error}</p>}
+
+        <div id="top-highlight-card" data-pf-section>
+          <TopHighlightEditor
+            value={form.topHighlight || EMPTY_TOP_HIGHLIGHT}
+            onChange={(next) => {
+              setField('topHighlight', next);
+              if (hasHighlightErrors(highlightErrors)) setHighlightErrors(checkTopHighlight(next));
+            }}
+            errors={highlightErrors}
+          />
+        </div>
+
+        <div id="hotspots-card" data-pf-section>
+          <HotspotEditor
+            value={form.hotspotSection || EMPTY_HOTSPOT_SECTION}
+            onChange={(next) => {
+              setField('hotspotSection', next);
+              if (hasHotspotErrors(hotspotErrors)) setHotspotErrors(checkHotspotSection(next));
+            }}
+            errors={hotspotErrors}
+          />
+        </div>
+
+        <div className="admin-form-section" id="sec-videos" data-pf-section>
+          <h3>Customer Videos</h3>
+          <TestimonialVideosEditor
+            videos={form.testimonialVideos || []}
+            onChange={(next) => setField('testimonialVideos', next)}
+          />
+        </div>
+
+        <div id="proof-stats-card" data-pf-section>
+          <ProofSectionEditor
+            value={form.proofSection || EMPTY_PROOF_SECTION}
+            onChange={(next) => {
+              setField('proofSection', next);
+              if (hasProofErrors(proofErrors)) setProofErrors(checkProofSection(next));
+            }}
+            errors={proofErrors}
+          />
+        </div>
 
         <div className="admin-form-sticky-actions">
           {dirty && <span className="unsaved-dot" role="status"><span aria-hidden="true" /> Unsaved changes</span>}

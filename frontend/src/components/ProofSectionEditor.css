@@ -20,7 +20,7 @@
 .th-icon.is-on { border-color: var(--color-primary); background: var(--color-primary-soft); color: var(--color-primary-dark); }
 .th-preview { padding: var(--space-3) var(--space-4); }
 
-.pse-stats-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-top: var(--space-4); }
+.pse-stats-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); margin-top: var(--space-4); }
 .pse-stats { list-style: none; margin: 0 0 var(--space-3); padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
 .pse-stat { padding: var(--space-3) var(--space-4); border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
 .pse-stat.is-dragging { opacity: 0.5; }
