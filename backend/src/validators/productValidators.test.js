@@ -88,6 +88,15 @@ test('a colour or pack added in the editor has no id yet: it is accepted (the se
   assert.equal(productSchema.safeParse({ ...baseProduct, variants: [newColour], sellingOptions: [newOption] }).success, true);
 });
 
+test('a pack badge ("Best Value") is optional text of up to 20 characters', () => {
+  const option = { id: 'o', name: 'Combo of 3', quantity: 3, price: 349, isActive: true, allowDuplicateColors: false };
+  const withOption = (o) => ({ ...baseProduct, sellingOptions: [o] });
+  assert.equal(productSchema.parse(withOption(option)).sellingOptions[0].badgeLabel, undefined);
+  assert.equal(productSchema.parse(withOption({ ...option, badgeLabel: ' Best Value ' })).sellingOptions[0].badgeLabel, 'Best Value');
+  assert.equal(productSchema.parse(withOption({ ...option, badgeLabel: '' })).sellingOptions[0].badgeLabel, '');
+  assert.equal(productSchema.safeParse(withOption({ ...option, badgeLabel: 'x'.repeat(21) })).success, false);
+});
+
 test('freeQuantity (buy 3 get 1 free): defaults to 0 and must be fewer than the pieces in the pack', () => {
   const option = { id: 'o', name: 'Buy 3 get 1', quantity: 4, price: 447, isActive: true, allowDuplicateColors: false };
   const withOption = (o) => ({ ...baseProduct, sellingOptions: [o] });

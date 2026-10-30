@@ -17,6 +17,7 @@ function assignIdsIfMissing(list, prefix) {
 function withStatIds(data) {
   if (data.proofSection) data.proofSection.stats = assignIdsIfMissing(data.proofSection.stats, 'stat');
   if (data.topHighlight) data.topHighlight.chips = assignIdsIfMissing(data.topHighlight.chips, 'chip');
+  if (data.hotspotSection) data.hotspotSection.hotspots = assignIdsIfMissing(data.hotspotSection.hotspots, 'hs');
   return data;
 }
 

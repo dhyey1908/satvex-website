@@ -11,9 +11,13 @@ import { SellingOptionCard } from '../../components/SellingOptionCard';
 import { Modal } from '../../components/Modal';
 import { ProofSectionEditor } from '../../components/ProofSectionEditor';
 import { TopHighlightEditor } from '../../components/TopHighlightEditor';
+import { HotspotEditor } from '../../components/HotspotEditor';
+import { EMPTY_HOTSPOT_SECTION, checkHotspotSection, hasHotspotErrors } from '../../utils/hotspots';
 import { EMPTY_TOP_HIGHLIGHT, checkTopHighlight, hasHighlightErrors } from '../../utils/topHighlight';
 import { EMPTY_PROOF_SECTION, checkProofSection, hasProofErrors } from '../../utils/proofSection';
 import { checkSellingOption } from '../../utils/sellingOptionChecks';
+import { packBadge } from '../../utils/packBadge';
+import { STOREFRONT } from '../../config/storefront';
 import { TestimonialVideosEditor, MAX_TESTIMONIAL_VIDEOS } from '../../components/TestimonialVideosEditor';
 import { Loader } from '../../components/Loader';
 import { minLength, slug as validateSlug, positiveNumber, runValidators, hasErrors } from '../../utils/validators';
@@ -35,6 +39,7 @@ const EMPTY_PRODUCT = {
   testimonialVideos: [],
   proofSection: EMPTY_PROOF_SECTION,
   topHighlight: EMPTY_TOP_HIGHLIGHT,
+  hotspotSection: EMPTY_HOTSPOT_SECTION,
   rating: 0,
   reviewCount: 0,
   variants: [],
@@ -74,6 +79,7 @@ export function AdminProductForm() {
   // Problems in the Proof Stats card (shown inside it); they block Save like any other field.
   const [proofErrors, setProofErrors] = useState({});
   const [highlightErrors, setHighlightErrors] = useState({});
+  const [hotspotErrors, setHotspotErrors] = useState({});
   // What the form looked like when it was loaded/saved - "Unsaved changes" is a
   // comparison against it.
   const [snapshot, setSnapshot] = useState(JSON.stringify(EMPTY_PRODUCT));
@@ -115,7 +121,12 @@ export function AdminProductForm() {
     productService
       .getById(id)
       .then(({ product }) => {
-        const loaded = { ...EMPTY_PRODUCT, ...product };
+        const loaded = {
+          ...EMPTY_PRODUCT,
+          ...product,
+          // packs saved before badges were editable show the old fixed badge here, so saving does not drop it by accident
+          sellingOptions: (product.sellingOptions || []).map((o) => ({ ...o, badgeLabel: packBadge(o, STOREFRONT) })),
+        };
         setForm(loaded);
         setSnapshot(JSON.stringify(loaded));
         setSlugTouched(true);
@@ -223,7 +234,7 @@ export function AdminProductForm() {
       ...prev,
       sellingOptions: [
         ...prev.sellingOptions,
-        { id: localId('opt'), name: '', quantity: 1, freeQuantity: 0, price: 0, compareAtPrice: '', costPrice: '', isActive: true, allowDuplicateColors: false },
+        { id: localId('opt'), name: '', quantity: 1, freeQuantity: 0, badgeLabel: '', price: 0, compareAtPrice: '', costPrice: '', isActive: true, allowDuplicateColors: false },
       ],
     }));
     if (fieldErrors.sellingOptions) setFieldErrors((prev) => ({ ...prev, sellingOptions: '' }));
@@ -254,6 +265,13 @@ export function AdminProductForm() {
     const errors = validate(form);
     setFieldErrors(errors);
     setTouched({ name: true, slug: true, shortDescription: true, description: true, basePrice: true });
+    const hotspots = checkHotspotSection(form.hotspotSection);
+    setHotspotErrors(hotspots);
+    if (hasHotspotErrors(hotspots)) {
+      showToast(hotspots.image || hotspots.hotspots || (hotspots.rows || []).find(Boolean) || 'Fix the Feature Hotspots before saving.', 'error');
+      document.getElementById('hotspots-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
     const highlight = checkTopHighlight(form.topHighlight);
     setHighlightErrors(highlight);
     if (hasHighlightErrors(highlight)) {
@@ -292,6 +310,18 @@ export function AdminProductForm() {
       commonImages: form.commonImages.map((p) => ({ url: p.url, alt: p.alt || '' })),
       basePrice: Number(form.basePrice),
       // Proof Stats: boxes added in this session carry a temporary id (the server assigns the real one).
+      // Feature Hotspots: features added in this session carry a temporary id (the server assigns the real one).
+      hotspotSection: {
+        ...form.hotspotSection,
+        hotspots: (form.hotspotSection.hotspots || []).map((h) => ({
+          ...h,
+          id: !h.id || h.id.includes('_local_') ? undefined : h.id,
+          pointX: h.pointX === '' || h.pointX == null ? null : Number(h.pointX),
+          pointY: h.pointY === '' || h.pointY == null ? null : Number(h.pointY),
+          title: (h.title || '').trim(),
+          description: (h.description || '').trim(),
+        })),
+      },
       topHighlight: {
         ...form.topHighlight,
         chips: (form.topHighlight.chips || []).map((c) => ({ ...c, id: !c.id || c.id.includes('_local_') ? undefined : c.id, label: c.label.trim() })),
@@ -322,6 +352,7 @@ export function AdminProductForm() {
         id: o.id.includes('_local_') ? undefined : o.id,
         quantity: Number(o.quantity),
         freeQuantity: Number(o.freeQuantity) || 0,
+        badgeLabel: (o.badgeLabel || '').trim(),
         price: Number(o.price),
         // Equal/blank/zero means "no discount" — omit so the frontend's
         // `compareAtPrice > price` sale check naturally stays off, rather
@@ -562,6 +593,17 @@ export function AdminProductForm() {
           <TestimonialVideosEditor
             videos={form.testimonialVideos || []}
             onChange={(next) => setField('testimonialVideos', next)}
+          />
+        </div>
+
+        <div id="hotspots-card">
+          <HotspotEditor
+            value={form.hotspotSection || EMPTY_HOTSPOT_SECTION}
+            onChange={(next) => {
+              setField('hotspotSection', next);
+              if (hasHotspotErrors(hotspotErrors)) setHotspotErrors(checkHotspotSection(next));
+            }}
+            errors={hotspotErrors}
           />
         </div>
 

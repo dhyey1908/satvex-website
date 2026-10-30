@@ -13,6 +13,7 @@ import { ProductReviews } from '../components/ProductReviews';
 import { ProductVideoSlider } from '../components/ProductVideoSlider';
 import { ProofStats } from '../components/ProofStats';
 import { TopHighlight } from '../components/TopHighlight';
+import { FeatureHotspots } from '../components/FeatureHotspots';
 import { PriceDisplay } from '../components/PriceDisplay';
 import { PincodeCheck } from '../components/PincodeCheck';
 import { Accordion } from '../components/Accordion';
@@ -745,6 +746,14 @@ export function ProductDetail() {
             position — full-width, last, on both desktop and mobile. Placed
             here in the DOM (after .pdp-purchase) so visual order and
             keyboard/tab order agree. */}
+        {/* Feature Hotspots - the annotated photo slider (admin: Feature Hotspots). The API only sends it when it
+            is enabled with an active, placed feature; `placement` picks its slot in the grid. */}
+        {product.hotspotSection && (
+          <div className={`product-detail-hotspots is-${product.hotspotSection.placement}`}>
+            <FeatureHotspots section={product.hotspotSection} />
+          </div>
+        )}
+
         {/* Customer video testimonials — its own grid area directly above
             Reviews (see ProductDetail.css). Renders nothing when the product
             has no videos, so the page is unchanged for those. */}

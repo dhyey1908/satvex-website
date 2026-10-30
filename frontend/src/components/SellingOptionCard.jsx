@@ -81,6 +81,24 @@ export function SellingOptionCard({ option, index, onChange, onRemove }) {
 
       <footer className="so-foot">
         <div className="so-free">
+          <label htmlFor={`${key}-badge`}>Badge on this pack</label>
+          <input
+            id={`${key}-badge`}
+            className="so-input"
+            list={`${key}-badge-ideas`}
+            maxLength={20}
+            placeholder="e.g. Best Value"
+            value={option.badgeLabel ?? ''}
+            onChange={(e) => onChange({ badgeLabel: e.target.value })}
+          />
+          <datalist id={`${key}-badge-ideas`}>
+            <option value="Best Value" />
+            <option value="Most Popular" />
+            <option value="Limited Offer" />
+          </datalist>
+          <p className="so-help">The small tag on top of this pack's card. Leave blank for none. Use it on one pack to steer shoppers to it.</p>
+        </div>
+        <div className="so-free">
           <label htmlFor={`${key}-free`}>Free pieces in this pack</label>
           <input
             id={`${key}-free`}

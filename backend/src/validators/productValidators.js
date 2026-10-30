@@ -1,6 +1,7 @@
 const { z } = require('zod');
 const { proofSectionSchema } = require('./proofSectionValidators');
 const { topHighlightSchema } = require('./topHighlightValidators');
+const { hotspotSectionSchema } = require('./hotspotValidators');
 
 // One photo of a colour / one common photo. alt text is optional (the storefront
 // falls back to "SATVEX <product> - <colour>").
@@ -44,6 +45,8 @@ const sellingOptionSchema = z.object({
   // How many of those pieces are free ("buy 3, get 1 free" = quantity 4, freeQuantity 1).
   // The pack price is unchanged; this only drives the offer label and the order record.
   freeQuantity: z.number().int().min(0).max(19).default(0),
+  // Highlight badge shown on this pack's card ("Best Value", "Most Popular"...). Blank = no badge.
+  badgeLabel: z.string().trim().max(20, 'Keep the badge to 20 characters.').optional(),
   price: z.number().min(0),
   // Optional; when set and greater than price, the frontend shows a sale badge.
   compareAtPrice: z.number().min(0).optional(),
@@ -105,6 +108,8 @@ const productSchema = z.object({
   proofSection: proofSectionSchema.optional(),
   // "Top Highlight": short headline + chips above the image gallery - see topHighlightValidators.
   topHighlight: topHighlightSchema.optional(),
+  // "Feature Hotspots": one big photo with numbered feature points - see hotspotValidators.
+  hotspotSection: hotspotSectionSchema.optional(),
   // Computed from published reviews (see reviewService.recomputeProductAggregate) —
   // not admin-editable. Starts at 0 until the product has real reviews.
   rating: z.number().min(0).max(5).default(0),

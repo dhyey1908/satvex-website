@@ -1,5 +1,6 @@
 const { publicProofSection } = require('./proofSection');
 const { publicTopHighlight } = require('./topHighlight');
+const { publicHotspotSection } = require('./hotspots');
 
 // Internal cost data that powers the admin Financial Analytics screen must
 // never reach a customer's browser. Every endpoint that returns a product or
@@ -16,12 +17,17 @@ function stripProductCost(product) {
   };
 }
 
-// Shoppers get the Top Highlight and the Proof Stats block only when it is switched on and has an active box,
+// Shoppers get the Top Highlight, Feature Hotspots and Proof Stats block only when it is switched on and has an active box,
 // already trimmed to what the page shows (the admin keeps the raw section to edit).
 function productForViewer(product, isAdmin) {
   if (isAdmin || !product) return product;
-  const { proofSection, topHighlight, ...rest } = stripProductCost(product);
-  return { ...rest, proofSection: publicProofSection(proofSection), topHighlight: publicTopHighlight(topHighlight) };
+  const { proofSection, topHighlight, hotspotSection, ...rest } = stripProductCost(product);
+  return {
+    ...rest,
+    proofSection: publicProofSection(proofSection),
+    topHighlight: publicTopHighlight(topHighlight),
+    hotspotSection: publicHotspotSection(hotspotSection),
+  };
 }
 
 // An order carries the per-pack cost snapshotted on each item and the

@@ -1,6 +1,7 @@
 import { Check, Gift } from 'lucide-react';
 import { PriceDisplay } from './PriceDisplay';
 import { STOREFRONT } from '../config/storefront';
+import { packBadge } from '../utils/packBadge';
 import './SellingOptionSelector.css';
 
 export function SellingOptionSelector({ options, selectedId, onSelect }) {
@@ -9,7 +10,7 @@ export function SellingOptionSelector({ options, selectedId, onSelect }) {
   return (
     <div className="selling-option-selector">
       {active.map((option) => {
-        const featured = STOREFRONT.featuredOptionId === option.id;
+        const badge = packBadge(option, STOREFRONT);
         return (
           <button
             key={option.id}
@@ -18,7 +19,7 @@ export function SellingOptionSelector({ options, selectedId, onSelect }) {
             className={`selling-option ${option.quantity > 1 ? 'selling-option-combo' : ''} ${selectedId === option.id ? 'selected' : ''}`}
             onClick={() => onSelect(option)}
           >
-            {featured && <span className="selling-option-badge">{STOREFRONT.featuredOptionLabel}</span>}
+            {badge && <span className="selling-option-badge">{badge}</span>}
             {selectedId === option.id && (
               <span className="selling-option-check">
                 <Check size={11} strokeWidth={3} />

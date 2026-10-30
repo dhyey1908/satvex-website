@@ -86,8 +86,10 @@
   grid-template-areas:
     'gallery head'
     'gallery purchase'
+    'hsa hsa'
     'videos videos'
     'proof proof'
+    'hsb hsb'
     'reviews reviews';
   column-gap: var(--space-7);
   row-gap: 0;
@@ -109,6 +111,10 @@
 .product-detail-reviews { grid-area: reviews; }
 .product-detail-videos { grid-area: videos; min-width: 0; margin-top: var(--space-7); }
 /* "Proof Stats" block, directly above Reviews (only rendered when the product has one). */
+/* "Feature Hotspots": right after the product info, or just before the reviews (the admin chooses). */
+.product-detail-hotspots { min-width: 0; margin-top: var(--space-7); }
+.product-detail-hotspots.is-after_info { grid-area: hsa; }
+.product-detail-hotspots.is-before_reviews { grid-area: hsb; }
 .product-detail-proof { grid-area: proof; min-width: 0; margin-top: var(--space-7); }
 /* The slider carries its own top divider and spacing, so Reviews directly
    below it doesn't add a second gap. */
@@ -414,8 +420,10 @@
       'gallery'
       'head'
       'purchase'
+      'hsa'
       'videos'
       'proof'
+      'hsb'
       'reviews';
     /* row-gap: var(--space-5); */
   }
@@ -469,6 +477,7 @@
   }
   .product-detail-videos { margin-top: 0; }
   .product-detail-proof { margin-top: 0; }
+  .product-detail-hotspots { margin-top: 0; }
 
   /* The sticky bar below duplicates Add to Cart + Buy Now — keeping the
      inline row too meant two full sets of purchase buttons stacked in the
