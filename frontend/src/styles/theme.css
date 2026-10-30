@@ -43,3 +43,18 @@
   --shadow-md: 0 6px 16px rgba(46, 35, 56, 0.12), 0 2px 6px rgba(46, 35, 56, 0.08);
   --shadow-lg: 0 16px 40px rgba(46, 35, 56, 0.16), 0 4px 12px rgba(46, 35, 56, 0.08);
 }
+
+/* Product page extras. Top Highlight (above the gallery): plum text, brand-purple accents. */
+:root {
+  --hl-brand: #6b4fa0;
+  --hl-text: #3b2a5c;
+  --hl-chip-bg: #f3eefb;
+  --hl-band: #f8f5fd;
+}
+
+/* Proof Stats colour themes (admin picks one per product). Each sets the section background,
+   box background + border, the big value colour and the text colour. */
+.proof-theme-lavender { --ps-bg: #f8f5fd; --ps-box: #ffffff; --ps-border: #d9cdf0; --ps-value: #6b4fa0; --ps-text: #3b2a5c; }
+.proof-theme-plum     { --ps-bg: #2e2145; --ps-box: #3b2a5c; --ps-border: #5a4580; --ps-value: #e9ddff; --ps-text: #f5f0ff; }
+.proof-theme-blush    { --ps-bg: #fdf3f5; --ps-box: #ffffff; --ps-border: #f1cdd6; --ps-value: #b24a6b; --ps-text: #3b2a5c; }
+.proof-theme-mono     { --ps-bg: #ffffff; --ps-box: #ffffff; --ps-border: #1f1f1f; --ps-value: #1f1f1f; --ps-text: #1f1f1f; }

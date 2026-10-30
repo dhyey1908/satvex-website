@@ -1,0 +1,76 @@
+/* "Top Highlight": a compact headline strip between the breadcrumb and the gallery.
+   Left-aligned on phones, centred on larger screens. Never taller than ~2 lines + chips. */
+.top-highlight {
+  margin: 12px 0 16px; /* 12px under the breadcrumb, 16px above the gallery */
+  text-align: left;
+  color: var(--hl-text);
+  min-width: 0;
+}
+.top-highlight.is-band {
+  margin-left: 0;
+  margin-right: 0;
+  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--hl-band);
+}
+.top-highlight-eyebrow {
+  margin: 0 0 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--hl-brand);
+}
+.top-highlight-headline {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+  color: var(--hl-text);
+}
+.top-highlight-headline em { font-style: italic; color: var(--hl-brand); }
+.top-highlight-subline { margin: 4px 0 0; font-size: 0.875rem; line-height: 1.4; color: var(--color-text-muted); }
+
+/* One scrollable row on phones (no wrapping, no scrollbar); wraps and centres on desktop */
+.top-highlight-chips {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+}
+.top-highlight-chips::-webkit-scrollbar { display: none; }
+.top-highlight-chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--hl-chip-bg);
+  color: var(--hl-text);
+  font-size: 0.78rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.top-highlight-chip svg { color: var(--hl-brand); }
+.top-highlight.is-band .top-highlight-chip { background: var(--color-surface); }
+
+@media (min-width: 768px) {
+  .top-highlight { margin: 12px 0 16px; text-align: center; }
+  .top-highlight.is-band { padding: 18px 24px; }
+  .top-highlight-headline { font-size: 2rem; }
+  .top-highlight-subline { font-size: 0.95rem; }
+  .top-highlight-chips { flex-wrap: wrap; justify-content: center; overflow: visible; }
+  .top-highlight-chip { font-size: 0.82rem; }
+}
+
+/* The breadcrumb already adds its own bottom margin: pull the highlight up so it sits 12px below it. */
+.pdp-breadcrumb + .top-highlight { margin-top: calc(12px - var(--sp-lg)); }

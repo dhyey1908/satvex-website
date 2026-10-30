@@ -12,6 +12,8 @@ const money = (n) => Number(Number(n).toFixed(2));
  *  - saveAmount: the admin's compareAtPrice minus price when set, otherwise
  *    (single-piece price x pieces) minus price for a combo; 0 when nothing is
  *    actually saved.
+ *  - freeQuantity / paidQuantity / freeLabel: for a "buy 3, get 1 free" pack (4 pieces, 1 free)
+ *    the label shoppers see, e.g. "Buy 3, get 1 free"; absent when nothing is free.
  *  - couponCode / priceAfterCoupon: only when a live coupon (the active
  *    announcement's code) really applies to this pack's price.
  */
@@ -35,9 +37,12 @@ async function decorateOptions(product, couponCode) {
       }
     }
 
+    const free = Number(option.freeQuantity) > 0 && option.freeQuantity < option.quantity ? Number(option.freeQuantity) : 0;
+    const freeOffer = free ? { freeQuantity: free, paidQuantity: option.quantity - free, freeLabel: `Buy ${option.quantity - free}, get ${free} free` } : {};
+
     options.push({
       ...option,
-      offer: { perPiece: money(option.price / (option.quantity || 1)), saveAmount, ...(coupon || {}) },
+      offer: { perPiece: money(option.price / (option.quantity || 1)), saveAmount, ...freeOffer, ...(coupon || {}) },
     });
   }
   return { ...product, sellingOptions: options };

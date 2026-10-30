@@ -87,6 +87,7 @@
     'gallery head'
     'gallery purchase'
     'videos videos'
+    'proof proof'
     'reviews reviews';
   column-gap: var(--space-7);
   row-gap: 0;
@@ -107,6 +108,8 @@
 .pdp-purchase { grid-area: purchase; }
 .product-detail-reviews { grid-area: reviews; }
 .product-detail-videos { grid-area: videos; min-width: 0; margin-top: var(--space-7); }
+/* "Proof Stats" block, directly above Reviews (only rendered when the product has one). */
+.product-detail-proof { grid-area: proof; min-width: 0; margin-top: var(--space-7); }
 /* The slider carries its own top divider and spacing, so Reviews directly
    below it doesn't add a second gap. */
 .product-detail-videos + .product-detail-reviews { margin-top: 0; }
@@ -412,6 +415,7 @@
       'head'
       'purchase'
       'videos'
+      'proof'
       'reviews';
     /* row-gap: var(--space-5); */
   }
@@ -464,6 +468,7 @@
     margin-top: 0;
   }
   .product-detail-videos { margin-top: 0; }
+  .product-detail-proof { margin-top: 0; }
 
   /* The sticky bar below duplicates Add to Cart + Buy Now — keeping the
      inline row too meant two full sets of purchase buttons stacked in the
@@ -501,6 +506,9 @@
   }
   .selling-option .selling-option-name { font-size: 0.62rem; }
   .selling-option .selling-option-savings { font-size: 0.56rem; }
+  .selling-option .selling-option-free { font-size: 0.56rem; padding: 1px 5px; gap: 2px; }
+  .selling-option .selling-option-pieces { font-size: 0.52rem; }
+  .selling-option .selling-option-free svg { width: 9px; height: 9px; }
   /* PriceDisplay has no "sm" size variant to pass in here — these scoped,
      extra-specific selectors (3 classes) shrink it just inside a selling-
      option card instead, without touching its size anywhere else it's
@@ -592,6 +600,36 @@
 }
 
 /* "Price after code SATVEX10: Rs X" under the price. */
+/* the chosen pack's "buy 3, get 1 free" line, under the price (pops in when you switch packs) */
+.pdp-free-offer {
+  animation: free-pop 520ms cubic-bezier(0.2, 1.4, 0.4, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: var(--space-2) 0 0;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+/* under "Select N colours": explains why there are more colours than the pack name says */
+.pdp-color-free-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 var(--space-3);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  font-size: 0.88rem;
+  font-weight: 600;
+  animation: free-pop 520ms cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+@media (prefers-reduced-motion: reduce) { .pdp-free-offer, .pdp-color-free-note { animation: none; } }
+
 .pdp-coupon-price {
   margin: var(--space-2) 0 var(--space-3);
   font-size: 0.85rem;

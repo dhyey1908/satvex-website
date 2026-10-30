@@ -67,6 +67,8 @@ async function resolveLineItem({ productId, sellingOptionId, selectedColors }) {
     productImage: selectedColorDetails[0]?.image || product.images?.[0] || null,
     sellingOptionId: sellingOption.id,
     sellingOptionName: sellingOption.name,
+    // Pieces in this pack that are free ("buy 3, get 1 free"); display/record only - the price is the pack's own.
+    freeQuantity: Number(sellingOption.freeQuantity) > 0 ? Number(sellingOption.freeQuantity) : 0,
     selectedColors,
     selectedColorDetails,
     unitPrice: sellingOption.price,

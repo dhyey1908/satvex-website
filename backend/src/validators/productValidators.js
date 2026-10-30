@@ -1,4 +1,6 @@
 const { z } = require('zod');
+const { proofSectionSchema } = require('./proofSectionValidators');
+const { topHighlightSchema } = require('./topHighlightValidators');
 
 // One photo of a colour / one common photo. alt text is optional (the storefront
 // falls back to "SATVEX <product> - <colour>").
@@ -10,7 +12,8 @@ const imageSchema = z.object({
 });
 
 const variantSchema = z.object({
-  id: z.string().min(1),
+  // Absent for a colour added in this save: the server gives it one (productController).
+  id: z.string().min(1).optional(),
   name: z.string().trim().min(1).max(60),
   colorName: z.string().trim().min(1).max(60),
   colorCode: z
@@ -33,9 +36,14 @@ const variantSchema = z.object({
 });
 
 const sellingOptionSchema = z.object({
-  id: z.string().min(1),
+  // Absent for a pack added in this save: the server gives it one (productController).
+  id: z.string().min(1).optional(),
   name: z.string().trim().min(1).max(60),
+  // Pieces in the pack = colours the customer picks (and what ships).
   quantity: z.number().int().min(1).max(20),
+  // How many of those pieces are free ("buy 3, get 1 free" = quantity 4, freeQuantity 1).
+  // The pack price is unchanged; this only drives the offer label and the order record.
+  freeQuantity: z.number().int().min(0).max(19).default(0),
   price: z.number().min(0),
   // Optional; when set and greater than price, the frontend shows a sale badge.
   compareAtPrice: z.number().min(0).optional(),
@@ -93,12 +101,23 @@ const productSchema = z.object({
   videoUrl: z.string().trim().url().optional().or(z.literal('')),
   // What the product page opens on: the first photo (default) or the product video (only if it has one).
   firstMedia: z.enum(['image', 'video']).optional(),
+  // "Proof Stats" block above the reviews (header, background, stat boxes) - see proofSectionValidators.
+  proofSection: proofSectionSchema.optional(),
+  // "Top Highlight": short headline + chips above the image gallery - see topHighlightValidators.
+  topHighlight: topHighlightSchema.optional(),
   // Computed from published reviews (see reviewService.recomputeProductAggregate) —
   // not admin-editable. Starts at 0 until the product has real reviews.
   rating: z.number().min(0).max(5).default(0),
   reviewCount: z.number().int().min(0).default(0),
   variants: z.array(variantSchema).min(1, 'At least one color variant is required'),
-  sellingOptions: z.array(sellingOptionSchema).min(1, 'At least one selling option is required'),
+  sellingOptions: z
+    .array(
+      sellingOptionSchema.refine((o) => (o.freeQuantity || 0) < o.quantity, {
+        message: 'Free pieces must be fewer than the pieces in the pack.',
+        path: ['freeQuantity'],
+      })
+    )
+    .min(1, 'At least one selling option is required'),
   testimonialVideos: z
     .array(testimonialVideoSchema)
     .max(MAX_TESTIMONIAL_VIDEOS, `You can add up to ${MAX_TESTIMONIAL_VIDEOS} videos per product.`)

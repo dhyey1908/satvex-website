@@ -24,6 +24,9 @@ export function SellingOptionCard({ option, index, onChange, onRemove }) {
   const key = `so-${option.id}`;
   const price = Number(option.price);
   const mrp = Number(option.compareAtPrice);
+  const qty = Number(option.quantity);
+  const free = Number(option.freeQuantity);
+  const freeLabel = Number.isInteger(qty) && Number.isInteger(free) && free > 0 && free < qty ? `Buy ${qty - free}, get ${free} free` : '';
 
   return (
     <section className="so-card" aria-label={`Selling option ${index + 1}`}>
@@ -77,6 +80,23 @@ export function SellingOptionCard({ option, index, onChange, onRemove }) {
       </div>
 
       <footer className="so-foot">
+        <div className="so-free">
+          <label htmlFor={`${key}-free`}>Free pieces in this pack</label>
+          <input
+            id={`${key}-free`}
+            className="so-input"
+            type="number"
+            min="0"
+            step="1"
+            value={option.freeQuantity ?? 0}
+            onChange={(e) => onChange({ freeQuantity: e.target.value })}
+          />
+          <p className="so-help">
+            {freeLabel
+              ? `Customers see "${freeLabel}" - they get ${option.quantity} pieces and pay the price above.`
+              : 'For offers like "buy 3, get 1 free": set Colours required to 4 and this to 1. The price stays the pack price.'}
+          </p>
+        </div>
         <label className="so-toggle">
           <input type="checkbox" checked={option.allowDuplicateColors} onChange={(e) => onChange({ allowDuplicateColors: e.target.checked })} />
           Allow duplicate colours

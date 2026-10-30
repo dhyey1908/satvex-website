@@ -24,6 +24,21 @@ test('per-piece price and savings (compareAt wins, else vs. buying singles)', as
   assert.equal(o3.couponCode, undefined);
 });
 
+test('a "buy 3, get 1 free" pack gets its label; packs with nothing free get none', async () => {
+  const p = { sellingOptions: [
+    { id: 'a', quantity: 4, freeQuantity: 1, price: 447, isActive: true },
+    { id: 'b', quantity: 3, price: 349, isActive: true },
+    { id: 'c', quantity: 3, freeQuantity: 3, price: 349, isActive: true },
+  ] };
+  const [a, b, c] = (await decorateOptions(p, null)).sellingOptions.map((o) => o.offer);
+  assert.equal(a.freeLabel, 'Buy 3, get 1 free');
+  assert.equal(a.freeQuantity, 1);
+  assert.equal(a.paidQuantity, 3);
+  assert.equal(a.perPiece, 111.75);
+  assert.equal(b.freeLabel, undefined);
+  assert.equal(c.freeLabel, undefined); // nothing left to pay for: ignored
+});
+
 test('coupon price appears only while the coupon is valid', async () => {
   const orig = couponService.findByCode;
   couponService.findByCode = async () => ({ code: 'SATVEX10', isActive: true, discountType: 'percentage', discountValue: 10, usageCount: 0 });

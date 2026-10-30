@@ -31,6 +31,9 @@ export function CartItem({ item, catalog, onQuantityChange, onEditColours, onRem
           <h4>{item.productName}</h4>
         </Link>
         <p className="cart-item-option">{item.sellingOptionName}</p>
+        {item.freeQuantity > 0 && (
+          <p className="cart-item-free">{item.freeQuantity} free {item.freeQuantity === 1 ? 'piece' : 'pieces'} included</p>
+        )}
         {item.compareAtPrice > item.unitPrice && (
           <div className="cart-item-unit-price">
             <PriceDisplay price={item.unitPrice} compareAtPrice={item.compareAtPrice} size="md" /> each

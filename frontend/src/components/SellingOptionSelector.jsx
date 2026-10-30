@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react';
+import { Check, Gift } from 'lucide-react';
 import { PriceDisplay } from './PriceDisplay';
 import { STOREFRONT } from '../config/storefront';
 import './SellingOptionSelector.css';
@@ -25,6 +25,20 @@ export function SellingOptionSelector({ options, selectedId, onSelect }) {
               </span>
             )}
             <span className="selling-option-name">{option.name}</span>
+            {option.offer?.freeLabel && (
+              <>
+                <span className="selling-option-free">
+                  <Gift size={13} aria-hidden="true" /> {option.offer.freeLabel}
+                  {/* a little burst of sparkles each time this pack is picked */}
+                  {selectedId === option.id && (
+                    <span className="free-burst" aria-hidden="true">
+                      {[0, 1, 2, 3, 4, 5].map((n) => <i key={n} style={{ '--a': `${n * 60}deg` }} />)}
+                    </span>
+                  )}
+                </span>
+                <span className="selling-option-pieces">{option.quantity} pieces in the pack</span>
+              </>
+            )}
             <PriceDisplay
               price={option.price}
               compareAtPrice={option.compareAtPrice}

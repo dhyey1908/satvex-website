@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Loader2, CheckCircle2, XCircle, ShoppingBag, Zap, ArrowLeft, BadgeCheck, Share2 } from 'lucide-react';
+import { Heart, Loader2, CheckCircle2, XCircle, ShoppingBag, Zap, ArrowLeft, BadgeCheck, Share2, Gift } from 'lucide-react';
 import { productService } from '../services/productService';
 import { ProductGallery } from '../components/ProductGallery';
 import { ColourPreview } from '../components/ColourPreview';
@@ -11,6 +11,8 @@ import { QuantitySelector } from '../components/QuantitySelector';
 import { RatingDisplay } from '../components/RatingDisplay';
 import { ProductReviews } from '../components/ProductReviews';
 import { ProductVideoSlider } from '../components/ProductVideoSlider';
+import { ProofStats } from '../components/ProofStats';
+import { TopHighlight } from '../components/TopHighlight';
 import { PriceDisplay } from '../components/PriceDisplay';
 import { PincodeCheck } from '../components/PincodeCheck';
 import { Accordion } from '../components/Accordion';
@@ -503,6 +505,9 @@ export function ProductDetail() {
         <span className="pdp-breadcrumb-current">{displayName}</span>
       </nav>
 
+      {/* Top Highlight - the short headline strip between the breadcrumb and the photos (admin: Top Highlight). */}
+      {product.topHighlight && <TopHighlight highlight={product.topHighlight} />}
+
       <div className="product-detail-grid">
         <div className="pdp-gallery-wrap" ref={galleryColRef}>
           <div
@@ -591,6 +596,12 @@ export function ProductDetail() {
             </span>
           </div>
 
+          {sellingOption?.offer?.freeLabel && (
+            <p className="pdp-free-offer" key={sellingOption.id}>
+              <Gift size={15} aria-hidden="true" /> {sellingOption.offer.freeLabel} - {sellingOption.quantity} pieces in this pack
+            </p>
+          )}
+
           {settings?.tax?.pricesIncludeGst && <p className="pdp-tax-note">Inclusive of all taxes</p>}
 
           {sellingOption?.offer?.priceAfterCoupon != null && (
@@ -622,6 +633,14 @@ export function ProductDetail() {
                   </span>
                 )}
               </div>
+              {sellingOption.offer?.freeLabel && (
+                <p className="pdp-color-free-note" key={sellingOption.id}>
+                  <Gift size={15} aria-hidden="true" />
+                  <span>
+                    {sellingOption.offer.paidQuantity} you pay for + {sellingOption.offer.freeQuantity} free = {sellingOption.quantity} colours. Pick any {sellingOption.quantity}.
+                  </span>
+                </p>
+              )}
               <ComboColorSelector
                 variants={product.variants}
                 requiredCount={sellingOption.quantity}
@@ -732,6 +751,14 @@ export function ProductDetail() {
         {product.testimonialVideos?.length > 0 && (
           <div className="product-detail-videos">
             <ProductVideoSlider videos={product.testimonialVideos} productName={product.name} />
+          </div>
+        )}
+
+        {/* Proof Stats - switched on per product in the admin; the API only sends it when it
+            is enabled and has an active box. Sits directly above Reviews. */}
+        {product.proofSection && (
+          <div className="product-detail-proof">
+            <ProofStats section={product.proofSection} />
           </div>
         )}
 

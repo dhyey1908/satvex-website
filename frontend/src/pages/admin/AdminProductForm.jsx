@@ -9,6 +9,10 @@ import { PhotoGrid } from '../../components/PhotoGrid';
 import { ColorField } from '../../components/ColorField';
 import { SellingOptionCard } from '../../components/SellingOptionCard';
 import { Modal } from '../../components/Modal';
+import { ProofSectionEditor } from '../../components/ProofSectionEditor';
+import { TopHighlightEditor } from '../../components/TopHighlightEditor';
+import { EMPTY_TOP_HIGHLIGHT, checkTopHighlight, hasHighlightErrors } from '../../utils/topHighlight';
+import { EMPTY_PROOF_SECTION, checkProofSection, hasProofErrors } from '../../utils/proofSection';
 import { checkSellingOption } from '../../utils/sellingOptionChecks';
 import { TestimonialVideosEditor, MAX_TESTIMONIAL_VIDEOS } from '../../components/TestimonialVideosEditor';
 import { Loader } from '../../components/Loader';
@@ -29,6 +33,8 @@ const EMPTY_PRODUCT = {
   videoUrl: '',
   firstMedia: 'image',
   testimonialVideos: [],
+  proofSection: EMPTY_PROOF_SECTION,
+  topHighlight: EMPTY_TOP_HIGHLIGHT,
   rating: 0,
   reviewCount: 0,
   variants: [],
@@ -65,6 +71,9 @@ export function AdminProductForm() {
   const [error, setError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [touched, setTouched] = useState({});
+  // Problems in the Proof Stats card (shown inside it); they block Save like any other field.
+  const [proofErrors, setProofErrors] = useState({});
+  const [highlightErrors, setHighlightErrors] = useState({});
   // What the form looked like when it was loaded/saved - "Unsaved changes" is a
   // comparison against it.
   const [snapshot, setSnapshot] = useState(JSON.stringify(EMPTY_PRODUCT));
@@ -214,7 +223,7 @@ export function AdminProductForm() {
       ...prev,
       sellingOptions: [
         ...prev.sellingOptions,
-        { id: localId('opt'), name: '', quantity: 1, price: 0, compareAtPrice: '', costPrice: '', isActive: true, allowDuplicateColors: false },
+        { id: localId('opt'), name: '', quantity: 1, freeQuantity: 0, price: 0, compareAtPrice: '', costPrice: '', isActive: true, allowDuplicateColors: false },
       ],
     }));
     if (fieldErrors.sellingOptions) setFieldErrors((prev) => ({ ...prev, sellingOptions: '' }));
@@ -245,6 +254,20 @@ export function AdminProductForm() {
     const errors = validate(form);
     setFieldErrors(errors);
     setTouched({ name: true, slug: true, shortDescription: true, description: true, basePrice: true });
+    const highlight = checkTopHighlight(form.topHighlight);
+    setHighlightErrors(highlight);
+    if (hasHighlightErrors(highlight)) {
+      showToast(highlight.headline || 'Fix the Top Highlight before saving.', 'error');
+      document.getElementById('top-highlight-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    const proof = checkProofSection(form.proofSection);
+    setProofErrors(proof);
+    if (hasProofErrors(proof)) {
+      showToast(proof.source || proof.stats || 'Fix the Proof Stats section before saving.', 'error');
+      document.getElementById('proof-stats-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
     if (hasErrors(errors)) return;
     setSaving(true);
 
@@ -268,6 +291,21 @@ export function AdminProductForm() {
       images: form.commonImages.map((p) => p.url),
       commonImages: form.commonImages.map((p) => ({ url: p.url, alt: p.alt || '' })),
       basePrice: Number(form.basePrice),
+      // Proof Stats: boxes added in this session carry a temporary id (the server assigns the real one).
+      topHighlight: {
+        ...form.topHighlight,
+        chips: (form.topHighlight.chips || []).map((c) => ({ ...c, id: !c.id || c.id.includes('_local_') ? undefined : c.id, label: c.label.trim() })),
+      },
+      proofSection: {
+        ...form.proofSection,
+        sampleSize: form.proofSection.sampleSize === '' || form.proofSection.sampleSize == null ? null : Number(form.proofSection.sampleSize),
+        stats: (form.proofSection.stats || []).map((s) => ({
+          ...s,
+          id: !s.id || s.id.includes('_local_') ? undefined : s.id,
+          value: String(s.value ?? '').trim(),
+          suffix: s.valueType === 'number' ? s.suffix || '' : '',
+        })),
+      },
       // New videos carry a temporary client id; the server assigns the real one.
       testimonialVideos: (form.testimonialVideos || []).slice(0, MAX_TESTIMONIAL_VIDEOS).map((v) => ({
         ...v,
@@ -283,6 +321,7 @@ export function AdminProductForm() {
         ...o,
         id: o.id.includes('_local_') ? undefined : o.id,
         quantity: Number(o.quantity),
+        freeQuantity: Number(o.freeQuantity) || 0,
         price: Number(o.price),
         // Equal/blank/zero means "no discount" — omit so the frontend's
         // `compareAtPrice > price` sale check naturally stays off, rather
@@ -327,7 +366,14 @@ export function AdminProductForm() {
     } catch (err) {
       const serverErrors = mapServerFieldErrors(err);
       if (serverErrors) setFieldErrors((prev) => ({ ...prev, ...serverErrors }));
-      else setError(err.message);
+      // Many server paths (sellingOptions.1.freeQuantity...) have no input of their own, so always say what was wrong.
+      setError(
+        Array.isArray(err.details) && err.details.length
+          ? err.details.map((d) => `${d.path ? `${d.path}: ` : ''}${d.message}`).join(' · ')
+          : err.message
+      );
+      showToast('Could not save - see the message above the Save button.', 'error');
+      window.setTimeout(() => document.getElementById('product-form-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
     } finally {
       setSaving(false);
     }
@@ -519,6 +565,28 @@ export function AdminProductForm() {
           />
         </div>
 
+        <div id="top-highlight-card">
+          <TopHighlightEditor
+            value={form.topHighlight || EMPTY_TOP_HIGHLIGHT}
+            onChange={(next) => {
+              setField('topHighlight', next);
+              if (hasHighlightErrors(highlightErrors)) setHighlightErrors(checkTopHighlight(next));
+            }}
+            errors={highlightErrors}
+          />
+        </div>
+
+        <div id="proof-stats-card">
+          <ProofSectionEditor
+            value={form.proofSection || EMPTY_PROOF_SECTION}
+            onChange={(next) => {
+              setField('proofSection', next);
+              if (hasProofErrors(proofErrors)) setProofErrors(checkProofSection(next));
+            }}
+            errors={proofErrors}
+          />
+        </div>
+
         <div className="admin-form-section">
           <h3>Color Variants</h3>
           {form.variants.map((v, i) => {
@@ -585,7 +653,7 @@ export function AdminProductForm() {
           {fieldErrors.sellingOptions && <p className="field-error" style={{ marginTop: 8 }}>{fieldErrors.sellingOptions}</p>}
         </div>
 
-        {error && <p className="field-error">{error}</p>}
+        {error && <p id="product-form-error" className="field-error" role="alert">{error}</p>}
 
         <div className="admin-form-sticky-actions">
           {dirty && <span className="unsaved-dot" role="status"><span aria-hidden="true" /> Unsaved changes</span>}

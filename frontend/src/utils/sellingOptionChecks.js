@@ -21,6 +21,9 @@ export function checkSellingOption(option) {
 
   if (!option.name?.trim()) errors.push('Give the option a name.');
   if (!Number.isInteger(quantity) || quantity < 1) errors.push('Colours required must be 1 or more.');
+  const free = num(option.freeQuantity) ?? 0;
+  if (!Number.isInteger(free) || free < 0) errors.push('Free pieces must be 0 or more.');
+  else if (Number.isInteger(quantity) && free >= quantity) errors.push('Free pieces must be fewer than the colours required.');
   if (price === null || !(price > 0)) errors.push('Selling price must be more than ₹0.');
   if (mrp !== null && mrp > 0 && price !== null && price > mrp) errors.push('Selling price cannot be more than the MRP.');
 

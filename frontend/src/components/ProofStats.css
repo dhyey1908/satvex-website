@@ -1,0 +1,77 @@
+/* "Proof Stats" block above the reviews: text + value boxes, no photo. The four colour themes
+   (.proof-theme-*) live in styles/theme.css and set --ps-bg / --ps-box / --ps-border / --ps-value /
+   --ps-text. Sizes follow the block's own width (container queries) so the admin's phone preview
+   lays out exactly like a real phone. */
+.proof-stats {
+  container-type: inline-size;
+  container-name: proof;
+  border-radius: var(--radius-lg);
+  background: var(--ps-bg);
+  color: var(--ps-text);
+}
+
+.proof-stats-inner { padding: 48px 32px 36px; }
+
+/* serif title; *emphasised* words keep the value colour, in italics */
+.proof-stats-header {
+  margin: 0 0 32px;
+  text-align: center;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 2.1rem;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--ps-text);
+}
+.proof-stats-header strong { font-weight: 600; font-style: italic; color: var(--ps-value); }
+
+.proof-stats-list { list-style: none; margin: 0 auto; padding: 0; max-width: 760px; display: flex; flex-direction: column; gap: 16px; }
+
+.proof-stat {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  align-items: stretch;
+  border: 1.5px solid var(--ps-border);
+  border-radius: 14px;
+  background: var(--ps-box);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.proof-stat-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 8px;
+  border-right: 1.5px solid var(--ps-border); /* thin vertical divider */
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--ps-value);
+  font-variant-numeric: tabular-nums;
+}
+/* words (FLEX, GRIP...) are longer than numbers: a little smaller, spaced out */
+.proof-stat-value.is-text { font-size: 1.15rem; letter-spacing: 0.08em; }
+.proof-stat-text {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 18px 24px;
+  text-align: right;
+  font-size: 1.05rem;
+  line-height: 1.45;
+  color: var(--ps-text);
+}
+.proof-stat-text strong { font-weight: 700; color: var(--ps-text); }
+
+.proof-stats-footnote { margin: 20px auto 0; max-width: 760px; font-size: 0.78rem; line-height: 1.5; color: var(--ps-text); opacity: 0.75; }
+
+@container proof (max-width: 620px) {
+  .proof-stats-inner { padding: 32px 16px 24px; }
+  .proof-stats-header { margin-bottom: 22px; font-size: 1.6rem; text-align: left; }
+  .proof-stat { grid-template-columns: 84px 1fr; }
+  .proof-stat-value { padding: 14px 4px; font-size: 1.55rem; }
+  .proof-stat-value.is-text { font-size: 0.9rem; }
+  .proof-stat-text { justify-content: flex-start; padding: 14px; text-align: left; font-size: 0.95rem; }
+}

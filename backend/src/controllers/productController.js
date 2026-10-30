@@ -14,6 +14,12 @@ function assignIdsIfMissing(list, prefix) {
   return (list || []).map((item) => ({ ...item, id: item.id || `${prefix}_${uuid()}` }));
 }
 
+function withStatIds(data) {
+  if (data.proofSection) data.proofSection.stats = assignIdsIfMissing(data.proofSection.stats, 'stat');
+  if (data.topHighlight) data.topHighlight.chips = assignIdsIfMissing(data.topHighlight.chips, 'chip');
+  return data;
+}
+
 const forViewer = productForViewer;
 
 // Customers get the display-only offer figures; admins get the raw product so
@@ -56,7 +62,9 @@ async function getBySlug(req, res) {
   if (!product || (!product.isActive && !isAdmin)) {
     throw new AppError('Product not found.', 404, 'NOT_FOUND');
   }
-  ok(res, { product: await forResponse(product, isAdmin) });
+  // Only the storefront page asks for a product by slug, so everyone (admins included) gets the
+  // shopper's view of it: offers, free-piece labels, and no internal cost.
+  ok(res, { product: await forResponse(product, false) });
 }
 
 // Price guardrails: a price below the configured minimum, or more than the allowed
@@ -86,6 +94,7 @@ async function create(req, res) {
   data.variants = assignIdsIfMissing(data.variants, 'var');
   data.sellingOptions = assignIdsIfMissing(data.sellingOptions, 'opt');
   data.testimonialVideos = assignIdsIfMissing(data.testimonialVideos, 'vid');
+  withStatIds(data);
   await assertPricesConfirmed(req, data.sellingOptions, []);
   const product = await productService.createProduct(data);
   created(res, { product });
@@ -96,6 +105,7 @@ async function update(req, res) {
   if (data.variants) data.variants = assignIdsIfMissing(data.variants, 'var');
   if (data.sellingOptions) data.sellingOptions = assignIdsIfMissing(data.sellingOptions, 'opt');
   if (data.testimonialVideos) data.testimonialVideos = assignIdsIfMissing(data.testimonialVideos, 'vid');
+  withStatIds(data);
   if (data.sellingOptions) {
     const existing = await productService.findById(req.params.id);
     await assertPricesConfirmed(req, data.sellingOptions, existing?.sellingOptions || []);

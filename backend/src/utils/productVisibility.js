@@ -1,3 +1,6 @@
+const { publicProofSection } = require('./proofSection');
+const { publicTopHighlight } = require('./topHighlight');
+
 // Internal cost data that powers the admin Financial Analytics screen must
 // never reach a customer's browser. Every endpoint that returns a product or
 // an order to a non-admin caller passes it through here.
@@ -13,8 +16,12 @@ function stripProductCost(product) {
   };
 }
 
+// Shoppers get the Top Highlight and the Proof Stats block only when it is switched on and has an active box,
+// already trimmed to what the page shows (the admin keeps the raw section to edit).
 function productForViewer(product, isAdmin) {
-  return isAdmin ? product : stripProductCost(product);
+  if (isAdmin || !product) return product;
+  const { proofSection, topHighlight, ...rest } = stripProductCost(product);
+  return { ...rest, proofSection: publicProofSection(proofSection), topHighlight: publicTopHighlight(topHighlight) };
 }
 
 // An order carries the per-pack cost snapshotted on each item and the

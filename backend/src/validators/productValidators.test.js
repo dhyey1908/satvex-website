@@ -79,3 +79,20 @@ test('galleryOrder accepts only the two known orders', () => {
   assert.equal(productUpdateSchema.safeParse({ galleryOrder: 'sideways' }).success, false);
   assert.equal(productUpdateSchema.safeParse({ galleryOrder: 'common_first' }).data.galleryOrder, 'common_first');
 });
+
+test('a colour or pack added in the editor has no id yet: it is accepted (the server assigns one)', () => {
+  const newOption = { name: 'Buy 3 Get 1', quantity: 4, freeQuantity: 1, price: 449, isActive: true, allowDuplicateColors: false };
+  const newColour = { name: 'Rose', colorName: 'Rose', colorCode: '#FFAABB' };
+  assert.equal(productUpdateSchema.safeParse({ sellingOptions: [newOption] }).success, true);
+  assert.equal(productUpdateSchema.safeParse({ variants: [newColour] }).success, true);
+  assert.equal(productSchema.safeParse({ ...baseProduct, variants: [newColour], sellingOptions: [newOption] }).success, true);
+});
+
+test('freeQuantity (buy 3 get 1 free): defaults to 0 and must be fewer than the pieces in the pack', () => {
+  const option = { id: 'o', name: 'Buy 3 get 1', quantity: 4, price: 447, isActive: true, allowDuplicateColors: false };
+  const withOption = (o) => ({ ...baseProduct, sellingOptions: [o] });
+  assert.equal(productSchema.parse(withOption(option)).sellingOptions[0].freeQuantity, 0);
+  assert.equal(productSchema.parse(withOption({ ...option, freeQuantity: 1 })).sellingOptions[0].freeQuantity, 1);
+  assert.equal(productSchema.safeParse(withOption({ ...option, freeQuantity: 4 })).success, false);
+  assert.equal(productSchema.safeParse(withOption({ ...option, freeQuantity: -1 })).success, false);
+});
