@@ -607,6 +607,8 @@
   color: var(--color-error);
   font-size: 0.85rem;
   font-weight: 600;
+  /* when scrolled into view, stay clear of the fixed buy bar on phones */
+  scroll-margin-bottom: calc(var(--pdp-bar-h, 0px) + var(--space-4));
 }
 
 

@@ -76,6 +76,7 @@ export function ProductDetail() {
   // the section the page scrolls to when Add to Cart / Buy Now is tapped early.
   const [colorError, setColorError] = useState(null);
   const colorSectionRef = useRef(null);
+  const colorErrorRef = useRef(null);
   // Real-review summary reported up by ProductReviews (for structured data).
   const [reviewSummary, setReviewSummary] = useState(null);
   // Sticky mobile bar: hidden while the footer is on screen, and its height is
@@ -184,6 +185,14 @@ export function ProductDetail() {
   useEffect(() => {
     setColorError(null);
   }, [selectedColors, sellingOptionId]);
+
+  // A message that appears below the visible part of the screen is easy to miss:
+  // bring it into view (only scrolls when it is off-screen or behind the buy bar).
+  useEffect(() => {
+    if (!colorError) return;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    colorErrorRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'nearest' });
+  }, [colorError]);
 
   // Mobile buy bar: slide it away while the footer is visible (so footer
   // links/contact details are never covered) and keep --pdp-bar-h in sync with
@@ -621,12 +630,12 @@ export function ProductDetail() {
                 onChange={setSelectedColors}
                 onBlocked={setColorError}
               />
-              <ColourPreview variant={activeVariant} productName={displayName} />
               {colorError && (
-                <p className="pdp-color-error" role="alert">
+                <p className="pdp-color-error" role="alert" ref={colorErrorRef}>
                   {colorError}
                 </p>
               )}
+              <ColourPreview variant={activeVariant} productName={displayName} />
             </div>
           )}
 

@@ -340,7 +340,6 @@ export function ProductReviews({ productId, onSummary }) {
             <textarea
               id="review-comment"
               required
-              minLength={10}
               rows={4}
               value={form.comment}
               onChange={(e) => setForm((p) => ({ ...p, comment: e.target.value }))}

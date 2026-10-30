@@ -34,5 +34,6 @@ export const adminService = {
   deleteCoupon: (code) => api.delete(`/admin/coupons/${encodeURIComponent(code)}`),
   getCouponRedemptions: (code) => api.get(`/admin/coupons/${encodeURIComponent(code)}/redemptions`),
   reviews: (params) => api.get('/admin/reviews', params),
+  createReview: (data) => api.post('/admin/reviews', data),
   deleteReview: (id) => api.delete(`/admin/reviews/${encodeURIComponent(id)}`),
 };

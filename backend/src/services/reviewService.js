@@ -5,6 +5,7 @@ const productService = require('./productService');
 const AppError = require('../utils/AppError');
 const settingsService = require('./settingsService');
 const { scanAll } = require('../utils/listQuery');
+const { v4: uuid } = require('uuid');
 
 const TABLE = env.tables.reviews;
 const PRODUCT_INDEX = 'productId-createdAt-index';
@@ -55,10 +56,16 @@ async function listForUserAcrossProducts(userId) {
 async function recomputeProductAggregate(productId) {
   const settings = await settingsService.getSettings();
   const showUnverified = Boolean(settings.reviews?.showUnverified);
-  const reviews = (await listForProduct(productId)).filter((r) => showUnverified || r.verifiedPurchase === true);
+  const reviews = (await listForProduct(productId)).filter((r) => isVisible(r, showUnverified));
   const reviewCount = reviews.length;
   const rating = reviewCount > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount : 0;
   await productService.updateRatingAggregate(productId, { rating, reviewCount });
+}
+
+// Shown to shoppers when the review is a verified purchase, was entered by the
+// admin (a real review received outside the site), or unverified ones are switched on.
+function isVisible(review, showUnverified) {
+  return showUnverified || review.verifiedPurchase === true || review.addedByAdmin === true;
 }
 
 const REVIEW_SORTS = {
@@ -76,7 +83,7 @@ const REVIEW_SORTS = {
  */
 function buildReviewsView(allReviews, { showUnverified = false, sort = 'recent', rating, limit, offset = 0 } = {}) {
   const visible = allReviews
-    .filter((r) => showUnverified || r.verifiedPurchase === true)
+    .filter((r) => isVisible(r, showUnverified))
     .map((r) => ({ ...r, verifiedPurchase: r.verifiedPurchase === true }));
 
   const breakdown = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
@@ -141,6 +148,31 @@ async function create({ productId, userId, userName, rating, title, comment, ima
   return review;
 }
 
+// A review the owner types in from the admin. There is no order behind it, so
+// "Verified Purchase" is the owner's own confirmation (verifiedPurchase, default true);
+// addedByAdmin keeps it visible and marks it in the admin list either way.
+async function createByAdmin({ productId, userName, rating, title, comment, images, createdAt, verifiedPurchase = true }) {
+  const now = new Date().toISOString();
+  const review = {
+    reviewId: `admin__${uuid()}`,
+    productId,
+    userId: null,
+    userName,
+    rating,
+    title: title || '',
+    comment,
+    images: images || [],
+    verifiedPurchase: verifiedPurchase === true,
+    addedByAdmin: true,
+    orderId: null,
+    createdAt: createdAt || now,
+    updatedAt: now,
+  };
+  await docClient.send(new PutCommand({ TableName: TABLE, Item: review }));
+  await recomputeProductAggregate(productId);
+  return review;
+}
+
 async function update(reviewId, { rating, title, comment, images }) {
   const existing = await findById(reviewId);
   if (!existing) return null;
@@ -195,6 +227,7 @@ module.exports = {
   recomputeProductAggregate,
   buildReviewsView,
   create,
+  createByAdmin,
   update,
   remove,
 };

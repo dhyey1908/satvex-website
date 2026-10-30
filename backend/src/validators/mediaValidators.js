@@ -1,7 +1,7 @@
 const { z } = require('zod');
 
 const uploadUrlSchema = z.object({
-  folder: z.enum(['products', 'variants', 'videos', 'branding', 'banners']),
+  folder: z.enum(['products', 'variants', 'videos', 'branding', 'banners', 'reviews']),
   filename: z.string().trim().min(1).max(200),
   contentType: z.enum(['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'video/mp4']),
 });

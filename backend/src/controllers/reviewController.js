@@ -2,7 +2,7 @@ const reviewService = require('../services/reviewService');
 const productService = require('../services/productService');
 const orderService = require('../services/orderService');
 const userService = require('../services/userService');
-const { createReviewSchema } = require('../validators/reviewValidators');
+const { createReviewSchema, adminCreateReviewSchema } = require('../validators/reviewValidators');
 const AppError = require('../utils/AppError');
 const { z } = require('zod');
 const settingsService = require('../services/settingsService');
@@ -81,9 +81,24 @@ async function adminList(req, res) {
   ok(res, { reviews: items, pagination });
 }
 
+async function adminCreate(req, res) {
+  const { date, ...data } = adminCreateReviewSchema.parse(req.body);
+  const product = await productService.findById(data.productId);
+  if (!product) {
+    throw new AppError('Product not found.', 404, 'NOT_FOUND');
+  }
+  // The day the customer wrote it, kept at midday India time so it never slips a day.
+  const createdAt = date ? new Date(`${date}T12:00:00+05:30`).toISOString() : undefined;
+  if (createdAt && new Date(createdAt) > new Date()) {
+    throw new AppError('The review date cannot be in the future.', 400, 'VALIDATION_ERROR');
+  }
+  const review = await reviewService.createByAdmin({ ...data, createdAt });
+  created(res, { review });
+}
+
 async function adminRemove(req, res) {
   await reviewService.remove(req.params.id);
   ok(res, { deleted: true });
 }
 
-module.exports = { listForProduct, getMine, listMine, create, update, adminList, adminRemove };
+module.exports = { listForProduct, getMine, listMine, create, update, adminList, adminCreate, adminRemove };

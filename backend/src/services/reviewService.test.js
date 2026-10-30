@@ -22,6 +22,17 @@ test('by default only verified-purchase reviews are visible; unstamped/seeded ro
   assert.deepEqual(v.summary.breakdown, { 5: 2, 4: 0, 3: 1, 2: 0, 1: 0 });
 });
 
+test('a review the admin typed in is shown and counted; verified only if the owner confirmed it', () => {
+  const typed = { ...mk('admin__1', 4, 6, false), addedByAdmin: true };
+  const confirmed = { ...mk('admin__2', 5, 7, true), addedByAdmin: true };
+  const v = buildReviewsView([...all, typed, confirmed]);
+  assert.equal(v.summary.count, 5);
+  assert.equal(v.summary.verifiedCount, 4);
+  assert.equal(v.reviews.find((r) => r.reviewId === 'admin__1').verifiedPurchase, false);
+  assert.equal(v.reviews.find((r) => r.reviewId === 'admin__2').verifiedPurchase, true);
+  assert.equal(v.reviews.some((r) => r.reviewId === 'seed2'), false);
+});
+
 test('showUnverified=true shows everything but only stamped ones are flagged verified', () => {
   const v = buildReviewsView(all, { showUnverified: true });
   assert.equal(v.summary.count, 5);

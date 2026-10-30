@@ -60,6 +60,7 @@ router.delete('/coupons/:code', asyncHandler(couponController.adminRemove));
 router.get('/coupons/:code/redemptions', asyncHandler(couponController.adminRedemptions));
 
 router.get('/reviews', asyncHandler(reviewController.adminList));
+router.post('/reviews', asyncHandler(reviewController.adminCreate));
 router.delete('/reviews/:id', asyncHandler(reviewController.adminRemove));
 
 module.exports = router;
