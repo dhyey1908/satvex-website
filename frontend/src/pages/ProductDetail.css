@@ -509,6 +509,7 @@
   .selling-option .price-display .price-current { font-size: 0.74rem; }
   .selling-option .price-display .price-compare { font-size: 0.58rem; }
   .selling-option .price-display .price-discount-badge { font-size: 0.54rem; padding: 1px 5px; }
+  .selling-option .price-display .price-per-piece { font-size: 0.62rem; }
   .selling-option-check { width: 14px; height: 14px; top: -5px; right: -5px; }
 
   .pdp-mobile-bar {
