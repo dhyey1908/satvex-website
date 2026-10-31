@@ -12,7 +12,8 @@ const settingsService = require('../services/settingsService');
 const shipmentService = require('../services/shipmentService');
 const shiprocketService = require('../services/shiprocketService');
 const { statusChangeProblem } = require('../utils/orderConsistency');
-const { checkoutSchema, quoteSchema, updateOrderStatusSchema, refundSchema } = require('../validators/orderValidators');
+const { checkoutSchema, quoteSchema, updateOrderStatusSchema, refundSchema, adminAddressSchema } = require('../validators/orderValidators');
+const userService = require('../services/userService');
 const AppError = require('../utils/AppError');
 const { ok, created } = require('../utils/response');
 const { stripOrderCost } = require('../utils/productVisibility');
@@ -25,14 +26,19 @@ const {
   querySyncIssues,
 } = require('../services/adminListQueries');
 const env = require('../config/env');
-const deliveryEligibilityService = require('../services/deliveryEligibilityService');
-const pincodeService = require('../services/pincodeService');
+const addressVerificationService = require('../services/addressVerificationService');
 
 // Internal cost data stored on an order for admin profit analytics is
 // stripped from every customer-facing response (see utils/productVisibility).
-const toCustomerOrder = stripOrderCost;
+// The customer is shown one calm status: the internal COD / shipping-problem states all read as "Confirmed".
+const INTERNAL_STATUSES = new Set([orderService.AWAITING_CONFIRMATION, orderService.ADDRESS_NEEDS_FIX, orderService.SHIPPING_RETRY_NEEDED]);
+function toCustomerOrder(order) {
+  // eslint-disable-next-line no-unused-vars
+  const { shipmentError, addressHistory, deliveryNotVerified, cancelReason, cancelNote, cancelledBy, ...rest } = stripOrderCost(order) || {};
+  return order ? { ...rest, status: INTERNAL_STATUSES.has(rest.status) ? 'Confirmed' : rest.status } : order;
+}
 
-const CANCELLABLE_STATUSES = new Set(['Pending', 'Confirmed']);
+const CANCELLABLE_STATUSES = new Set(['Pending', 'Confirmed', ...INTERNAL_STATUSES]);
 // PayU drops an unfinished attempt after ~30 min, so an unpaid online order
 // (and the coupon it holds) expires on the same clock.
 const PAYMENT_WINDOW_MS = 30 * 60 * 1000;
@@ -156,15 +162,6 @@ async function quote(req, res) {
   ok(res, { ...customerTotals, prepaidOffer, ...stripOrderCost({ items: orderItems }) });
 }
 
-// 'Jammu & Kashmir' / 'Jammu and Kashmir' / 'jammu  kashmir' should compare equal.
-const normalizeState = (s) =>
-  String(s || '')
-    .toLowerCase()
-    .replace(/&/g, ' and ')
-    .replace(/[^a-z ]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
 async function checkout(req, res) {
   const { customer, address, couponCode, paymentMethod, expectedTotal, directSession } = checkoutSchema.parse(req.body);
 
@@ -175,33 +172,10 @@ async function checkout(req, res) {
     throw new AppError('Online payment is not available right now. Please use Cash on Delivery.', 400, 'ONLINE_PAYMENTS_DISABLED');
   }
 
-  // The state a customer typed must be the pincode's real state: it goes
-  // straight onto the courier label, and a mismatch is how orders end up
-  // undeliverable. (Skipped when delivery restrictions are off and no state is
-  // resolved - the pincode itself is still validated by the totals call below.)
-  let { state: pincodeState } = await deliveryEligibilityService.isDeliverable(address.pincode);
-  // Delivery restrictions are off by default, and then nothing above looks the pincode up. The address is still
-  // checked: a pincode that does not exist is refused, and the state is compared with the pincode's real state.
-  // (If the lookup service is down the check is skipped - never a reason to refuse an order.)
-  if (!pincodeState) {
-    const known = await pincodeService.lookupPincode(address.pincode);
-    if (known.status === 'not_found') {
-      throw new AppError(
-        `We couldn't find pincode ${address.pincode}. Please check it and try again.`,
-        400,
-        'PINCODE_NOT_FOUND'
-      );
-    }
-    if (known.status === 'found') pincodeState = known.state;
-  }
-  if (pincodeState && normalizeState(pincodeState) !== normalizeState(address.state)) {
-    throw new AppError(
-      `Pincode ${address.pincode} is in ${pincodeState}, but the address says ${address.state}. Please correct the state.`,
-      400,
-      'ADDRESS_STATE_MISMATCH',
-      { expectedState: pincodeState }
-    );
-  }
+  // The address has to be real before anything is charged or saved: the pincode exists, the state and city belong to
+  // it, a courier delivers there and (for COD) can collect cash. All of it is decided here, on the server - see
+  // addressVerificationService. (If a lookup service is down the order is allowed and flagged, never lost.)
+  const { deliveryNotVerified, deliveryEta } = await addressVerificationService.verifyAddress(address, { paymentMethod });
 
   // Step 1: resolve items + compute totals (no side effects). A Buy Now order is made from its own
   // one-item session, never from the bag.
@@ -316,6 +290,8 @@ async function checkout(req, res) {
       paymentStatus: paymentMethod === 'Online' ? 'awaiting_payment' : 'not_required',
       paymentExpiresAt,
       paymentAttempts,
+      deliveryNotVerified,
+      deliveryEta,
     });
   } catch (err) {
     if (coupon) {
@@ -330,12 +306,13 @@ async function checkout(req, res) {
   // Step 7: clear the cart - except for a Buy Now order, which never came from the bag and must leave it exactly as it was.
   if (!directSession) await cartService.clearCart(req.user.id);
 
+  // A COD order is "Awaiting confirmation": it is NOT sent to Shiprocket until an admin has phoned the customer and
+  // pressed "Confirm & ship". (An Online order is shipped when its payment is confirmed - see the markPaid call sites.)
   if (order.status === 'Confirmed') {
     await shipmentService.triggerShipmentIfNeeded(order.orderId);
   }
 
-  // COD orders are final the moment they are placed, so tell the admin now. Online
-  // orders are announced when the payment is confirmed (see the markPaid call sites).
+  // Tell the admin a COD order is waiting for that call. Online orders are announced when the payment is confirmed.
   if (order.paymentMethod === 'COD') await adminNotifier.codOrderPlaced(order);
 
   // Step 8: return.
@@ -564,10 +541,15 @@ async function adminGetOrder(req, res) {
 }
 
 async function adminUpdateStatus(req, res) {
-  const { status } = updateOrderStatusSchema.parse(req.body);
+  const { status, cancelReason, cancelNote } = updateOrderStatusSchema.parse(req.body);
   const order = await orderService.findById(req.params.id);
   if (!order) {
     throw new AppError('Order not found.', 404, 'NOT_FOUND');
+  }
+
+  // Cancelling an order that is still waiting on its confirmation call (or on a fix) must say why.
+  if (status === 'Cancelled' && order.status !== 'Cancelled' && INTERNAL_STATUSES.has(order.status) && !cancelReason) {
+    throw new AppError('Choose why this order is being cancelled.', 400, 'CANCEL_REASON_REQUIRED');
   }
 
   // Consistency gating (utils/orderConsistency.js): an unpaid Online order can't be
@@ -590,6 +572,9 @@ async function adminUpdateStatus(req, res) {
   }
 
   await orderService.updateStatus(req.params.id, status);
+  if (status === 'Cancelled' && order.status !== 'Cancelled' && cancelReason) {
+    await orderService.recordCancelReason(req.params.id, { reason: cancelReason, note: cancelNote, by: 'admin' });
+  }
   if (status === 'Delivered') {
     await orderService.ensureInvoiceGenerated(req.params.id);
   }
@@ -715,6 +700,41 @@ async function adminUnlinkManualShipment(req, res) {
   ok(res, { order });
 }
 
+// "Confirm & ship" on a COD order that is Awaiting confirmation (the admin has phoned the customer), and "Retry
+// Shiprocket" on one whose booking failed. Both book the shipment now and answer with how it went - the order ends
+// Confirmed, or Address needs fix / Shipping retry needed with Shiprocket's exact reason stored on it.
+const shipOrderHandler = (allowed, wording) => async (req, res) => {
+  const order = await orderService.findById(req.params.id);
+  if (!order) throw new AppError('Order not found.', 404, 'NOT_FOUND');
+  if (!allowed.includes(order.status)) {
+    throw new AppError(`This order is "${order.status}", so it cannot be ${wording}.`, 409, 'WRONG_STATUS');
+  }
+  const result = await shipmentService.shipNow(order.orderId);
+  const fresh = await orderService.findById(order.orderId);
+  ok(res, { outcome: result.outcome, error: result.error || null, order: fresh });
+};
+const adminConfirmOrder = shipOrderHandler([orderService.AWAITING_CONFIRMATION], 'confirmed');
+const adminRetryShiprocket = shipOrderHandler(orderService.SHIPMENT_PROBLEM_STATUSES, 'retried');
+
+// Admin edits the delivery address of an order that has not shipped. It goes through every rule checkout applies
+// (English only, junk text, landmark, 190 characters, pincode / state / city, courier and COD for the pincode) and the
+// old and new address are kept on the order with who changed it and when.
+async function adminUpdateAddress(req, res) {
+  const { address } = adminAddressSchema.parse(req.body);
+  const order = await orderService.findById(req.params.id);
+  if (!order) throw new AppError('Order not found.', 404, 'NOT_FOUND');
+  if (['Shipped', 'Delivered', 'Cancelled'].includes(order.status)) {
+    throw new AppError(`This order is ${order.status}, so its address can no longer be changed.`, 409, 'ADDRESS_LOCKED');
+  }
+  if (order.shiprocketOrderId) {
+    throw new AppError('This order is already booked with Shiprocket, so its address cannot be changed here.', 409, 'ADDRESS_LOCKED');
+  }
+  const { deliveryNotVerified, deliveryEta } = await addressVerificationService.verifyAddress(address, { paymentMethod: order.paymentMethod });
+  const admin = await userService.findById(req.user.id).catch(() => null);
+  const entry = await orderService.updateAddress(order.orderId, address, { id: req.user.id, name: admin?.name || admin?.email || 'Admin' }, { deliveryNotVerified, deliveryEta });
+  ok(res, { order: await orderService.findById(order.orderId), change: entry });
+}
+
 async function adminRetryShipment(req, res) {
   const order = await orderService.findById(req.params.id);
   if (!order) {
@@ -786,6 +806,9 @@ module.exports = {
   adminUpdateStatus,
   adminRefund,
   adminRetryShipment,
+  adminConfirmOrder,
+  adminRetryShiprocket,
+  adminUpdateAddress,
   adminLinkManualShipment,
   adminUnlinkManualShipment,
   adminShipmentSyncIssues,

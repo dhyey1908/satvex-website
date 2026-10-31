@@ -7,6 +7,7 @@ function baseCheckout(overrides = {}) {
     customer: { name: 'Jane Doe', phone: '9876543210', ...overrides.customer },
     address: {
       line1: '123 Test St',
+      landmark: 'Near City Mall',
       city: 'Rajkot',
       state: 'Gujarat',
       pincode: '360001',

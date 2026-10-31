@@ -15,10 +15,11 @@ const orderService = require('../services/orderService');
 const deliveryEligibilityService = require('../services/deliveryEligibilityService');
 const directCheckoutService = require('../services/directCheckoutService');
 const pincodeService = require('../services/pincodeService');
+const deliveryCheckService = require('../services/deliveryCheckService');
 const { verifyAccessToken, signAccessToken } = require('../utils/jwt');
 const orderController = require('./orderController');
 
-const originals = [cartService, pricingService, settingsService, orderService, deliveryEligibilityService, pincodeService].map((m) => [m, { ...m }]);
+const originals = [cartService, pricingService, settingsService, orderService, deliveryEligibilityService, pincodeService, deliveryCheckService].map((m) => [m, { ...m }]);
 after(() => originals.forEach(([m, o]) => Object.assign(m, o)));
 
 function fakeRes() {
@@ -65,6 +66,7 @@ beforeEach(() => {
   };
   deliveryEligibilityService.isDeliverable = async () => ({ deliverable: true, state: 'Gujarat' });
   pincodeService.lookupPincode = async () => ({ status: 'unknown' });
+  deliveryCheckService.checkPincode = async () => ({ status: 'ok', prepaid: true, cod: true, deliveryBy: '2026-11-05' });
   orderService.createOrder = async (o) => {
     created.push(o);
     return { ...o, orderId: 'ORDER-X', status: 'Pending' };
@@ -75,7 +77,7 @@ const select = (over = {}) => ({ productId: 'p1', sellingOptionId: 'combo3', sel
 const ctx = (body) => ({ body, user: { id: 'U1' }, protocol: 'https', get: () => 'api.test' });
 const checkoutBody = (over = {}) => ({
   customer: { name: 'Jane Doe', phone: '9876543210' },
-  address: { line1: '12 Test Heights', city: 'Rajkot', state: 'Gujarat', pincode: '360004', country: 'India' },
+  address: { line1: '12 Test Heights', landmark: 'Near City Mall', city: 'Rajkot', state: 'Gujarat', pincode: '360004', country: 'India' },
   paymentMethod: 'COD',
   ...over,
 });

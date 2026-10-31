@@ -15,9 +15,10 @@ const couponRedemptionService = require('../services/couponRedemptionService');
 const shipmentService = require('../services/shipmentService');
 const deliveryEligibilityService = require('../services/deliveryEligibilityService');
 const pincodeService = require('../services/pincodeService');
+const deliveryCheckService = require('../services/deliveryCheckService');
 const orderController = require('./orderController');
 
-const originals = [cartService, pricingService, settingsService, orderService, couponService, couponRedemptionService, shipmentService, deliveryEligibilityService, pincodeService].map((m) => [m, { ...m }]);
+const originals = [cartService, pricingService, settingsService, orderService, couponService, couponRedemptionService, shipmentService, deliveryEligibilityService, pincodeService, deliveryCheckService].map((m) => [m, { ...m }]);
 after(() => originals.forEach(([m, o]) => Object.assign(m, o)));
 
 function fakeRes() {
@@ -29,7 +30,7 @@ function fakeRes() {
 
 const validBody = (over = {}) => ({
   customer: { name: 'Jane Doe', phone: '9876543210' },
-  address: { line1: '12 Test Heights', city: 'Rajkot', state: 'Gujarat', pincode: '360004', country: 'India' },
+  address: { line1: '12 Test Heights', landmark: 'Near City Mall', city: 'Rajkot', state: 'Gujarat', pincode: '360004', country: 'India' },
   paymentMethod: 'COD',
   ...over,
 });
@@ -67,6 +68,7 @@ beforeEach(() => {
   });
   deliveryEligibilityService.isDeliverable = async () => ({ deliverable: true, state: pincodeState });
   pincodeService.lookupPincode = async () => ({ status: 'unknown' }); // never the network in tests
+  deliveryCheckService.checkPincode = async () => ({ status: 'ok', prepaid: true, cod: true, deliveryBy: '2026-11-05' }); // nor Shiprocket
   orderService.createOrder = async (o) => {
     created.push(o);
     return { ...o, orderId: 'ORDER-X' };
@@ -210,4 +212,93 @@ test('checkout (restrictions off): a correct pincode + state goes through; so do
   assert.equal((await attempt(validBody())).ok, true);
   pincodeService.lookupPincode = async () => ({ status: 'unknown' });
   assert.equal((await attempt(validBody())).ok, true);
+});
+
+// ---- address verification at checkout (all on the server) ----
+const badAddress = (over) => validBody({ address: { ...validBody().address, ...over } });
+
+test('checkout: a wrong city for the pincode is refused with a "Did you mean" and NOTHING is written', async () => {
+  pincodeService.lookupPincode = async () => ({ status: 'found', state: 'Gujarat', district: 'Rajkot', places: ['Rajkot', 'Rajkot HO'] });
+  const r = await attempt(badAddress({ city: 'Surat' }));
+  assert.equal(r.ok, false);
+  assert.equal(r.err.code, 'CITY_MISMATCH');
+  assert.equal(r.err.message, "City doesn't match this pincode. Did you mean Rajkot?");
+  assert.deepEqual(r.err.details, { suggestion: 'Rajkot' });
+  assert.equal(created.length, 0);
+  assert.equal(cartCleared, false);
+});
+
+test('checkout: the right city (any case / small typo) goes through', async () => {
+  pincodeService.lookupPincode = async () => ({ status: 'found', state: 'Gujarat', district: 'Rajkot', places: ['Rajkot', 'Rajkot HO'] });
+  assert.equal((await attempt(badAddress({ city: 'rajkott' }))).ok, true);
+});
+
+test('checkout: when the pincode lookup is down the order is allowed', async () => {
+  pincodeService.lookupPincode = async () => ({ status: 'unknown' });
+  assert.equal((await attempt(badAddress({ city: 'Surat' }))).ok, true);
+});
+
+test('checkout: a pincode no courier delivers to is refused and NOTHING is written', async () => {
+  deliveryCheckService.checkPincode = async () => ({ status: 'no_courier' });
+  const r = await attempt(validBody());
+  assert.equal(r.ok, false);
+  assert.equal(r.err.code, 'NO_COURIER');
+  assert.equal(r.err.message, "Sorry, we don't deliver to this pincode yet.");
+  assert.equal(created.length, 0);
+  assert.equal(cartCleared, false);
+});
+
+test('checkout: a pincode without COD refuses COD but still takes a prepaid order', async () => {
+  deliveryCheckService.checkPincode = async () => ({ status: 'ok', prepaid: true, cod: false, deliveryBy: '2026-11-05' });
+  const cod = await attempt(validBody());
+  assert.equal(cod.ok, false);
+  assert.equal(cod.err.code, 'COD_NOT_AVAILABLE');
+  assert.equal(cod.err.message, "COD isn't available for this pincode.");
+  assert.equal(created.length, 0);
+
+  settingsService.getSettings = async () => ({ payments: { onlineEnabled: true, onlineTestUserIds: [] } });
+  const online = await attempt(validBody({ paymentMethod: 'Online' }));
+  assert.equal(online.ok, true);
+});
+
+test('checkout: Shiprocket down -> the order is still placed and flagged "Delivery not verified"', async () => {
+  deliveryCheckService.checkPincode = async () => ({ status: 'unverified', reason: 'shiprocket_unavailable' });
+  const r = await attempt(validBody());
+  assert.equal(r.ok, true);
+  assert.equal(created.length, 1);
+  assert.equal(created[0].deliveryNotVerified, true);
+});
+
+test('checkout: a verified pincode stores the delivery date and no "not verified" flag', async () => {
+  const r = await attempt(validBody());
+  assert.equal(r.ok, true);
+  assert.equal(created[0].deliveryNotVerified, false);
+  assert.equal(created[0].deliveryEta, '2026-11-05');
+});
+
+test('checkout: address text rules run on the server (Hindi, junk, missing landmark, too long) and nothing is written', async () => {
+  const cases = [
+    badAddress({ line1: 'मकान नंबर 12' }),
+    badAddress({ line1: 'test' }),
+    badAddress({ line1: 'aaaa' }),
+    badAddress({ landmark: '' }),
+    badAddress({ line1: 'Plot 5 Road, '.repeat(20) }),
+  ];
+  for (const body of cases) {
+    const r = await attempt(body);
+    assert.equal(r.ok, false, JSON.stringify(body.address).slice(0, 60));
+    assert.equal(r.err.name, 'ZodError');
+  }
+  assert.equal(created.length, 0);
+  assert.equal(cartCleared, false);
+});
+
+test('checkout: the customer never sees the internal status or the shipping error of their order', async () => {
+  const stored = { orderId: 'O1', userId: 'U1', status: 'Awaiting confirmation', shipmentError: { message: 'x' }, addressHistory: [{ by: 'a' }], deliveryNotVerified: true, items: [] };
+  orderOnFile = stored;
+  const res = fakeRes();
+  await orderController.getMyOrder({ params: { id: 'O1' }, user: { id: 'U1' } }, res);
+  const order = res.body.data.order;
+  assert.equal(order.status, 'Confirmed');
+  for (const field of ['shipmentError', 'addressHistory', 'deliveryNotVerified']) assert.equal(field in order, false, field);
 });

@@ -12,7 +12,7 @@ const financialAnalyticsQuerySchema = z
     from: optional(isoDate),
     to: optional(isoDate),
     paymentMethod: optional(z.enum(['COD', 'Online'])),
-    status: optional(z.enum(['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'])),
+    status: optional(z.enum(['Pending', 'Awaiting confirmation', 'Confirmed', 'Address needs fix', 'Shipping retry needed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'])),
     bucket: optional(
       z.enum(['expired', 'awaiting_payment', 'refunded', 'cancelled', 'rto', 'collected', 'cod_pending'])
     ),

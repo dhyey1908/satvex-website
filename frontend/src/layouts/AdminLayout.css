@@ -87,8 +87,9 @@
   line-height: 1;
 }
 .admin-nav-badge.is-danger { background: var(--color-error); color: var(--color-primary-contrast); }
-.admin-nav-badge.is-danger + .admin-nav-badge { margin-left: 4px; }
-.admin-sidebar nav a.active .admin-nav-badge:not(.is-danger) { background: var(--color-primary-contrast); color: var(--color-primary-dark); }
+.admin-nav-badge.is-warn { background: var(--color-warning-bg); color: var(--color-warning); }
+.admin-nav-badge.is-danger + .admin-nav-badge, .admin-nav-badge.is-warn + .admin-nav-badge { margin-left: 4px; }
+.admin-sidebar nav a.active .admin-nav-badge:not(.is-danger):not(.is-warn) { background: var(--color-primary-contrast); color: var(--color-primary-dark); }
 
 .admin-user {
   display: flex;

@@ -5,7 +5,17 @@
 export const TONES = ['amber', 'blue', 'indigo', 'green', 'red', 'grey'];
 
 const MAPS = {
-  order: { Pending: 'amber', Confirmed: 'blue', Processing: 'blue', Shipped: 'indigo', Delivered: 'green', Cancelled: 'red' },
+  order: {
+    Pending: 'amber',
+    'Awaiting confirmation': 'amber',
+    Confirmed: 'blue',
+    'Address needs fix': 'red',
+    'Shipping retry needed': 'amber',
+    Processing: 'blue',
+    Shipped: 'indigo',
+    Delivered: 'green',
+    Cancelled: 'red',
+  },
   payment: { paid: 'green', confirming: 'amber', awaiting: 'amber', dropped: 'red', failed: 'red', expired: 'red', not_required: 'grey' },
   shipment: {
     not_created: 'grey',

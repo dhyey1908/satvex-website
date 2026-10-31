@@ -82,7 +82,7 @@ export function AdminLayout() {
   const needsTwoStep =
     user?.role === 'admin' && user?.totpEnabled === false && !location.pathname.startsWith('/admin/settings/security') && Date.now() > remindUntil;
   const [syncIssueCount, setSyncIssueCount] = useState(0);
-  const [counts, setCounts] = useState({ pendingOrders: 0, openContacts: 0, unreadContacts: 0 });
+  const [counts, setCounts] = useState({ pendingOrders: 0, awaitingConfirmation: 0, addressNeedsFix: 0, openContacts: 0, unreadContacts: 0 });
 
   useEffect(() => {
     function load() {
@@ -91,7 +91,12 @@ export function AdminLayout() {
     }
     load();
     const interval = setInterval(load, POLL_MS);
-    return () => clearInterval(interval);
+    // An order was confirmed / cancelled on the Orders screen: refresh the badges now.
+    window.addEventListener('satvex-admin-counts-changed', load);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('satvex-admin-counts-changed', load);
+    };
   }, [location.pathname]);
 
   function toggleCollapsed() {
@@ -147,6 +152,16 @@ export function AdminLayout() {
                 {link.to === '/admin/orders' && syncIssueCount > 0 && (
                   <span className="admin-nav-badge is-danger" title={`${syncIssueCount} paid order(s) not yet shipped to Shiprocket`}>
                     {syncIssueCount}
+                  </span>
+                )}
+                {link.to === '/admin/orders' && counts.addressNeedsFix > 0 && (
+                  <span className="admin-nav-badge is-danger" title={`${counts.addressNeedsFix} order(s) Shiprocket refused: the address needs fixing`}>
+                    {counts.addressNeedsFix}
+                  </span>
+                )}
+                {link.to === '/admin/orders' && counts.awaitingConfirmation > 0 && (
+                  <span className="admin-nav-badge is-warn" title={`${counts.awaitingConfirmation} COD order(s) waiting for a confirmation call`}>
+                    {counts.awaitingConfirmation}
                   </span>
                 )}
                 {count > 0 && (

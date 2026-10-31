@@ -7,6 +7,9 @@
 .al-tab.is-on { color: var(--color-primary); border-bottom-color: var(--color-primary); }
 .al-tab-count { padding: 1px 8px; border-radius: var(--radius-pill); background: var(--color-surface-alt); font-size: 0.75rem; color: var(--color-text-muted); }
 .al-tab.is-on .al-tab-count { background: var(--color-primary-soft); color: var(--color-primary-dark); }
+.al-tab-count.is-warn { background: var(--color-warning-bg); color: var(--color-warning); }
+.al-tab-count.is-danger { background: var(--color-error); color: var(--color-primary-contrast); }
+.oac-empty { padding: var(--space-6) var(--space-4); text-align: center; color: var(--color-text-muted); }
 
 /* order items cell */
 .al-items { display: flex; align-items: center; gap: var(--space-2); min-width: 150px; max-width: 220px; font-size: 0.85rem; line-height: 1.3; }

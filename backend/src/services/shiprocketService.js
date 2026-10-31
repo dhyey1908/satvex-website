@@ -20,7 +20,7 @@ const SERVICEABILITY_BASE_URL = env.shiprocket.serviceabilityBaseUrl;
 // and reactively on any 401.
 let cachedToken = null;
 let cachedTokenExpiresAt = 0; // epoch ms
-const TOKEN_LIFETIME_MS = 230 * 60 * 60 * 1000; // 230h — under the 240h limit with margin
+const TOKEN_LIFETIME_MS = 24 * 60 * 60 * 1000; // refreshed daily (Shiprocket's own limit is 240h); a 401 also forces a fresh login
 
 async function login() {
   if (!env.shiprocket.email || !env.shiprocket.password) {
@@ -48,8 +48,11 @@ async function getToken() {
 
 async function shiprocketFetch(baseUrl, path, options = {}, { retryOn401 = true } = {}) {
   const token = await getToken();
+  const { timeoutMs, ...fetchOptions } = options;
   const res = await fetch(`${baseUrl}${path}`, {
-    ...options,
+    ...fetchOptions,
+    // A caller on the customer's checkout path sets a deadline so a slow Shiprocket can never hang the page.
+    ...(timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
@@ -67,7 +70,12 @@ async function shiprocketFetch(baseUrl, path, options = {}, { retryOn401 = true 
   const data = await res.json().catch(() => null);
   if (!res.ok) {
     const message = data?.message || 'Shiprocket request failed.';
-    throw new AppError(message, 502, 'SHIPROCKET_ERROR');
+    const error = new AppError(message, 502, 'SHIPROCKET_ERROR');
+    // Kept on the error (not in `details`, which reaches the browser) so callers can tell "Shiprocket refused this
+    // order's data" (400/422) from "Shiprocket is down / not logged in", and show Shiprocket's exact words.
+    error.upstreamStatus = res.status;
+    error.upstreamBody = data;
+    throw error;
   }
   return data;
 }
@@ -78,18 +86,18 @@ async function shiprocketFetch(baseUrl, path, options = {}, { retryOn401 = true 
 // possible rating field — none of these are confirmed anywhere in
 // available docs, see shiprocket_integration_notes.md's Open Questions).
 // Nothing in this response is a secret (no token/credentials in it).
-async function getServiceabilityRaw({ pickupPostcode, deliveryPostcode, weightKg, cod }) {
+async function getServiceabilityRaw({ pickupPostcode, deliveryPostcode, weightKg, cod, timeoutMs }) {
   const params = new URLSearchParams({
     pickup_postcode: pickupPostcode,
     delivery_postcode: deliveryPostcode,
     weight: String(weightKg),
     cod: cod ? '1' : '0',
   });
-  return shiprocketFetch(SERVICEABILITY_BASE_URL, `/courier/ratingserviceability?${params}`, { method: 'GET' });
+  return shiprocketFetch(SERVICEABILITY_BASE_URL, `/courier/ratingserviceability?${params}`, { method: 'GET', ...(timeoutMs ? { timeoutMs } : {}) });
 }
 
-async function getServiceability({ pickupPostcode, deliveryPostcode, weightKg, cod }) {
-  const data = await getServiceabilityRaw({ pickupPostcode, deliveryPostcode, weightKg, cod });
+async function getServiceability({ pickupPostcode, deliveryPostcode, weightKg, cod, timeoutMs }) {
+  const data = await getServiceabilityRaw({ pickupPostcode, deliveryPostcode, weightKg, cod, timeoutMs });
   return data?.data?.available_courier_companies || [];
 }
 
@@ -144,7 +152,11 @@ async function createOrder({
   };
   const data = await shiprocketFetch(BASE_URL, '/v1/external/orders/create/adhoc', { method: 'POST', body: JSON.stringify(body) });
   if (!data?.order_id) {
-    throw new AppError(data?.message || 'Shiprocket did not return an order id.', 502, 'SHIPROCKET_ORDER_CREATE_FAILED');
+    const error = new AppError(data?.message || 'Shiprocket did not return an order id.', 502, 'SHIPROCKET_ORDER_CREATE_FAILED');
+    // Shiprocket sometimes reports a refused order inside a 200 reply (status_code 400/422).
+    error.upstreamStatus = Number(data?.status_code) || null;
+    error.upstreamBody = data;
+    throw error;
   }
   // TODO(confirm): shipment_id's exact field name/location in this response —
   // the MCP server reference never reads it out of this call. Passing the
@@ -184,8 +196,22 @@ async function findOrderByChannelOrderId(orderId) {
   }
 }
 
-async function assignAwb({ shiprocketOrderId, courierId }) {
-  const body = { oid: shiprocketOrderId, ...(courierId ? { courier_id: courierId } : {}) };
+// Shiprocket's shipment id for one of its orders. createOrder's reply carries it and we store it, but orders booked
+// before that was stored (or found by findOrderByChannelOrderId) only have the order id, so ask Shiprocket for it.
+async function getShipmentIdForOrder(shiprocketOrderId) {
+  const data = await shiprocketFetch(BASE_URL, `/v1/external/orders/show/${encodeURIComponent(shiprocketOrderId)}`, { method: 'GET' });
+  const shipments = data?.data?.shipments;
+  const first = Array.isArray(shipments) ? shipments[0] : shipments;
+  const id = first?.id ?? first?.shipment_id ?? data?.data?.shipment_id;
+  if (!id) throw new AppError('Shiprocket did not say which shipment belongs to this order.', 502, 'SHIPROCKET_SHIPMENT_NOT_FOUND');
+  return id;
+}
+
+// Shiprocket's assign-AWB call is keyed by the SHIPMENT id (it has no `oid`: sending the order id as `oid` is refused
+// with 422 "The order id / shipment id field is required").
+async function assignAwb({ shiprocketOrderId, shipmentId, courierId }) {
+  const shipment = shipmentId || (await getShipmentIdForOrder(shiprocketOrderId));
+  const body = { shipment_id: shipment, ...(courierId ? { courier_id: courierId } : {}) };
   const data = await shiprocketFetch(BASE_URL, '/v1/external/courier/assign/awb', { method: 'POST', body: JSON.stringify(body) });
   // Confirmed nesting from real code: response.data.{courier_name,awb_code}
   const awb = data?.response?.data;
@@ -195,10 +221,11 @@ async function assignAwb({ shiprocketOrderId, courierId }) {
   return { awbCode: awb.awb_code, courierName: awb.courier_name, shipmentId: awb.shipment_id };
 }
 
-async function schedulePickup({ shiprocketOrderId, pickupDate }) {
+async function schedulePickup({ shiprocketOrderId, shipmentId, pickupDate }) {
+  const shipment = shipmentId || (await getShipmentIdForOrder(shiprocketOrderId));
   return shiprocketFetch(BASE_URL, '/v1/external/courier/generate/pickup', {
     method: 'POST',
-    body: JSON.stringify({ oid: shiprocketOrderId, pickup_date: [pickupDate] }),
+    body: JSON.stringify({ shipment_id: [shipment], pickup_date: [pickupDate] }),
   });
 }
 
@@ -280,6 +307,7 @@ module.exports = {
   createOrder,
   findOrderByChannelOrderId,
   assignAwb,
+  getShipmentIdForOrder,
   schedulePickup,
   generateLabel,
   cancelOrder,

@@ -10,9 +10,13 @@ import { OrderSummary } from '../../components/OrderSummary';
 import { LinkShipmentModal } from '../../components/LinkShipmentModal';
 import { effectivePaymentStatus } from '../../utils/paymentStatus';
 import { formatDateTime } from '../../utils/date';
+import { formatShortDateTime } from '../../utils/dateRange';
 import './Admin.css';
 
-const STATUSES = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+// The three in the middle are set by the system (and by the Orders screen's Confirm / Retry buttons); they are listed
+// so an order that is in one of them shows its status, but they cannot be chosen here.
+const SYSTEM_STATUSES = ['Awaiting confirmation', 'Address needs fix', 'Shipping retry needed'];
+const STATUSES = ['Pending', 'Awaiting confirmation', 'Confirmed', 'Address needs fix', 'Shipping retry needed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 
 // Admin's own, more detailed labels for the same underlying classification
 // the customer-facing pages use (utils/paymentStatus.js's
@@ -132,7 +136,7 @@ export function AdminOrderDetail() {
         <h1>Order #{order.orderId.slice(0, 8)}</h1>
         <select value={order.status} disabled={updating} onChange={(e) => handleStatusChange(e.target.value)}>
           {STATUSES.map((s) => (
-            <option key={s} value={s}>
+            <option key={s} value={s} disabled={SYSTEM_STATUSES.includes(s) && s !== order.status}>
               {s}
             </option>
           ))}
@@ -323,6 +327,27 @@ export function AdminOrderDetail() {
           {order.address?.city}, {order.address?.state} {order.address?.pincode}
         </p>
         <p>{order.address?.country}</p>
+        {order.address?.landmark && <p>Landmark: {order.address.landmark}</p>}
+        {order.deliveryNotVerified && <p className="field-hint">Delivery not verified: Shiprocket could not be asked about this pincode when the order was placed.</p>}
+        {order.shipmentError && (
+          <p className="field-error">
+            {order.shipmentError.plain} <em>(Shiprocket said: {order.shipmentError.message})</em>
+          </p>
+        )}
+        {(order.addressHistory || []).length > 0 && (
+          <details>
+            <summary>Address changes ({order.addressHistory.length})</summary>
+            <ol>
+              {order.addressHistory.map((h, i) => (
+                <li key={i}>
+                  {formatShortDateTime(h.at)} · {h.by || 'admin'}: <s>{[h.from?.line1, h.from?.landmark, h.from?.city, h.from?.pincode].filter(Boolean).join(', ')}</s> →{' '}
+                  {[h.to?.line1, h.to?.landmark, h.to?.city, h.to?.pincode].filter(Boolean).join(', ')}
+                </li>
+              ))}
+            </ol>
+          </details>
+        )}
+        {order.cancelReason && <p>Cancelled: {order.cancelReason}{order.cancelNote ? ` (${order.cancelNote})` : ''}</p>}
       </div>
     </div>
   );

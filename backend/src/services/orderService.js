@@ -11,7 +11,16 @@ const USER_INDEX = 'userId-createdAt-index';
 const PAYMENT_EXPIRY_INDEX = 'paymentStatus-paymentExpiresAt-index';
 const SHIPROCKET_ORDER_INDEX = 'shiprocketOrderId-index';
 
-const ORDER_STATUSES = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+// The last three are set by the system, never picked by hand:
+//   Awaiting confirmation  a COD order nobody has phoned yet (it is NOT sent to Shiprocket until an admin confirms)
+//   Address needs fix      Shiprocket refused the order's data (400/422): edit the address, then retry
+//   Shipping retry needed  Shiprocket was unreachable: retried automatically a few times
+const AWAITING_CONFIRMATION = 'Awaiting confirmation';
+const ADDRESS_NEEDS_FIX = 'Address needs fix';
+const SHIPPING_RETRY_NEEDED = 'Shipping retry needed';
+const ORDER_STATUSES = ['Pending', AWAITING_CONFIRMATION, 'Confirmed', ADDRESS_NEEDS_FIX, SHIPPING_RETRY_NEEDED, 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+// Statuses where a shipment has been asked for but is not (fully) booked yet.
+const SHIPMENT_PROBLEM_STATUSES = [ADDRESS_NEEDS_FIX, SHIPPING_RETRY_NEEDED];
 
 // Orders placed before payment tracking existed have no `paymentStatus` at
 // all. Applied on every read path so the rule lives in exactly one place:
@@ -56,6 +65,8 @@ async function createOrder({
   paymentStatus,
   paymentExpiresAt,
   paymentAttempts,
+  deliveryNotVerified,
+  deliveryEta,
 }) {
   const now = new Date().toISOString();
   const order = {
@@ -87,11 +98,14 @@ async function createOrder({
     codCharge: codCharge || 0,
     prepaidDiscount: prepaidDiscount || 0,
     total,
-    // COD has no payment gate to wait for, so it auto-confirms on
-    // placement rather than sitting at Pending for no reason. Online stays
-    // Pending until payment actually succeeds — see markPaid below, which
-    // bumps it to Confirmed automatically once paymentStatus flips to paid.
-    status: (paymentMethod || 'COD') === 'COD' ? 'Confirmed' : 'Pending',
+    // COD waits for a phone call before anything is shipped ("Awaiting confirmation"; an admin confirms it from the
+    // Orders screen, which is what sends it to Shiprocket). Online stays Pending until payment actually succeeds -
+    // see markPaid below, which bumps it to Confirmed automatically once paymentStatus flips to paid.
+    status: (paymentMethod || 'COD') === 'COD' ? AWAITING_CONFIRMATION : 'Pending',
+    // Shiprocket could not be asked whether this pincode is serviceable when the order was placed: the order was
+    // allowed through and is flagged so the admin checks it by hand.
+    ...(deliveryNotVerified ? { deliveryNotVerified: true } : {}),
+    ...(deliveryEta ? { deliveryEta } : {}),
     // COD: not_required. Online: awaiting_payment, with a 24h deadline that
     // also drives the expiry sweep's GSI query below.
     paymentStatus: paymentStatus || 'not_required',
@@ -220,6 +234,104 @@ async function updateStatus(orderId, status) {
       UpdateExpression: 'SET #status = :status, updatedAt = :now',
       ExpressionAttributeNames: { '#status': 'status' },
       ExpressionAttributeValues: { ':status': status, ':now': new Date().toISOString() },
+    })
+  );
+}
+
+// The order's shipment could not be booked. Parks it in Address needs fix / Shipping retry needed and keeps the
+// exact reason (utils/shiprocketErrors.describeShipmentError). Only moves orders that are still waiting to ship -
+// never one that is already Shipped, Delivered or Cancelled.
+async function recordShipmentProblem(orderId, status, shipmentError) {
+  try {
+    await docClient.send(
+      new UpdateCommand({
+        TableName: TABLE,
+        Key: { orderId },
+        UpdateExpression: 'SET #status = :status, shipmentError = :err, updatedAt = :now',
+        ConditionExpression: '#status IN (:s0, :s1, :s2, :s3, :s4)',
+        ExpressionAttributeNames: { '#status': 'status' },
+        ExpressionAttributeValues: {
+          ':status': status,
+          ':err': shipmentError,
+          ':now': new Date().toISOString(),
+          ':s0': 'Pending',
+          ':s1': AWAITING_CONFIRMATION,
+          ':s2': 'Confirmed',
+          ':s3': ADDRESS_NEEDS_FIX,
+          ':s4': SHIPPING_RETRY_NEEDED,
+        },
+      })
+    );
+  } catch (err) {
+    if (err.name !== 'ConditionalCheckFailedException') throw err;
+  }
+}
+
+// The shipment is booked: the order is Confirmed (a prepaid one carries on to Processing, as it always did) and
+// any earlier shipment error is cleared.
+async function recordShipmentBooked(orderId, { prepaid }) {
+  try {
+    await docClient.send(
+      new UpdateCommand({
+        TableName: TABLE,
+        Key: { orderId },
+        UpdateExpression: 'SET #status = :confirmed, updatedAt = :now REMOVE shipmentError',
+        ConditionExpression: '#status IN (:s0, :s1, :s2)',
+        ExpressionAttributeNames: { '#status': 'status' },
+        ExpressionAttributeValues: {
+          ':confirmed': 'Confirmed',
+          ':now': new Date().toISOString(),
+          ':s0': AWAITING_CONFIRMATION,
+          ':s1': ADDRESS_NEEDS_FIX,
+          ':s2': SHIPPING_RETRY_NEEDED,
+        },
+      })
+    );
+  } catch (err) {
+    if (err.name !== 'ConditionalCheckFailedException') throw err;
+  }
+  if (prepaid) await advanceStatusIfEligible(orderId, 'Processing', ['Confirmed']);
+}
+
+// Admin edited the delivery address. The old and new address are kept on the order (who, when) so nothing is lost.
+// Only while the order has not left: not Shipped / Delivered / Cancelled.
+async function updateAddress(orderId, address, by, { deliveryNotVerified = false, deliveryEta = null } = {}) {
+  const now = new Date().toISOString();
+  const order = await findById(orderId);
+  const entry = { at: now, by: by?.name || by?.id || 'admin', byId: by?.id || null, from: order.address, to: address };
+  await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE,
+      Key: { orderId },
+      // The delivery flags are re-decided for the new address (it may now be verified, or not).
+      UpdateExpression:
+        'SET address = :address, addressHistory = list_append(if_not_exists(addressHistory, :empty), :entry), deliveryNotVerified = :nv, deliveryEta = :eta, updatedAt = :now',
+      ConditionExpression: 'attribute_exists(orderId) AND NOT (#status IN (:shipped, :delivered, :cancelled))',
+      ExpressionAttributeNames: { '#status': 'status' },
+      ExpressionAttributeValues: {
+        ':address': address,
+        ':empty': [],
+        ':entry': [entry],
+        ':nv': Boolean(deliveryNotVerified),
+        ':eta': deliveryEta || null,
+        ':now': now,
+        ':shipped': 'Shipped',
+        ':delivered': 'Delivered',
+        ':cancelled': 'Cancelled',
+      },
+    })
+  );
+  return entry;
+}
+
+// Why an admin cancelled (the reason chosen in the cancel dialog).
+async function recordCancelReason(orderId, { reason, note, by }) {
+  await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE,
+      Key: { orderId },
+      UpdateExpression: 'SET cancelReason = :reason, cancelNote = :note, cancelledBy = :by, cancelledAt = :now, updatedAt = :now',
+      ExpressionAttributeValues: { ':reason': reason, ':note': note || null, ':by': by || 'admin', ':now': new Date().toISOString() },
     })
   );
 }
@@ -589,16 +701,22 @@ async function markShipmentCancelled(orderId) {
   );
 }
 
-async function recordShiprocketOrderCreated(orderId, { shiprocketOrderId }) {
+async function recordShiprocketOrderCreated(orderId, { shiprocketOrderId, shiprocketShipmentId }) {
   await docClient.send(
     new UpdateCommand({
       TableName: TABLE,
       Key: { orderId },
-      UpdateExpression: 'SET shiprocketOrderId = :srId, shipmentStatus = :status, updatedAt = :now',
+      // The shipment id is what Shiprocket's AWB / pickup / label calls are keyed by.
+      UpdateExpression: `SET shiprocketOrderId = :srId, shipmentStatus = :status, updatedAt = :now${shiprocketShipmentId ? ', shiprocketShipmentId = :shipId' : ''}`,
       // Always stored as a string — Shiprocket's own response type for this
       // field is unconfirmed (see shiprocket_integration_notes.md), and a
       // GSI attribute's type must stay consistent across every item.
-      ExpressionAttributeValues: { ':srId': String(shiprocketOrderId), ':status': 'order_created', ':now': new Date().toISOString() },
+      ExpressionAttributeValues: {
+        ':srId': String(shiprocketOrderId),
+        ':status': 'order_created',
+        ':now': new Date().toISOString(),
+        ...(shiprocketShipmentId ? { ':shipId': String(shiprocketShipmentId) } : {}),
+      },
     })
   );
 }
@@ -863,6 +981,14 @@ async function recordShipmentTracking(orderId, { shipmentStatus, courierName, cu
 
 module.exports = {
   ORDER_STATUSES,
+  AWAITING_CONFIRMATION,
+  ADDRESS_NEEDS_FIX,
+  SHIPPING_RETRY_NEEDED,
+  SHIPMENT_PROBLEM_STATUSES,
+  recordShipmentProblem,
+  recordShipmentBooked,
+  updateAddress,
+  recordCancelReason,
   createOrder,
   findById,
   listForUser,

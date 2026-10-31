@@ -20,7 +20,7 @@ const {
 const { classifyOrder } = require('./financialAnalyticsService');
 const { statusConflicts } = require('../utils/orderConsistency');
 
-const ORDER_STATUSES = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+const { ORDER_STATUSES } = require('./orderService');
 const SHIPMENT_STATUSES = [
   'not_created',
   'order_created',

@@ -63,6 +63,8 @@ function stubEverything() {
   orderService.recordPickupScheduled = async (orderId) => {
     fakeOrders[orderId] = { ...fakeOrders[orderId], shipmentStatus: 'pickup_scheduled' };
   };
+  orderService.recordShipmentBooked = async () => {};
+  orderService.recordShipmentProblem = async () => {};
   orderService.recordLabelGenerated = async (orderId, { labelUrl }) => {
     fakeOrders[orderId] = { ...fakeOrders[orderId], labelUrl, shipmentStatus: 'label_generated' };
   };

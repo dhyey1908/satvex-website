@@ -10,8 +10,10 @@ const STATUS_INDEX = 'status-nextAttemptAt-index';
 // jobId === orderId (natural 1:1 key) — a conditional PutCommand makes
 // createJob idempotent, so a duplicate webhook or a retried immediate
 // attempt can never enqueue two jobs for the same order.
-const MAX_ATTEMPTS = 6;
-const BACKOFF_MINUTES = [5, 10, 15, 15, 15, 15];
+// Shiprocket being unreachable is retried automatically 3 times over about 30 minutes (the sweep runs every 10
+// minutes, so each wait is 10); after that the order stays "Shipping retry needed" for an admin to retry by hand.
+const MAX_ATTEMPTS = 3;
+const BACKOFF_MINUTES = [10, 10, 10];
 
 async function createJob(orderId, initialError) {
   const now = new Date().toISOString();

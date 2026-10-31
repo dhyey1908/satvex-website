@@ -26,7 +26,7 @@ async function lookupState(pincode) {
 
 // What we know about a pincode, for checking a typed address. Unlike lookupState (which throws when the lookup
 // API is down) this never throws:
-//   { status: 'found', state, district }  the pincode exists
+//   { status: 'found', state, district, places }  the pincode exists (places: every district/block/division/post-office name)
 //   { status: 'not_found' }               the lookup says there is NO such pincode (an explicit "No records found")
 //   { status: 'unknown' }                 the lookup failed or answered oddly: never a reason to refuse an order
 // Answers are remembered for a few hours so checkout does not call the free lookup API on every order.
@@ -40,12 +40,16 @@ async function lookupPincode(pincode) {
 
   let result = { status: 'unknown' };
   try {
-    const res = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
+    // A slow lookup must never hold up (or fail) an order: after 4s it counts as "unknown".
+    const res = await fetch(`https://api.postalpincode.in/pincode/${pincode}`, { signal: AbortSignal.timeout(4000) });
     const data = await res.json();
     const entry = data?.[0];
     const office = entry?.PostOffice?.[0];
-    if (entry?.Status === 'Success' && office?.State) result = { status: 'found', state: office.State, district: office.District || '' };
-    else if (/no records/i.test(String(entry?.Message || ''))) result = { status: 'not_found' };
+    if (entry?.Status === 'Success' && office?.State) {
+      // Every place name this pincode goes by (district, block, division, post office): the typed city may be any of them.
+      const places = [...new Set((entry.PostOffice || []).flatMap((o) => [o.District, o.Block, o.Division, o.Name]).map((n) => String(n || '').trim()).filter((n) => n && n.toUpperCase() !== 'NA'))];
+      result = { status: 'found', state: office.State, district: office.District || '', places };
+    } else if (/no records/i.test(String(entry?.Message || ''))) result = { status: 'not_found' };
   } catch {
     return { status: 'unknown' }; // not cached: try again next time
   }

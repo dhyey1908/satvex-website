@@ -12,6 +12,13 @@ export function deliveryDays(shipping) {
   };
 }
 
+// "Thu, 5 Nov" for a YYYY-MM-DD delivery date the server worked out for a pincode.
+export function formatDeliveryDate(isoDate) {
+  const d = new Date(`${isoDate}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+
 export function estimateWindow(shipping, now = new Date()) {
   const { dispatchDays, transitDays } = deliveryDays(shipping);
   const fmt = (d) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });

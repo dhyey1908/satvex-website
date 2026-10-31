@@ -25,7 +25,7 @@ import './AdminAnalytics.css';
 
 const PAGE_SIZE = 20;
 
-const STATUSES = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+const STATUSES = ['Pending', 'Awaiting confirmation', 'Confirmed', 'Address needs fix', 'Shipping retry needed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 
 const BUCKET_LABELS = {
   collected: 'Collected',

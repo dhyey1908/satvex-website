@@ -1,0 +1,50 @@
+/* An order that needs a person: waiting for its confirmation call, or its shipment could not be booked. */
+.oac-list { display: grid; gap: var(--space-3); }
+.oac {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.oac.is-fix { border-color: var(--color-error); }
+.oac-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.oac-time { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 0.82rem; color: var(--color-text-muted); }
+.oac-body { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--space-4); }
+.oac-block h4 { margin: 0 0 var(--space-1); font-size: 1rem; }
+.oac-block p { margin: 0 0 var(--space-2); }
+.oac-phone { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-variant-numeric: tabular-nums; }
+.oac-address { display: flex; gap: 6px; align-items: flex-start; overflow-wrap: anywhere; }
+.oac-address svg { flex-shrink: 0; margin-top: 3px; color: var(--color-text-muted); }
+.oac-items { color: var(--color-text-muted); overflow-wrap: anywhere; }
+.oac-total span { color: var(--color-text-muted); font-size: 0.9rem; }
+.oac-error {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+.oac-error.is-rejected { background: var(--color-error-bg); color: var(--color-error); }
+.oac-error svg { flex-shrink: 0; margin-top: 2px; }
+.oac-error p { margin: 0 0 var(--space-1); }
+.oac-error-exact { font-size: 0.82rem; overflow-wrap: anywhere; }
+.oac-error-exact code { display: block; margin-top: 4px; font-size: 0.78rem; white-space: pre-wrap; }
+.oac-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.oac-actions .btn { display: inline-flex; align-items: center; gap: 6px; }
+.oac-cancel { margin-left: auto; color: var(--color-error); }
+.oac-history summary { cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 0.88rem; color: var(--color-text-muted); }
+.oac-history ol { margin: var(--space-2) 0 0; padding-left: var(--space-4); display: grid; gap: var(--space-2); font-size: 0.88rem; }
+.oac-history p { margin: 0; overflow-wrap: anywhere; }
+.oac-history-meta { color: var(--color-text-muted); font-size: 0.8rem; }
+.oac-reasons { border: 0; padding: 0; margin: 0 0 var(--space-3); display: grid; gap: var(--space-2); }
+.oac-reasons legend { font-weight: 600; margin-bottom: var(--space-2); }
+
+@media (max-width: 720px) {
+  .oac-body { grid-template-columns: minmax(0, 1fr); }
+  .oac-time { margin-left: 0; }
+  .oac-cancel { margin-left: 0; }
+}

@@ -406,6 +406,18 @@ p a:hover,
   color: var(--color-text-muted);
   margin-top: var(--space-1);
 }
+/* "172 / 190": how much of the delivery address is used (shown once it is nearly full). */
+.address-counter {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.address-counter.is-over {
+  color: var(--color-error);
+  font-weight: 600;
+}
+.address-city-suggestion {
+  margin-top: var(--space-2);
+}
 
 .password-strength {
   display: flex;

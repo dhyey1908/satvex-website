@@ -56,7 +56,15 @@ const clientErrorLimiter = makeLimiter({
   message: 'Too many reports.',
 });
 
+// The public "can you deliver to my pincode?" check (it can reach Shiprocket on a cache miss).
+const deliveryCheckLimiter = makeLimiter({
+  windowMs: 60 * 1000,
+  max: 40,
+  message: 'Too many pincode checks. Please wait a moment.',
+});
+
 module.exports = {
+  deliveryCheckLimiter,
   clientErrorLimiter,
   authLimiter,
   passwordResetLimiter,

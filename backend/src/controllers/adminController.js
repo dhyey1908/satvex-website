@@ -44,6 +44,10 @@ async function sidebarCounts(req, res) {
   const [orders, contacts] = await Promise.all([orderService.listAll(), contactService.listContacts()]);
   ok(res, {
     pendingOrders: orders.filter((o) => o.status === 'Pending' && !(o.paymentMethod === 'Online' && o.paymentStatus !== 'paid')).length,
+    // COD orders waiting for the confirmation call (the badge on Orders in the sidebar).
+    awaitingConfirmation: orders.filter((o) => o.status === 'Awaiting confirmation').length,
+    // Orders Shiprocket refused: they cannot ship until the address is fixed (red badge).
+    addressNeedsFix: orders.filter((o) => o.status === 'Address needs fix').length,
     openContacts: contacts.filter((c) => (c.status || 'open') !== 'resolved').length,
     unreadContacts: contacts.filter((c) => !c.readAt && (c.status || 'open') !== 'resolved').length,
   });

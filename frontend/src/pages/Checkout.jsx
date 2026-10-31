@@ -31,6 +31,8 @@ import { Modal } from '../components/Modal';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import { required, minLength, phone as validatePhone, pincode as validatePincode, hasErrors } from '../utils/validators';
 import { mapServerFieldErrors } from '../utils/formErrors';
+import { deliveryService } from '../services/deliveryService';
+import { formatDeliveryDate } from '../utils/deliveryEstimate';
 import { isPhoneVerifiedFor } from '../utils/phoneVerification';
 import './Checkout.css';
 
@@ -38,6 +40,7 @@ const CHECKOUT_SERVER_FIELD_MAP = {
   'customer.name': 'fullName',
   'customer.phone': 'phone',
   'address.line1': 'houseFlat',
+  'address.landmark': 'landmark',
   'address.city': 'city',
   'address.state': 'state',
   'address.pincode': 'pincode',
@@ -94,6 +97,10 @@ export function Checkout() {
   const [paymentMethod, setPaymentMethod] = useState('COD');
   const [quote, setQuote] = useState(null);
   const [quoteError, setQuoteError] = useState(null);
+  // What the server says about delivering to the typed / selected pincode: { deliverable, cod, deliveryBy } (null: unknown).
+  const [deliveryInfo, setDeliveryInfo] = useState(null);
+  // The district the server suggested when the typed city did not match the pincode ("Did you mean ...?").
+  const [citySuggestion, setCitySuggestion] = useState(null);
   // Which inputs (coupon, payment method, pincode) the current `quote` was
   // computed for. A quote only counts as the customer's total when this matches
   // the CURRENT inputs - otherwise it is stale (the old payment method's price)
@@ -124,7 +131,7 @@ export function Checkout() {
   // houseFlat/areaStreet even though it renders before them) — so when
   // several fields are invalid at once, this lands on whichever one the
   // customer would actually reach first scrolling down the card.
-  const ADDRESS_FIELD_ORDER = ['fullName', 'phone', 'pincode', 'houseFlat', 'areaStreet', 'city', 'state', 'country'];
+  const ADDRESS_FIELD_ORDER = ['fullName', 'phone', 'pincode', 'houseFlat', 'areaStreet', 'landmark', 'city', 'state', 'country'];
 
   // window.scrollTo({top: 0}) looked like it "did nothing" because the
   // fixed header (--header-height) sits on top of whatever lands at y=0,
@@ -259,6 +266,31 @@ export function Checkout() {
 
   const currentQuoteKey = JSON.stringify([appliedCoupon?.code || '', paymentMethod, deliveryPincode || '', directSession || '']);
 
+  // Ask the server whether a courier delivers to this pincode, by when, and whether COD is possible there. Purely so
+  // the customer is told early: the order itself is checked again, on the server, when it is placed.
+  useEffect(() => {
+    if (!deliveryPincode) {
+      setDeliveryInfo(null);
+      return undefined;
+    }
+    let cancelled = false;
+    deliveryService
+      .check(deliveryPincode)
+      .then((info) => {
+        if (!cancelled) setDeliveryInfo({ deliverable: info.deliverable, cod: info.cod, deliveryBy: info.deliveryBy });
+      })
+      .catch(() => !cancelled && setDeliveryInfo(null)); // unknown: never blocks the customer
+    return () => {
+      cancelled = true;
+    };
+  }, [deliveryPincode]);
+
+  // COD is not possible for this pincode: move to online payment when it is available.
+  const codUnavailable = deliveryInfo?.cod === false;
+  useEffect(() => {
+    if (codUnavailable && paymentMethod === 'COD' && settings?.paymentsOnlineAvailable) setPaymentMethod('Online');
+  }, [codUnavailable, paymentMethod, settings?.paymentsOnlineAvailable]);
+
   useEffect(() => {
     let cancelled = false;
     orderService
@@ -309,6 +341,7 @@ export function Checkout() {
   }, [appliedCoupon, paymentMethod, deliveryPincode, quoteRefreshToken, directSession]);
 
   function setField(key, value) {
+    if (key === 'city') setCitySuggestion(null);
     setForm((prev) => ({ ...prev, [key]: value }));
     if (fieldErrors[key]) setFieldErrors((prev) => ({ ...prev, [key]: '' }));
   }
@@ -319,7 +352,7 @@ export function Checkout() {
 
   function validate(addressRequired) {
     if (!addressRequired) return {};
-    return validateAddressForm(form, { required, minLength, phone: validatePhone, pincode: validatePincode });
+    return validateAddressForm(form, { required, minLength, phone: validatePhone, pincode: validatePincode }, { checkoutRules: true });
   }
 
   useEffect(() => {
@@ -433,11 +466,24 @@ export function Checkout() {
     setFieldErrors(errors);
     setTouched(
       addressRequired
-        ? { fullName: true, phone: true, houseFlat: true, areaStreet: true, city: true, state: true, pincode: true, country: true }
+        ? { fullName: true, phone: true, houseFlat: true, areaStreet: true, landmark: true, city: true, state: true, pincode: true, country: true }
         : {}
     );
     if (hasErrors(errors)) {
+      // A saved address that does not meet today's rules (e.g. it has no landmark): open it for editing so the
+      // problem is visible - the saved-address card has no fields to show it on.
+      if (!showNewAddressForm) setShowNewAddressForm(true);
       scrollToFirstError(errors);
+      return;
+    }
+    // Already known from the pincode check: the server refuses these too, this just says so before the request.
+    if (deliveryInfo?.deliverable === false) {
+      showToast("Sorry, we don't deliver to this pincode yet.", 'error');
+      scrollToElement(document.getElementById('address-pincode'));
+      return;
+    }
+    if (method === 'COD' && deliveryInfo?.cod === false) {
+      showToast("COD isn't available for this pincode.", 'error');
       return;
     }
     // Already know this pincode/address isn't deliverable (set by the quote
@@ -566,6 +612,29 @@ export function Checkout() {
         setShowNewAddressForm(true);
         showToast(err.message, 'error');
         scrollToElement(document.getElementById('address-state'));
+        return;
+      }
+      if (err.code === 'CITY_MISMATCH') {
+        // "City doesn't match this pincode. Did you mean Rajkot?" - on the city field, with a one-tap fix.
+        setFieldErrors((prev) => ({ ...prev, city: err.message }));
+        setTouched((prev) => ({ ...prev, city: true }));
+        setCitySuggestion(err.details?.suggestion || null);
+        setShowNewAddressForm(true);
+        showToast(err.message, 'error');
+        scrollToElement(document.getElementById('address-city'));
+        return;
+      }
+      if (err.code === 'NO_COURIER') {
+        setDeliveryInfo({ deliverable: false });
+        setFieldErrors((prev) => ({ ...prev, pincode: err.message }));
+        setTouched((prev) => ({ ...prev, pincode: true }));
+        showToast(err.message, 'error');
+        scrollToElement(document.getElementById('address-pincode'));
+        return;
+      }
+      if (err.code === 'COD_NOT_AVAILABLE') {
+        setDeliveryInfo((prev) => ({ ...(prev || {}), deliverable: true, cod: false }));
+        showToast(err.message, 'error');
         return;
       }
       if (err.code === 'PINCODE_NOT_FOUND') {
@@ -867,6 +936,12 @@ export function Checkout() {
                   markTouched={markTouched}
                   fieldErrors={fieldErrors}
                   pincodeLookupState={pincodeLookupState}
+                  checkoutRules
+                  citySuggestion={citySuggestion}
+                  onUseCitySuggestion={() => {
+                    setField('city', citySuggestion);
+                    setFieldErrors((prev) => ({ ...prev, city: '' }));
+                  }}
                 />
                 <label className="checkbox-field">
                   <input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} />
@@ -887,6 +962,9 @@ export function Checkout() {
           </div>
 
           {quoteError && <p className="field-error checkout-delivery-error">{quoteError}</p>}
+          {deliveryInfo?.deliverable === false && !quoteError && (
+            <p className="field-error checkout-delivery-error" role="alert">Sorry, we don&apos;t deliver to this pincode yet.</p>
+          )}
 
           {otpNeeded && (
           <div className="checkout-section card" ref={phoneCardRef}>
@@ -910,7 +988,12 @@ export function Checkout() {
             <h3 className="checkout-section-title">Delivery Method</h3>
             <div className="checkout-info-row">
               <Truck size={20} aria-hidden="true" />
-              <p>Standard Delivery, dispatched within 1-2 business days</p>
+              <p>
+                Standard Delivery, dispatched within 1-2 business days
+                {deliveryInfo?.deliveryBy && formatDeliveryDate(deliveryInfo.deliveryBy) && (
+                  <strong className="checkout-delivery-by"> · Delivery by {formatDeliveryDate(deliveryInfo.deliveryBy)}</strong>
+                )}
+              </p>
               <span className="checkout-info-row-price">
                 {quote && quote.shippingEnabled && quote.shipping > 0 ? `₹${quote.shipping.toFixed(2)}` : 'FREE'}
               </span>
@@ -929,12 +1012,13 @@ export function Checkout() {
           <div className="checkout-section card">
             <h3 className="checkout-section-title">Payment Method</h3>
             <div className="payment-method-options">
-              <label className={`payment-method-option ${paymentMethod === 'COD' ? 'selected' : ''}`}>
+              <label className={`payment-method-option ${paymentMethod === 'COD' ? 'selected' : ''} ${codUnavailable ? 'is-disabled' : ''}`}>
                 <input
                   type="radio"
                   name="paymentMethod"
                   value="COD"
                   checked={paymentMethod === 'COD'}
+                  disabled={codUnavailable}
                   onChange={() => setPaymentMethod('COD')}
                 />
                 <Banknote size={18} aria-hidden="true" />
@@ -943,7 +1027,7 @@ export function Checkout() {
                     Cash on Delivery
                     {codFee > 0 && <span className="payment-fee-tag">+₹{codFee.toFixed(2)} COD fee</span>}
                   </p>
-                  <p className="payment-method-meta">Pay on delivery</p>
+                  <p className="payment-method-meta">{codUnavailable ? "COD isn't available for this pincode." : 'Pay on delivery'}</p>
                 </div>
               </label>
               {settings?.paymentsOnlineAvailable && (

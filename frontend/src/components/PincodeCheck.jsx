@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { MapPin, CheckCircle2, XCircle, Loader2, Truck } from 'lucide-react';
 import { deliveryService } from '../services/deliveryService';
 import { useSettings } from '../context/SettingsContext';
-import { estimateWindow } from '../utils/deliveryEstimate';
+import { estimateWindow, formatDeliveryDate } from '../utils/deliveryEstimate';
 import { BrandDots } from './BrandLoader';
 import './PincodeCheck.css';
 
@@ -26,11 +26,16 @@ export function PincodeCheck() {
   const [pincode, setPincode] = useState('');
   const [state, setState] = useState('idle'); // idle | loading | found | not-deliverable | not-found
   const [area, setArea] = useState(null);
+  // What the server (Shiprocket) says about this pincode: { deliverable, cod, deliveryBy } - the same answer checkout uses.
+  const [courier, setCourier] = useState(null);
+
+  const codAvailable = codEnabled && courier?.cod !== false;
 
   function handleChange(e) {
     setPincode(e.target.value.replace(/\D/g, '').slice(0, 6));
     setState('idle');
     setArea(null);
+    setCourier(null);
   }
 
   async function handleCheck(e) {
@@ -47,7 +52,11 @@ export function PincodeCheck() {
       }
       setArea(`${office.District}, ${office.State}`);
       const { deliverable } = await deliveryService.checkPincode(pincode);
-      setState(deliverable ? 'found' : 'not-deliverable');
+      // Whether a courier reaches it, by when, and COD. If that cannot be answered right now the box still works
+      // (it falls back to the store's usual estimate) - checkout checks it again either way.
+      const info = await deliveryService.check(pincode).catch(() => null);
+      setCourier(info);
+      setState(deliverable && info?.deliverable !== false ? 'found' : 'not-deliverable');
     } catch {
       setState('not-found');
     }
@@ -88,11 +97,14 @@ export function PincodeCheck() {
             <CheckCircle2 size={14} /> Delivers to {area}
           </p>
           <p className="pincode-check-result">
-            <Truck size={14} /> Estimated delivery: {formatEstimate()}
+            <Truck size={14} />{' '}
+            {courier?.deliveryBy && formatDeliveryDate(courier.deliveryBy)
+              ? `Delivery by ${formatDeliveryDate(courier.deliveryBy)}`
+              : `Estimated delivery: ${formatEstimate()}`}
           </p>
           <p className="pincode-check-result">
-            {codEnabled ? <CheckCircle2 size={14} /> : <XCircle size={14} />}{' '}
-            {codEnabled ? 'Cash on Delivery available' : 'Cash on Delivery not available — pay online'}
+            {codAvailable ? <CheckCircle2 size={14} /> : <XCircle size={14} />}{' '}
+            {codAvailable ? 'Cash on Delivery available' : courier?.cod === false ? "COD isn't available for this pincode — pay online" : 'Cash on Delivery not available — pay online'}
           </p>
           {/* Only once a valid, deliverable pincode has been checked — a
               store-wide threshold (settings.shipping.freeThreshold). */}
@@ -105,7 +117,7 @@ export function PincodeCheck() {
       )}
       {state === 'not-deliverable' && (
         <p className="pincode-check-result error">
-          <XCircle size={14} /> Sorry, we don&apos;t currently deliver to {area}.
+          <XCircle size={14} /> {courier?.deliverable === false ? "Sorry, we don't deliver to this pincode yet." : `Sorry, we don't currently deliver to ${area}.`}
         </p>
       )}
       {state === 'not-found' && (

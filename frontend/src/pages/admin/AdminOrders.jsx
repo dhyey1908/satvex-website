@@ -10,6 +10,8 @@ import { DataTable, TableEmpty, TableFooter } from '../../components/admin/DataT
 import { StatusBadge } from '../../components/admin/StatusBadge';
 import { RowMenu } from '../../components/admin/RowMenu';
 import { OrderDrawer } from './OrderDrawer';
+import { OrderActionCard } from '../../components/admin/OrderActionCard';
+import { Loader } from '../../components/Loader';
 import { useAdminList } from '../../hooks/useAdminList';
 import { effectivePaymentStatus } from '../../utils/paymentStatus';
 import { PAYMENT_LABELS, SHIPMENT_LABELS, toneFor } from '../../utils/statusTones';
@@ -20,8 +22,11 @@ import { whatsappLink } from '../../utils/whatsapp';
 import './Admin.css';
 import './AdminLists.css';
 
-const STATUSES = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
-const TABS = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+const STATUSES = ['Pending', 'Awaiting confirmation', 'Confirmed', 'Address needs fix', 'Shipping retry needed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+const TABS = ['Awaiting confirmation', 'Pending', 'Address needs fix', 'Shipping retry needed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+// Orders that need a person (the confirmation call, or a fix) are shown as cards with their actions, not as table rows.
+const QUEUE_STATUSES = ['Awaiting confirmation', 'Address needs fix', 'Shipping retry needed'];
+const TAB_COUNT_CLASS = { 'Awaiting confirmation': 'is-warn', 'Address needs fix': 'is-danger', 'Shipping retry needed': 'is-warn' };
 const PAYMENT_STATES = ['paid', 'awaiting', 'confirming', 'failed', 'dropped', 'expired'];
 const SHIPMENT_STATES = Object.keys(SHIPMENT_LABELS);
 
@@ -56,6 +61,9 @@ export function AdminOrders() {
     setSelected([]);
   };
   const rows = orders || [];
+  const queueStatus = typeof filters.status === 'string' && QUEUE_STATUSES.includes(filters.status) ? filters.status : null;
+  // While a tab's list is loading the previous list is still in `rows`: only ever show the orders that belong to the tab.
+  const queueRows = queueStatus ? rows.filter((o) => o.status === queueStatus) : [];
   const selectedRows = rows.filter((o) => selected.includes(o.orderId));
 
   async function exportCsv(only) {
@@ -230,7 +238,7 @@ export function AdminOrders() {
         </button>
         {TABS.map((s) => (
           <button key={s} type="button" role="tab" aria-selected={filters.status === s} className={`al-tab ${filters.status === s ? 'is-on' : ''}`} onClick={() => change('status', s)}>
-            {s} <span className="al-tab-count">{counts.status?.[s] || 0}</span>
+            {s} <span className={`al-tab-count ${counts.status?.[s] ? TAB_COUNT_CLASS[s] || '' : ''}`}>{counts.status?.[s] || 0}</span>
           </button>
         ))}
       </div>
@@ -250,6 +258,21 @@ export function AdminOrders() {
         <ErrorState message={list.error} onRetry={list.reload} />
       ) : (
         <>
+          {queueStatus ? (
+            list.loading && !orders ? (
+              <Loader label="Loading orders…" />
+            ) : queueRows.length === 0 ? (
+              <p className="oac-empty">
+                {queueStatus === 'Awaiting confirmation' ? 'No orders are waiting for a confirmation call.' : `No orders are marked "${queueStatus}".`}
+              </p>
+            ) : (
+              <div className="oac-list">
+                {queueRows.map((o) => (
+                  <OrderActionCard key={o.orderId} order={o} onChanged={list.reload} />
+                ))}
+              </div>
+            )
+          ) : (
           <DataTable
             columns={columns}
             rows={orders}
@@ -276,6 +299,7 @@ export function AdminOrders() {
               />
             }
           />
+          )}
           <TableFooter
             paginationProps={list.paginationProps}
             pageSize={list.pageSize}

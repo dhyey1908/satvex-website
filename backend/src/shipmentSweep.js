@@ -38,6 +38,11 @@ async function processJob(job) {
     await shipmentJobService.markDone(job.jobId);
     return 'done';
   } catch (err) {
+    // Shiprocket refused the order's data: park it as "Address needs fix" and stop retrying (same data, same refusal).
+    if ((await shipmentService.handleShipmentFailure(job.orderId, err)) === 'rejected') {
+      await shipmentJobService.markDone(job.jobId);
+      return 'done';
+    }
     const { failed } = await shipmentJobService.recordFailure(job.jobId, job.attempts, err);
     if (failed) await alertOnExhaustedRetries(job, err);
     return failed ? 'failed' : 'retrying';

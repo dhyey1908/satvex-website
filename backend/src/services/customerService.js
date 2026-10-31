@@ -31,7 +31,7 @@ async function getDashboardStats() {
   const orders = ordersResult.Items || [];
   const products = productsResult.Items || [];
 
-  const pendingStatuses = new Set(['Pending', 'Confirmed', 'Processing', 'Shipped']);
+  const pendingStatuses = new Set(['Pending', 'Awaiting confirmation', 'Confirmed', 'Address needs fix', 'Shipping retry needed', 'Processing', 'Shipped']);
   const completedStatuses = new Set(['Delivered']);
 
   return {

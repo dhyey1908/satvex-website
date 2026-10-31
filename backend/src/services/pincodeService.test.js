@@ -51,7 +51,7 @@ const { lookupPincode, clearPincodeCache } = require('./pincodeService');
 test('lookupPincode: an existing pincode is "found" with its state', async () => {
   clearPincodeCache();
   stubFetch([{ Status: 'Success', PostOffice: [{ State: 'Gujarat', District: 'Rajkot' }] }]);
-  assert.deepEqual(await lookupPincode('360004'), { status: 'found', state: 'Gujarat', district: 'Rajkot' });
+  assert.deepEqual(await lookupPincode('360004'), { status: 'found', state: 'Gujarat', district: 'Rajkot', places: ['Rajkot'] });
 });
 
 test('lookupPincode: only an explicit "No records found" means the pincode does not exist', async () => {

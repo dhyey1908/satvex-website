@@ -7,7 +7,13 @@ export const adminService = {
   financialAnalytics: (params) => api.get('/admin/analytics/financial', params),
   orders: (params) => api.get('/admin/orders', params),
   order: (id) => api.get(`/admin/orders/${encodeURIComponent(id)}`),
-  updateOrderStatus: (id, status) => api.put(`/admin/orders/${encodeURIComponent(id)}/status`, { status }),
+  // `extra` carries { cancelReason, cancelNote } when cancelling.
+  updateOrderStatus: (id, status, extra = {}) => api.put(`/admin/orders/${encodeURIComponent(id)}/status`, { status, ...extra }),
+  // COD order after the confirmation call: books the shipment with Shiprocket now.
+  confirmOrder: (id) => api.post(`/admin/orders/${encodeURIComponent(id)}/confirm`, {}),
+  // After fixing the address (or when Shiprocket was unreachable): try booking again.
+  retryShiprocket: (id) => api.post(`/admin/orders/${encodeURIComponent(id)}/retry-shiprocket`, {}),
+  updateOrderAddress: (id, address) => api.put(`/admin/orders/${encodeURIComponent(id)}/address`, { address }),
   refundOrder: (id, note) => api.post(`/admin/orders/${encodeURIComponent(id)}/refund`, note ? { note } : {}),
   unlinkShipment: (id) => api.delete(`/admin/orders/${encodeURIComponent(id)}/link-shipment`),
   securityStatus: () => api.get('/admin/security'),

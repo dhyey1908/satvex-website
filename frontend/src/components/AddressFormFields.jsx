@@ -1,4 +1,14 @@
 import { sanitizePhoneInput, personName, placeName, indiaCountry } from '../utils/validators';
+import {
+  ENGLISH_MESSAGE,
+  MAX_ADDRESS,
+  COUNTER_FROM,
+  isEnglishName,
+  isEnglishAddressText,
+  combinedAddress,
+  joinStreet,
+  addressTextProblem,
+} from '../utils/addressRules';
 
 const ADDRESS_TYPES = ['Home', 'Work', 'Other'];
 
@@ -7,7 +17,21 @@ const ADDRESS_TYPES = ['Home', 'Work', 'Other'];
 // never drift into two different address forms with two different sets of
 // validation/behavior. Callers own the actual form state/validation/submit;
 // this only renders the fields.
-export function AddressFormFields({ form, setField, touched, markTouched, fieldErrors, pincodeLookupState }) {
+//
+// `checkoutRules` turns on the stricter delivery-address rules Checkout needs (English only, a landmark, 190
+// characters together - see utils/addressRules.js); the account address book leaves it off. `citySuggestion` is the
+// district the server said the typed city should probably be ("Did you mean ...?"), with a one-tap button to use it.
+export function AddressFormFields({ form, setField, touched, markTouched, fieldErrors, pincodeLookupState, checkoutRules = false, citySuggestion = null, onUseCitySuggestion }) {
+  // Under the English-only rule the message shows the moment something else is typed, not only after leaving the box.
+  const live = (value, isName) => (checkoutRules && value && !(isName ? isEnglishName(value) : isEnglishAddressText(value)) ? ENGLISH_MESSAGE : '');
+  const message = (key, liveMessage = '') => liveMessage || (touched[key] && fieldErrors[key]) || '';
+  const errName = message('fullName', live(form.fullName, true));
+  const errHouse = message('houseFlat', live(form.houseFlat));
+  const errArea = message('areaStreet', live(form.areaStreet));
+  const errLandmark = message('landmark', live(form.landmark));
+  const errCity = message('city', live(form.city));
+  const addressLength = combinedAddress(joinStreet(form.houseFlat, form.areaStreet), form.landmark).length;
+
   return (
     <>
       <div className="field">
@@ -26,7 +50,7 @@ export function AddressFormFields({ form, setField, touched, markTouched, fieldE
         </div>
       </div>
 
-      <div className={`field ${touched.fullName && fieldErrors.fullName ? 'invalid' : ''}`}>
+      <div className={`field ${errName ? 'invalid' : ''}`}>
         <label htmlFor="address-fullName">Full Name</label>
         <input
           id="address-fullName"
@@ -35,7 +59,7 @@ export function AddressFormFields({ form, setField, touched, markTouched, fieldE
           onChange={(e) => setField('fullName', e.target.value)}
           onBlur={() => markTouched('fullName')}
         />
-        {touched.fullName && fieldErrors.fullName && <p className="field-error">{fieldErrors.fullName}</p>}
+        {errName && <p className="field-error">{errName}</p>}
       </div>
       <div className={`field ${touched.phone && fieldErrors.phone ? 'invalid' : ''}`}>
         <label htmlFor="address-phone">Mobile Number</label>
@@ -67,7 +91,7 @@ export function AddressFormFields({ form, setField, touched, markTouched, fieldE
         )}
         {touched.pincode && fieldErrors.pincode && <p className="field-error">{fieldErrors.pincode}</p>}
       </div>
-      <div className={`field ${touched.houseFlat && fieldErrors.houseFlat ? 'invalid' : ''}`}>
+      <div className={`field ${errHouse ? 'invalid' : ''}`}>
         <label htmlFor="address-houseFlat">House / Flat / Building</label>
         <input
           id="address-houseFlat"
@@ -76,9 +100,9 @@ export function AddressFormFields({ form, setField, touched, markTouched, fieldE
           onChange={(e) => setField('houseFlat', e.target.value)}
           onBlur={() => markTouched('houseFlat')}
         />
-        {touched.houseFlat && fieldErrors.houseFlat && <p className="field-error">{fieldErrors.houseFlat}</p>}
+        {errHouse && <p className="field-error">{errHouse}</p>}
       </div>
-      <div className={`field ${touched.areaStreet && fieldErrors.areaStreet ? 'invalid' : ''}`}>
+      <div className={`field ${errArea ? 'invalid' : ''}`}>
         <label htmlFor="address-areaStreet">Area / Street</label>
         <input
           id="address-areaStreet"
@@ -87,14 +111,27 @@ export function AddressFormFields({ form, setField, touched, markTouched, fieldE
           onChange={(e) => setField('areaStreet', e.target.value)}
           onBlur={() => markTouched('areaStreet')}
         />
-        {touched.areaStreet && fieldErrors.areaStreet && <p className="field-error">{fieldErrors.areaStreet}</p>}
+        {errArea && <p className="field-error">{errArea}</p>}
       </div>
-      <div className="field">
-        <label htmlFor="address-landmark">Landmark (optional)</label>
-        <input id="address-landmark" value={form.landmark} onChange={(e) => setField('landmark', e.target.value)} />
+      <div className={`field ${errLandmark ? 'invalid' : ''}`}>
+        <label htmlFor="address-landmark">{checkoutRules ? 'Landmark' : 'Landmark (optional)'}</label>
+        <input
+          id="address-landmark"
+          required={checkoutRules}
+          placeholder={checkoutRules ? 'e.g. Near City Mall / Opp. SBI Bank' : undefined}
+          value={form.landmark}
+          onChange={(e) => setField('landmark', e.target.value)}
+          onBlur={() => markTouched('landmark')}
+        />
+        {errLandmark && <p className="field-error">{errLandmark}</p>}
+        {checkoutRules && addressLength > COUNTER_FROM && (
+          <p className={`field-hint address-counter ${addressLength > MAX_ADDRESS ? 'is-over' : ''}`} aria-live="polite">
+            {addressLength} / {MAX_ADDRESS}
+          </p>
+        )}
       </div>
       <div className="field-row">
-        <div className={`field ${touched.city && fieldErrors.city ? 'invalid' : ''}`}>
+        <div className={`field ${errCity ? 'invalid' : ''}`}>
           <label htmlFor="address-city">City</label>
           <input
             id="address-city"
@@ -103,7 +140,12 @@ export function AddressFormFields({ form, setField, touched, markTouched, fieldE
             onChange={(e) => setField('city', e.target.value)}
             onBlur={() => markTouched('city')}
           />
-          {touched.city && fieldErrors.city && <p className="field-error">{fieldErrors.city}</p>}
+          {errCity && <p className="field-error">{errCity}</p>}
+          {citySuggestion && (
+            <button type="button" className="btn btn-outline btn-sm address-city-suggestion" onClick={onUseCitySuggestion}>
+              Use {citySuggestion}
+            </button>
+          )}
         </div>
         <div className={`field ${touched.state && fieldErrors.state ? 'invalid' : ''}`}>
           <label htmlFor="address-state">State</label>
@@ -169,8 +211,8 @@ export function addressToForm(addr) {
   };
 }
 
-export function validateAddressForm(values, { required, minLength, phone: validatePhone, pincode: validatePincode }) {
-  return {
+export function validateAddressForm(values, { required, minLength, phone: validatePhone, pincode: validatePincode }, { checkoutRules = false } = {}) {
+  const base = {
     fullName: personName(values.fullName, 'Full name'),
     phone: validatePhone(values.phone, { optional: false }),
     houseFlat: required(values.houseFlat, 'House/Flat/Building'),
@@ -187,4 +229,18 @@ export function validateAddressForm(values, { required, minLength, phone: valida
     pincode: validatePincode(values.pincode, { optional: false }),
     country: indiaCountry(values.country),
   };
+  if (!checkoutRules) return base;
+
+  // Checkout's stricter delivery-address rules (the server applies the same ones again).
+  const out = { ...base, landmark: '' };
+  if (values.fullName && !isEnglishName(values.fullName)) out.fullName = ENGLISH_MESSAGE;
+  if (values.city && !isEnglishAddressText(values.city)) out.city = ENGLISH_MESSAGE;
+  if (values.houseFlat && !isEnglishAddressText(values.houseFlat)) out.houseFlat = ENGLISH_MESSAGE;
+  if (values.areaStreet && !isEnglishAddressText(values.areaStreet)) out.areaStreet = ENGLISH_MESSAGE;
+  if (values.landmark && !isEnglishAddressText(values.landmark)) out.landmark = ENGLISH_MESSAGE;
+  if (!out.houseFlat && !out.areaStreet && !out.landmark) {
+    const problem = addressTextProblem({ line1: joinStreet(values.houseFlat, values.areaStreet), landmark: values.landmark });
+    if (problem) out[problem.field === 'landmark' ? 'landmark' : 'houseFlat'] = problem.message;
+  }
+  return out;
 }

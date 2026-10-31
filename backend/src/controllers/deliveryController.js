@@ -1,4 +1,5 @@
 const deliveryEligibilityService = require('../services/deliveryEligibilityService');
+const deliveryCheckService = require('../services/deliveryCheckService');
 const { pincodeCheckSchema } = require('../validators/deliveryValidators');
 const { ok } = require('../utils/response');
 
@@ -14,4 +15,19 @@ async function checkPincode(req, res) {
   ok(res, result);
 }
 
-module.exports = { checkPincode };
+// GET /api/delivery/check?pincode= - can a courier reach this pincode, by when, and can it be Cash on Delivery?
+// (Shiprocket, cached 24h per pincode.) Shared by checkout and the product page's pincode box. Checkout asks the
+// same service again when the order is placed, so what this says is a courtesy, not the enforcement.
+async function deliveryCheck(req, res) {
+  const { pincode } = pincodeCheckSchema.parse(req.query);
+  const result = await deliveryCheckService.checkPincode(pincode);
+  ok(res, {
+    pincode,
+    status: result.status,
+    deliverable: result.status === 'no_courier' ? false : result.status === 'ok' ? true : null,
+    cod: result.status === 'ok' ? result.cod : null,
+    deliveryBy: result.deliveryBy || null,
+  });
+}
+
+module.exports = { checkPincode, deliveryCheck };

@@ -6,6 +6,8 @@ const shipmentJobService = require('./shipmentJobService');
 const { normalizeIndianPhone } = require('../utils/phone');
 const logger = require('../utils/logger');
 const AppError = require('../utils/AppError');
+const { combinedAddress } = require('../utils/addressRules');
+const { describeShipmentError, isShiprocketRejection } = require('../utils/shiprocketErrors');
 
 // Orchestrates the whole create-order -> assign-AWB -> schedule-pickup ->
 // generate-label sequence for one order, called both from the immediate
@@ -111,7 +113,9 @@ async function attemptShipmentCreationLocked(orderId) {
     if (!order.address?.pincode) missingFields.push('pincode');
     if (!order.items?.length) missingFields.push('order items');
     if (missingFields.length > 0) {
-      throw new Error(`Cannot create Shiprocket shipment — order is missing required field(s): ${missingFields.join(', ')}.`);
+      const missing = new Error(`Cannot create Shiprocket shipment — order is missing required field(s): ${missingFields.join(', ')}.`);
+      missing.addressProblem = true; // fixed by editing the order's details, so it is "Address needs fix", not a retry
+      throw missing;
     }
     const billingPhone = normalizeIndianPhone(order.customer?.phone, 'Customer phone number');
 
@@ -134,7 +138,10 @@ async function attemptShipmentCreationLocked(orderId) {
       logger.error('shipment booking: diagnostic courier re-check failed (non-fatal)', { orderId, message: err.message });
     }
 
-    const created = await shiprocketService.createOrder({
+    // Only a refusal HERE (Shiprocket looked at the order's data and said no) means the address needs fixing; the same
+    // 422 from a later step (AWB, pickup, label) is not about the address - see utils/shiprocketErrors.
+    const created = await shiprocketService
+      .createOrder({
       orderId: order.orderId,
       // Guarded even though createdAt should always be set by
       // orderService.createOrder — a handful of very old/seed records can
@@ -144,7 +151,8 @@ async function attemptShipmentCreationLocked(orderId) {
       pickupLocation: settings.shiprocket.pickupLocation,
       billingFirstName: firstName || order.customer.name,
       billingLastName: rest.join(' '),
-      billingAddress: order.address.line1,
+      // House/street and landmark go on the label together (checkout caps the pair at 190 characters).
+      billingAddress: combinedAddress(order.address.line1, order.address.landmark),
       billingCity: order.address.city,
       billingPincode: Number(order.address.pincode),
       billingState: order.address.state,
@@ -171,15 +179,19 @@ async function attemptShipmentCreationLocked(orderId) {
       breadth: breadthCm,
       height: heightCm,
       weight: weightKg,
-    });
-    await orderService.recordShiprocketOrderCreated(orderId, { shiprocketOrderId: created.order_id });
+    })
+      .catch((err) => {
+        err.shipmentStage = 'create';
+        throw err;
+      });
+    await orderService.recordShiprocketOrderCreated(orderId, { shiprocketOrderId: created.order_id, shiprocketShipmentId: created.shipment_id });
     order = await orderService.findById(orderId);
   }
 
   // Step 2: assign AWB (skip if already done). No courier_id passed — see
   // the KNOWN LIMITATION note above.
   if (!order.awbCode) {
-    const awb = await shiprocketService.assignAwb({ shiprocketOrderId: order.shiprocketOrderId });
+    const awb = await shiprocketService.assignAwb({ shiprocketOrderId: order.shiprocketOrderId, shipmentId: order.shiprocketShipmentId });
     await orderService.recordAwbAssigned(orderId, {
       awbCode: awb.awbCode,
       courierName: awb.courierName,
@@ -195,6 +207,7 @@ async function attemptShipmentCreationLocked(orderId) {
     try {
       await shiprocketService.schedulePickup({
         shiprocketOrderId: order.shiprocketOrderId,
+        shipmentId: order.shiprocketShipmentId,
         pickupDate: new Date().toISOString().slice(0, 10),
       });
       await orderService.recordPickupScheduled(orderId);
@@ -223,6 +236,10 @@ async function attemptShipmentCreationLocked(orderId) {
     }
   }
 
+  // The shipment is fully booked: an order that was waiting on it (Awaiting confirmation / Address needs fix /
+  // Shipping retry needed) is now simply Confirmed, and its old error is cleared.
+  await orderService.recordShipmentBooked(orderId, { prepaid: order.paymentMethod === 'Online' });
+
   return orderService.findById(orderId);
 }
 
@@ -242,10 +259,65 @@ async function triggerShipmentIfNeeded(orderId) {
   try {
     await attemptShipmentCreation(orderId);
   } catch (err) {
-    const { created } = await shipmentJobService.createJob(orderId);
-    if (created) {
-      logger.error('immediate shiprocket attempt failed, queued for retry', { orderId, message: err.message });
+    const outcome = await handleShipmentFailure(orderId, err);
+    // A refused order (bad address) is not retried by itself - it waits for an admin to fix it.
+    if (outcome === 'retry') {
+      const { created } = await shipmentJobService.createJob(orderId, err);
+      if (created) {
+        logger.error('immediate shiprocket attempt failed, queued for retry', { orderId, message: err.message });
+      }
     }
+  }
+}
+
+// A booking attempt failed. Decides what the order becomes and stores Shiprocket's exact reply on it:
+//   'rejected'  Shiprocket refused the order's data (HTTP 400/422)  -> "Address needs fix"; nothing is retried
+//               automatically, because the same data would be refused again, and the order is NOT cancelled.
+//   'retry'     anything else (login failed, Shiprocket down, timeout) -> "Shipping retry needed"; the sweep retries
+//               it automatically (3 times over about 30 minutes, see shipmentJobService).
+// Never throws.
+async function handleShipmentFailure(orderId, err) {
+  const info = describeShipmentError(err);
+  try {
+    if (info.kind === 'rejected') {
+      await orderService.recordShipmentProblem(orderId, orderService.ADDRESS_NEEDS_FIX, info);
+      // Close any retry job: the sweep must not keep sending the same refused data.
+      if (await shipmentJobService.findByOrderId(orderId)) await shipmentJobService.markDone(orderId);
+    } else {
+      await orderService.recordShipmentProblem(orderId, orderService.SHIPPING_RETRY_NEEDED, info);
+    }
+  } catch (e) {
+    logger.error('could not record the shipment problem on the order (non-fatal)', { orderId, message: e.message });
+  }
+  logger.warn('shiprocket booking failed', { orderId, kind: info.kind, status: info.status, message: info.message });
+  return info.kind === 'rejected' ? 'rejected' : 'retry';
+}
+
+// An admin pressed "Confirm & ship" (COD, after the phone call) or "Retry Shiprocket" (after fixing the address).
+// Books the shipment right now and says how it went, so the screen can show the exact reason:
+//   { outcome: 'confirmed' }                      booked (or Shiprocket is switched off: nothing to book, just Confirmed)
+//   { outcome: 'address_needs_fix', error }       Shiprocket refused the order's data
+//   { outcome: 'retry_needed', error }            Shiprocket could not be reached; it will be retried automatically
+// Never throws for a Shiprocket problem.
+async function shipNow(orderId) {
+  const settings = await settingsService.getSettings();
+  if (!settings.shiprocket?.enabled) {
+    const order = await orderService.findById(orderId);
+    await orderService.recordShipmentBooked(orderId, { prepaid: order?.paymentMethod === 'Online' });
+    return { outcome: 'confirmed', shiprocket: false };
+  }
+  try {
+    await attemptShipmentCreation(orderId);
+    if (await shipmentJobService.findByOrderId(orderId)) await shipmentJobService.markDone(orderId);
+    return { outcome: 'confirmed', shiprocket: true };
+  } catch (err) {
+    const kind = await handleShipmentFailure(orderId, err);
+    if (kind === 'retry') {
+      const existingJob = await shipmentJobService.findByOrderId(orderId);
+      if (existingJob) await shipmentJobService.resetForManualRetry(orderId, err);
+      else await shipmentJobService.createJob(orderId, err);
+    }
+    return { outcome: kind === 'rejected' ? 'address_needs_fix' : 'retry_needed', error: describeShipmentError(err) };
   }
 }
 
@@ -268,6 +340,7 @@ async function retryShipment(orderId) {
     // admin Sync Issues list otherwise kept showing a stale lastError from
     // whatever the automatic sweep last recorded, not why the manual retry
     // that was just clicked actually failed.
+    if ((await handleShipmentFailure(orderId, err)) === 'rejected') return { success: false, error: err.message };
     const existingJob = await shipmentJobService.findByOrderId(orderId);
     if (existingJob) await shipmentJobService.resetForManualRetry(orderId, err);
     else await shipmentJobService.createJob(orderId, err);
@@ -353,6 +426,8 @@ async function listSyncIssues() {
       // not sync problems and "Retry all" must never touch them.
       !o.lastTrackingStatus &&
       !['Shipped', 'Delivered'].includes(o.status) &&
+      // Waiting for the confirmation call, or waiting for the address to be fixed: those have their own lists in Orders.
+      ![orderService.AWAITING_CONFIRMATION, orderService.ADDRESS_NEEDS_FIX].includes(o.status) &&
       o.shipmentStatus !== 'label_generated' &&
       o.shipmentStatus !== 'cancelled' &&
       // The admin already booked it by hand in Shiprocket and linked it here.
@@ -419,4 +494,4 @@ async function cancelShipmentForOrder(order) {
   }
 }
 
-module.exports = { attemptShipmentCreation, triggerShipmentIfNeeded, retryShipment, linkManualShipment, unlinkManualShipment, listSyncIssues, cancelShipmentForOrder };
+module.exports = { attemptShipmentCreation, triggerShipmentIfNeeded, handleShipmentFailure, shipNow, retryShipment, linkManualShipment, unlinkManualShipment, listSyncIssues, cancelShipmentForOrder };
