@@ -5,5 +5,9 @@
 }
 .rating-stars { color: var(--color-star); font-weight: 600; }
 .rating-count { color: var(--color-text-muted); font-size: 0.85em; }
+/* the clickable form: looks the same, with a pointer and an underline on hover / focus */
+.rating-link { padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+.rating-link:hover .rating-count, .rating-link:focus-visible .rating-count { color: var(--color-primary); text-decoration: underline; text-underline-offset: 3px; }
+.rating-link:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; border-radius: var(--radius-sm); }
 .rating-md { font-size: 0.95rem; }
 .rating-lg { font-size: 1.05rem; }

@@ -180,6 +180,14 @@ export function ProductDetail() {
       .catch(() => setRelatedProducts([]));
   }, [slug]);
 
+  // Tapping the "★ 4.3 (197 reviews)" line takes the customer down to the reviews.
+  function scrollToReviews() {
+    const el = document.getElementById('reviews');
+    if (!el) return;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  }
+
   useEffect(() => {
     if (!product || location.hash !== '#reviews') return;
     const el = document.getElementById('reviews');
@@ -617,6 +625,7 @@ export function ProductDetail() {
             rating={reviewSummary ? reviewSummary.average : product.rating}
             reviewCount={reviewSummary ? reviewSummary.count : product.reviewCount}
             size="lg"
+            onClick={scrollToReviews}
           />
           <p className="product-detail-desc">{product.shortDescription}</p>
 
