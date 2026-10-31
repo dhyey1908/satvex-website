@@ -4,17 +4,26 @@
 
 export const MAX_HOTSPOTS = 8;
 export const LIMITS = { title: 24, description: 110, sectionTitle: 80 };
+// Where a feature's text sits. Auto (the default) puts it in the gutter on the side NEAREST the marker.
 export const LABEL_POSITIONS = [
-  { id: 'top-left', label: 'Top left' },
-  { id: 'top-right', label: 'Top right' },
-  { id: 'bottom-left', label: 'Bottom left' },
-  { id: 'bottom-right', label: 'Bottom right' },
+  { id: 'auto', label: 'Auto (recommended)' },
+  { id: 'left', label: 'Left' },
+  { id: 'right', label: 'Right' },
+  { id: 'top-left', label: 'Top-left' },
+  { id: 'top-right', label: 'Top-right' },
+  { id: 'bottom-left', label: 'Bottom-left' },
+  { id: 'bottom-right', label: 'Bottom-right' },
 ];
 export const PLACEMENTS = [
   { id: 'after_info', label: 'After product info' },
   { id: 'before_reviews', label: 'Before reviews' },
 ];
-export const MOBILE_MAX = 768; // below this width the slider shows numbered cards instead of lines
+// Below this width (of the block itself) there is no room for text beside the photo: the slider shows
+// numbered cards under it instead (a 768px-wide screen leaves the block about 720px wide, which is just too tight for text beside the photo).
+export const MOBILE_MAX = 740;
+export const LABEL_GAP = 24; // between the photo's edge and the label
+export const LABEL_MARGIN = 24; // the label keeps this far from the top / bottom of the photo area
+export const LINE_GAP = 10; // the line stops this far before the label text
 export const DEFAULT_ASPECT = 4 / 3;
 
 export const EMPTY_HOTSPOT_SECTION = { enabled: false, title: '', imageUrl: '', imageAspect: null, placement: 'after_info', loop: true, autoplay: false, hotspots: [] };
@@ -22,10 +31,10 @@ export const EMPTY_HOTSPOT_SECTION = { enabled: false, title: '', imageUrl: '', 
 // The starter features from the brief (Butterfly claw clip). Markers are NOT placed: the owner
 // clicks the real photo in the visual editor, so it stays switched off until then.
 export const STARTER_HOTSPOTS = [
-  { pointX: null, pointY: null, labelPosition: 'top-right', title: 'flexible body', description: 'bends and bounces back instead of snapping. lean back, relax, wear it all day.', imageUrl: '', active: true },
-  { pointX: null, pointY: null, labelPosition: 'bottom-left', title: 'rounded teeth', description: 'smooth, rounded teeth grip your hair without digging into your scalp.', imageUrl: '', active: true },
-  { pointX: null, pointY: null, labelPosition: 'top-left', title: 'strong spring', description: 'a sturdy spring keeps your hold secure from morning to night.', imageUrl: '', active: true },
-  { pointX: null, pointY: null, labelPosition: 'bottom-right', title: 'feather-light', description: "so light, you'll forget you're wearing it.", imageUrl: '', active: true },
+  { pointX: null, pointY: null, labelPosition: 'auto', title: 'flexible body', description: 'bends and bounces back instead of snapping. lean back, relax, wear it all day.', imageUrl: '', active: true },
+  { pointX: null, pointY: null, labelPosition: 'auto', title: 'rounded teeth', description: 'smooth, rounded teeth grip your hair without digging into your scalp.', imageUrl: '', active: true },
+  { pointX: null, pointY: null, labelPosition: 'auto', title: 'strong spring', description: 'a sturdy spring keeps your hold secure from morning to night.', imageUrl: '', active: true },
+  { pointX: null, pointY: null, labelPosition: 'auto', title: 'feather-light', description: "so light, you'll forget you're wearing it.", imageUrl: '', active: true },
 ];
 
 const isPlaced = (h) => h.pointX !== null && h.pointX !== undefined && h.pointX !== '' && h.pointY !== null && h.pointY !== undefined && h.pointY !== '';
@@ -47,14 +56,31 @@ export function pixelFromPercent(pointX, pointY, width, height) {
   return { x: (Number(pointX) / 100) * width, y: (Number(pointY) / 100) * height };
 }
 
-// The connector line: from the marker to the nearest point on the label box's edge.
-// `box` is { left, top, right, bottom } in the same coordinates as `marker` ({ x, y }).
-// Returns null when the marker sits inside the box (nothing to connect).
-export function connectorLine(marker, box) {
-  const x = Math.min(Math.max(marker.x, box.left), box.right);
-  const y = Math.min(Math.max(marker.y, box.top), box.bottom);
-  if (x === marker.x && y === marker.y) return null;
-  return { x1: marker.x, y1: marker.y, x2: x, y2: y };
+// Which side of the photo a feature's text goes on, and how it lines up vertically.
+//   auto (default): the side NEAREST the marker (x < 50% -> left, otherwise right), centred on the marker's height
+//   left / right:   that side, centred on the marker's height
+//   top-* / bottom-*: that side, pinned to the top / bottom of the photo area
+export function resolvePlacement(spot) {
+  const pos = spot.labelPosition || 'auto';
+  let side;
+  if (pos === 'left' || pos.endsWith('-left')) side = 'left';
+  else if (pos === 'right' || pos.endsWith('-right')) side = 'right';
+  else side = Number(spot.pointX) < 50 ? 'left' : 'right';
+  const vertical = pos.startsWith('top-') ? 'top' : pos.startsWith('bottom-') ? 'bottom' : 'middle';
+  return { side, vertical };
+}
+
+// The label's top edge (px, within the photo area): centred on the marker's height, then kept fully
+// inside the area (at least `margin` from the top and the bottom).
+export function labelTop({ vertical, markerY, labelHeight, stageHeight, margin = LABEL_MARGIN }) {
+  const wanted = vertical === 'top' ? margin : vertical === 'bottom' ? stageHeight - labelHeight - margin : markerY - labelHeight / 2;
+  return Math.max(margin, Math.min(wanted, stageHeight - labelHeight - margin));
+}
+
+// The connector line: from the marker centre to the label block - ending `gap` px short of the edge that faces
+// the photo (the right edge of a left label, the left edge of a right one), at the middle of the title's first line.
+export function labelLine({ marker, edgeX, titleY, side, gap = LINE_GAP }) {
+  return { x1: marker.x, y1: marker.y, x2: side === 'left' ? edgeX + gap : edgeX - gap, y2: titleY };
 }
 
 // Next / previous slide, wrapping when `loop` is on; null at the ends otherwise.

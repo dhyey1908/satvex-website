@@ -10,7 +10,7 @@ function publicHotspotSection(section) {
       id,
       pointX,
       pointY,
-      labelPosition: labelPosition || 'top-right',
+      labelPosition: labelPosition || 'auto',
       title,
       description,
       imageUrl: imageUrl || '',
@@ -38,10 +38,10 @@ const STARTER_HOTSPOT_SECTION = {
   loop: true,
   autoplay: false,
   hotspots: [
-    { pointX: null, pointY: null, labelPosition: 'top-right', title: 'flexible body', description: 'bends and bounces back instead of snapping. lean back, relax, wear it all day.', imageUrl: '', active: true },
-    { pointX: null, pointY: null, labelPosition: 'bottom-left', title: 'rounded teeth', description: 'smooth, rounded teeth grip your hair without digging into your scalp.', imageUrl: '', active: true },
-    { pointX: null, pointY: null, labelPosition: 'top-left', title: 'strong spring', description: 'a sturdy spring keeps your hold secure from morning to night.', imageUrl: '', active: true },
-    { pointX: null, pointY: null, labelPosition: 'bottom-right', title: 'feather-light', description: "so light, you'll forget you're wearing it.", imageUrl: '', active: true },
+    { pointX: null, pointY: null, labelPosition: 'auto', title: 'flexible body', description: 'bends and bounces back instead of snapping. lean back, relax, wear it all day.', imageUrl: '', active: true },
+    { pointX: null, pointY: null, labelPosition: 'auto', title: 'rounded teeth', description: 'smooth, rounded teeth grip your hair without digging into your scalp.', imageUrl: '', active: true },
+    { pointX: null, pointY: null, labelPosition: 'auto', title: 'strong spring', description: 'a sturdy spring keeps your hold secure from morning to night.', imageUrl: '', active: true },
+    { pointX: null, pointY: null, labelPosition: 'auto', title: 'feather-light', description: "so light, you'll forget you're wearing it.", imageUrl: '', active: true },
   ],
 };
 

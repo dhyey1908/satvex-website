@@ -31,18 +31,11 @@
 .hse-panel-head .ui-icon-btn { margin-left: auto; }
 .hse-unplaced { color: var(--color-warning); font-weight: 600; }
 
-/* the 4-corner label picker: a tiny photo with a button in each corner */
-.hse-corners { position: relative; width: 132px; height: 88px; }
-.hse-corners-photo { position: absolute; inset: 18px 22px; border: 1.5px solid var(--color-border); border-radius: 6px; background: var(--color-surface-alt); }
-.hse-corner { position: absolute; z-index: 1; width: 40px; height: 22px; padding: 0; border: 1.5px solid var(--color-border); border-radius: 6px; background: var(--color-surface); cursor: pointer; }
-.hse-corner::after { content: ''; position: absolute; inset: 6px 8px; border-top: 2px solid var(--color-text-muted); border-bottom: 2px solid var(--color-text-muted); }
-.hse-corner:hover { border-color: var(--color-primary); }
-.hse-corner.is-on { border-color: var(--color-primary); background: var(--color-primary-soft); }
-.hse-corner.is-on::after { border-color: var(--color-primary-dark); }
-.hse-corner.is-top-left { top: 0; left: 0; }
-.hse-corner.is-top-right { top: 0; right: 0; }
-.hse-corner.is-bottom-left { bottom: 0; left: 0; }
-.hse-corner.is-bottom-right { bottom: 0; right: 0; }
+/* label position: Auto (recommended) first, then the pinned options */
+.hse-positions { display: flex; flex-wrap: wrap; gap: 6px; }
+.hse-position { padding: 6px 12px; border: 1.5px solid var(--color-border); border-radius: var(--radius-pill); background: var(--color-surface); color: var(--color-text-muted); font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+.hse-position:hover { border-color: var(--color-primary); }
+.hse-position.is-on { border-color: var(--color-primary); background: var(--color-primary-soft); color: var(--color-primary-dark); }
 
 .hse-list { gap: var(--space-2); }
 .hse-item { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); }

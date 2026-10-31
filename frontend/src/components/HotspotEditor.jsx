@@ -58,7 +58,7 @@ export function HotspotEditor({ value, onChange, errors = {} }) {
     }
     if (spots.length >= MAX_HOTSPOTS) return;
     const id = newId();
-    set({ hotspots: [...spots, { id, pointX: x, pointY: y, labelPosition: 'top-right', title: '', description: '', imageUrl: '', active: true }] });
+    set({ hotspots: [...spots, { id, pointX: x, pointY: y, labelPosition: 'auto', title: '', description: '', imageUrl: '', active: true }] });
     setSelectedId(id);
   }
 
@@ -199,21 +199,25 @@ export function HotspotEditor({ value, onChange, errors = {} }) {
                 </div>
                 <div className="field">
                   <span className="pse-label">Label position</span>
-                  <div className="hse-corners" role="radiogroup" aria-label="Where the text sits">
+                  <div className="hse-positions" role="radiogroup" aria-label="Where the text sits">
                     {LABEL_POSITIONS.map((p) => (
                       <button
                         key={p.id}
                         type="button"
                         role="radio"
-                        aria-checked={selected.labelPosition === p.id}
-                        aria-label={p.label}
-                        title={p.label}
-                        className={`hse-corner is-${p.id} ${selected.labelPosition === p.id ? 'is-on' : ''}`}
+                        aria-checked={(selected.labelPosition || 'auto') === p.id}
+                        className={`hse-position ${(selected.labelPosition || 'auto') === p.id ? 'is-on' : ''}`}
                         onClick={() => patchSpot(selectedIndex, { labelPosition: p.id })}
-                      />
+                      >
+                        {p.label}
+                      </button>
                     ))}
-                    <span className="hse-corners-photo" aria-hidden="true" />
                   </div>
+                  <p className="field-hint">
+                    {(selected.labelPosition || 'auto') === 'auto'
+                      ? 'The text goes in the space beside the photo on the side nearest this marker, level with it. The preview below shows exactly where it lands.'
+                      : 'You pinned this one. Choose Auto to let the page pick the side nearest the marker.'}
+                  </p>
                 </div>
                 <div className="field">
                   <span className="pse-label">Own photo (optional)</span>
@@ -283,7 +287,7 @@ export function HotspotEditor({ value, onChange, errors = {} }) {
         disabled={spots.length >= MAX_HOTSPOTS}
         onClick={() => {
           const id = newId();
-          set({ hotspots: [...spots, { id, pointX: null, pointY: null, labelPosition: 'top-right', title: '', description: '', imageUrl: '', active: true }] });
+          set({ hotspots: [...spots, { id, pointX: null, pointY: null, labelPosition: 'auto', title: '', description: '', imageUrl: '', active: true }] });
           setSelectedId(id);
         }}
       >

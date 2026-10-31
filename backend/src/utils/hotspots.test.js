@@ -6,14 +6,14 @@ const { publicHotspotSection, STARTER_HOTSPOT_SECTION } = require('./hotspots');
 const { productForViewer } = require('./productVisibility');
 
 const IMG = 'https://cdn.example.com/satvex/products/clip.png';
-const spot = (more = {}) => ({ pointX: 40, pointY: 25.5, labelPosition: 'top-right', title: 'flexible body', description: 'bends and bounces back.', active: true, ...more });
+const spot = (more = {}) => ({ pointX: 40, pointY: 25.5, labelPosition: 'auto', title: 'flexible body', description: 'bends and bounces back.', active: true, ...more });
 const on = (hotspots = [spot()], more = {}) => ({ enabled: true, imageUrl: IMG, hotspots, ...more });
 
 test('the starter content parses and stays switched off with no marker positions', () => {
   const parsed = hotspotSectionSchema.parse(STARTER_HOTSPOT_SECTION);
   assert.equal(parsed.enabled, false);
   assert.deepEqual(parsed.hotspots.map((h) => h.title), ['flexible body', 'rounded teeth', 'strong spring', 'feather-light']);
-  assert.deepEqual(parsed.hotspots.map((h) => h.labelPosition), ['top-right', 'bottom-left', 'top-left', 'bottom-right']);
+  assert.ok(parsed.hotspots.every((h) => h.labelPosition === 'auto')); // the label goes to the side nearest each marker
   assert.ok(parsed.hotspots.every((h) => h.pointX == null && h.pointY == null));
   // ...so it cannot be switched on until the owner has placed the markers on the real photo
   assert.equal(hotspotSectionSchema.safeParse({ ...STARTER_HOTSPOT_SECTION, enabled: true, imageUrl: IMG }).success, false);
@@ -32,7 +32,8 @@ test('text limits: title 24, description 110; label position is one of the 4 cor
   assert.equal(hotspotSectionSchema.safeParse(on([spot({ title: 'x'.repeat(25) })])).success, false);
   assert.equal(hotspotSectionSchema.safeParse(on([spot({ description: 'x'.repeat(110) })])).success, true);
   assert.equal(hotspotSectionSchema.safeParse(on([spot({ description: 'x'.repeat(111) })])).success, false);
-  assert.deepEqual(LABEL_POSITIONS, ['top-left', 'top-right', 'bottom-left', 'bottom-right']);
+  assert.deepEqual(LABEL_POSITIONS, ['auto', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right']);
+  assert.equal(hotspotSectionSchema.parse(on([{ pointX: 10, pointY: 10, title: 't', description: 'd' }])).hotspots[0].labelPosition, 'auto');
   for (const labelPosition of LABEL_POSITIONS) assert.equal(hotspotSectionSchema.safeParse(on([spot({ labelPosition })])).success, true);
   assert.equal(hotspotSectionSchema.safeParse(on([spot({ labelPosition: 'middle' })])).success, false);
 });

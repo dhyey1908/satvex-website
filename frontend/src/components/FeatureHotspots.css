@@ -1,6 +1,8 @@
-/* "Feature Hotspots" slider. Desktop (>= 768px wide): big photo in the middle, label in a corner, a
-   thin SVG line from the marker to the label, big arrows left/right. Phones: numbered badge on the
-   photo and the label as a card below - no lines. Sizes follow the block's own width. */
+/* "Feature Hotspots" slider.
+   Desktop: [arrow] [left gutter] [photo] [right gutter] [arrow] as a grid. The text lives in a gutter, so it
+   can never overlap the photo, and both gutters always take their space, so the photo stays centred.
+   Phones / narrow blocks (.is-mobile, set from the block's own width): numbered badge on the photo, the text is a
+   card under it, no lines. Sizes follow the block's width (container queries). */
 .fh {
   container-type: inline-size;
   container-name: fh;
@@ -24,63 +26,70 @@
 }
 .fh-title strong { font-weight: 600; font-style: italic; color: var(--hl-brand); }
 
-.fh-stage { position: relative; touch-action: pan-y; user-select: none; }
-
-/* the photo's box: reserved aspect ratio, never wider than 60% on desktop / tall than 70vh */
-.fh-figure {
+/* ---- desktop grid: 64px | 1fr | photo (max 640px) | 1fr | 64px, 32px gaps ---- */
+.fh-stage {
+  --fh-arrow: 64px;
+  --fh-gap: 32px;
+  --fh-gutter-min: 220px;
+  --fh-fixed: calc(var(--fh-arrow) * 2 + var(--fh-gap) * 4);
+  /* the photo: at most 640px, 70% of the viewport height, and what is left once both gutters have their minimum */
+  --fh-img: min(640px, calc(70vh * var(--fh-aspect, 1.333)), calc(100cqw - var(--fh-fixed) - 2 * var(--fh-gutter-min)));
   position: relative;
-  margin: 0 auto;
-  width: min(60%, calc(70vh * var(--fh-aspect, 1.333)));
-  aspect-ratio: var(--fh-aspect, 1.333);
+  display: grid;
+  grid-template-columns: var(--fh-arrow) minmax(0, 1fr) var(--fh-img) minmax(0, 1fr) var(--fh-arrow);
+  column-gap: var(--fh-gap);
+  align-items: stretch;
+  touch-action: pan-y;
+  user-select: none;
 }
-.fh-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; animation: fh-fade 250ms ease; }
+.fh-arrow-prev { grid-column: 1; grid-row: 1; }
+.fh-gutter-left { grid-column: 2; grid-row: 1; }
+.fh-figure { grid-column: 3; grid-row: 1; }
+.fh-gutter-right { grid-column: 4; grid-row: 1; }
+.fh-arrow-next { grid-column: 5; grid-row: 1; }
 
-/* marker: 12px plum square with a soft pulsing ring in the brand purple */
+.fh-figure { position: relative; width: 100%; aspect-ratio: var(--fh-aspect, 1.333); }
+.fh-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; animation: fh-fade 250ms ease; }
+.fh-gutter { position: relative; min-width: 0; }
+
+/* marker: 12px solid plum square; a soft pulsing ring (brand purple, 30%) is a box-shadow, so there is no outline box */
 .fh-marker {
   position: absolute;
   width: 12px;
   height: 12px;
   margin: -6px 0 0 -6px;
   background: var(--hl-text);
-  animation: fh-fade 250ms ease;
+  animation: fh-fade 250ms ease, fh-pulse 1.8s ease-out 250ms infinite;
+  transition: opacity 150ms ease;
 }
-.fh-marker::after {
-  content: '';
-  position: absolute;
-  inset: -6px;
-  border: 1.5px solid var(--hl-brand);
-  border-radius: 2px;
-  animation: fh-pulse 1.8s ease-out infinite;
-}
+.fh-marker.is-leaving { opacity: 0; }
 .fh-marker b { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } /* the number is for phones */
 
-.fh-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
-.fh-line { stroke: var(--hl-text); stroke-width: 1.25; stroke-dasharray: 1; stroke-dashoffset: 0; animation: fh-draw 400ms ease both; }
+.fh-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; transition: opacity 150ms ease; }
+.fh-lines.is-leaving { opacity: 0; }
+.fh-line { stroke: var(--hl-text); stroke-width: 1.25; fill: none; stroke-dasharray: 1; stroke-dashoffset: 0; animation: fh-draw 350ms ease 250ms both; }
+.fh-dot { fill: var(--hl-text); animation: fh-fade 150ms ease 560ms both; }
 
+/* the text block: inside its gutter, aligned towards the photo */
 .fh-label {
   position: absolute;
-  max-width: 420px;
-  padding: 0;
-  text-align: center;
-  animation: fh-slide 250ms ease;
+  width: min(340px, calc(100% - 24px));
+  transition: opacity 150ms ease;
 }
-.fh-label.is-top-left { top: 48px; left: 48px; }
-.fh-label.is-top-right { top: 48px; right: 48px; }
-.fh-label.is-bottom-left { bottom: 48px; left: 48px; }
-.fh-label.is-bottom-right { bottom: 48px; right: 48px; }
+.fh-label.is-leaving { opacity: 0; }
+.fh-label.is-left { right: 24px; text-align: right; animation: fh-in-left 250ms ease; }
+.fh-label.is-right { left: 24px; text-align: left; animation: fh-in-right 250ms ease; }
 .fh-label-n { display: none; }
-.fh-label-title { margin: 0 0 8px; font-family: var(--font-display); font-weight: 600; font-size: 2rem; line-height: 1.1; color: var(--hl-text); }
+.fh-label-title { margin: 0 0 8px; font-family: var(--font-display); font-weight: 600; font-size: 1.9rem; line-height: 1.15; color: var(--hl-text); }
 .fh-label-text { margin: 0; font-size: 1rem; line-height: 1.5; font-weight: 300; color: var(--color-text-muted); }
 
 .fh-arrow {
-  position: absolute;
-  top: 50%;
+  align-self: center;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 52px;
-  height: 52px;
-  margin-top: -26px;
+  width: var(--fh-arrow);
+  height: var(--fh-arrow);
   border: 1px solid var(--hl-text);
   border-radius: 14px;
   background: var(--hl-band);
@@ -90,8 +99,6 @@
 }
 .fh-arrow:hover:not(:disabled) { background: var(--hl-chip-bg); }
 .fh-arrow:disabled { visibility: hidden; }
-.fh-arrow-prev { left: 16px; }
-.fh-arrow-next { right: 16px; }
 
 .fh-progress { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 24px; }
 .fh-counter { font-size: 0.9rem; font-weight: 500; letter-spacing: 0.12em; font-variant-numeric: tabular-nums; color: var(--hl-text); }
@@ -101,90 +108,98 @@
 .fh-step { display: none; }
 
 @keyframes fh-fade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes fh-slide { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes fh-in-left { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
+@keyframes fh-in-right { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
 @keyframes fh-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
-@keyframes fh-pulse { 0% { opacity: 0.9; transform: scale(0.8); } 100% { opacity: 0; transform: scale(2.1); } }
+@keyframes fh-pulse { 0% { box-shadow: 0 0 0 0 var(--hl-ring); } 70%, 100% { box-shadow: 0 0 0 12px var(--hl-ring-clear); } }
+@keyframes fh-pulse-badge { 0% { box-shadow: 0 0 0 3px var(--color-surface), 0 0 0 3px var(--hl-ring); } 70%, 100% { box-shadow: 0 0 0 3px var(--color-surface), 0 0 0 13px var(--hl-ring-clear); } }
 
-/* tablets: a little tighter so the label still fits beside the photo */
-@container fh (max-width: 1023px) {
-  .fh-figure { width: min(66%, calc(70vh * var(--fh-aspect, 1.333))); }
-  .fh-label { max-width: 300px; }
-  .fh-label.is-top-left, .fh-label.is-top-right { top: 24px; }
-  .fh-label.is-bottom-left, .fh-label.is-bottom-right { bottom: 24px; }
-  .fh-label.is-top-left, .fh-label.is-bottom-left { left: 24px; }
-  .fh-label.is-top-right, .fh-label.is-bottom-right { right: 24px; }
+/* medium desktop / laptop: tighter columns so the text still has room */
+@container fh (max-width: 1149px) {
+  .fh-stage { --fh-arrow: 48px; --fh-gap: 20px; --fh-gutter-min: 190px; }
+  .fh-label-title { font-size: 1.6rem; }
+}
+/* tablet: the same logic, smaller (narrower than ~740px it falls back to the phone layout) */
+@container fh (max-width: 899px) {
+  .fh-stage { --fh-arrow: 40px; --fh-gap: 12px; --fh-gutter-min: 180px; }
+  .fh-label { width: min(240px, calc(100% - 24px)); }
   .fh-label-title { font-size: 1.5rem; }
-  .fh-arrow { width: 44px; height: 44px; margin-top: -22px; }
+  .fh-label-text { font-size: 0.92rem; }
 }
 
-/* phones: numbered badge on the photo, the label is a card under it, no lines */
-@container fh (max-width: 767px) {
-  .fh { padding: 28px 0 20px; }
-  .fh-title { font-size: 1.6rem; text-align: left; margin-bottom: 16px; }
-  .fh-figure { width: 100%; }
-  .fh-marker {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    margin: -12px 0 0 -12px;
-    border-radius: 50%;
-    background: var(--hl-brand);
-    color: var(--color-primary-contrast);
-    box-shadow: 0 0 0 3px var(--color-surface);
-  }
-  .fh-marker::after { inset: -4px; border-radius: 50%; }
-  .fh-marker b { position: static; width: auto; height: auto; overflow: visible; clip: auto; font-size: 0.78rem; font-weight: 700; line-height: 1; }
-  .fh-lines, .fh-arrow { display: none; }
-  .fh-label,
-  .fh-label.is-top-left, .fh-label.is-top-right, .fh-label.is-bottom-left, .fh-label.is-bottom-right {
-    position: static;
-    max-width: none;
-    margin: 16px 16px 0;
-    padding: 16px;
-    text-align: left;
-    border: 1.5px solid var(--color-border);
-    border-radius: 14px;
-    background: var(--hl-band);
-    box-shadow: var(--shadow-sm);
-    display: grid;
-    grid-template-columns: 28px 1fr;
-    column-gap: 12px;
-  }
-  .fh-label-n {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    grid-row: 1 / span 2;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: var(--hl-brand);
-    color: var(--color-primary-contrast);
-    font-size: 0.85rem;
-    font-weight: 700;
-  }
-  .fh-label-title { margin: 0 0 4px; font-size: 1.2rem; }
-  .fh-label-text { font-size: 0.92rem; }
-  .fh-progress { margin-top: 16px; gap: 12px; }
-  .fh-step {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border: 1px solid var(--hl-text);
-    border-radius: 10px;
-    background: var(--hl-band);
-    color: var(--hl-text);
-    cursor: pointer;
-  }
-  .fh-step:disabled { opacity: 0.35; cursor: default; }
+/* ---- phones / narrow blocks: numbered badge on the photo, the text is a card below, no lines ---- */
+.fh.is-mobile { padding: 28px 0 20px; }
+.fh.is-mobile .fh-title { font-size: 1.6rem; text-align: left; margin-bottom: 16px; }
+.fh.is-mobile .fh-stage { display: flex; flex-direction: column; }
+.fh.is-mobile .fh-figure { order: 1; }
+.fh.is-mobile .fh-gutter { display: contents; }
+.fh.is-mobile .fh-lines, .fh.is-mobile .fh-arrow { display: none; }
+.fh.is-mobile .fh-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  border-radius: 50%;
+  background: var(--hl-brand);
+  color: var(--color-primary-contrast);
+  box-shadow: 0 0 0 3px var(--color-surface);
+  animation: fh-fade 250ms ease, fh-pulse-badge 1.8s ease-out 250ms infinite;
 }
+.fh.is-mobile .fh-marker b { position: static; width: auto; height: auto; overflow: visible; clip: auto; font-size: 0.78rem; font-weight: 700; line-height: 1; }
+.fh.is-mobile .fh-label,
+.fh.is-mobile .fh-label.is-left,
+.fh.is-mobile .fh-label.is-right {
+  order: 2;
+  position: static;
+  width: auto;
+  margin: 16px 16px 0;
+  padding: 16px;
+  text-align: left;
+  border: 1.5px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--hl-band);
+  box-shadow: var(--shadow-sm);
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  column-gap: 12px;
+  animation: fh-fade 250ms ease;
+}
+.fh.is-mobile .fh-label-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  grid-row: 1 / span 2;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--hl-brand);
+  color: var(--color-primary-contrast);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.fh.is-mobile .fh-label-title { margin: 0 0 4px; font-size: 1.2rem; }
+.fh.is-mobile .fh-label-text { font-size: 0.92rem; }
+.fh.is-mobile .fh-progress { margin-top: 16px; gap: 12px; }
+.fh.is-mobile .fh-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--hl-text);
+  border-radius: 10px;
+  background: var(--hl-band);
+  color: var(--hl-text);
+  cursor: pointer;
+}
+.fh.is-mobile .fh-step:disabled { opacity: 0.35; cursor: default; }
+.fh.is-mobile .fh-figure { width: 100%; }
 
 @media (prefers-reduced-motion: reduce) {
-  .fh-img, .fh-marker, .fh-label { animation: none; }
-  .fh-marker::after { animation: none; opacity: 0.5; }
+  .fh-img, .fh-marker, .fh.is-mobile .fh-marker, .fh-label, .fh-label.is-left, .fh-label.is-right, .fh.is-mobile .fh-label, .fh-dot { animation: none; }
+  .fh-marker, .fh.is-mobile .fh-marker { box-shadow: 0 0 0 5px var(--hl-ring); }
+  .fh.is-mobile .fh-marker { box-shadow: 0 0 0 3px var(--color-surface), 0 0 0 6px var(--hl-ring); }
   .fh-line { animation: none; }
 }

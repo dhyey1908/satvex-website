@@ -58,3 +58,9 @@
 .proof-theme-plum     { --ps-bg: #2e2145; --ps-box: #3b2a5c; --ps-border: #5a4580; --ps-value: #e9ddff; --ps-text: #f5f0ff; }
 .proof-theme-blush    { --ps-bg: #fdf3f5; --ps-box: #ffffff; --ps-border: #f1cdd6; --ps-value: #b24a6b; --ps-text: #3b2a5c; }
 .proof-theme-mono     { --ps-bg: #ffffff; --ps-box: #ffffff; --ps-border: #1f1f1f; --ps-value: #1f1f1f; --ps-text: #1f1f1f; }
+
+/* Feature Hotspots marker: the soft pulsing ring (brand purple at 30%, fading to nothing) */
+:root {
+  --hl-ring: rgba(107, 79, 160, 0.3);
+  --hl-ring-clear: rgba(107, 79, 160, 0);
+}

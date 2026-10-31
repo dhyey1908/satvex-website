@@ -6,7 +6,8 @@ const { z } = require('zod');
 
 const MAX_HOTSPOTS = 8;
 const LIMITS = { title: 24, description: 110, sectionTitle: 80 };
-const LABEL_POSITIONS = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+// Where a feature's text sits. "auto" (default) puts it in the gutter on the side nearest the marker.
+const LABEL_POSITIONS = ['auto', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right'];
 const PLACEMENTS = ['after_info', 'before_reviews'];
 
 const imageUrl = z.union([z.string().trim().url().refine((v) => /^https?:\/\//i.test(v), 'Must be an http(s) URL.'), z.literal('')]);
@@ -26,7 +27,7 @@ const hotspotSchema = z
     id: z.string().min(1).optional(),
     pointX: percent,
     pointY: percent,
-    labelPosition: z.enum(LABEL_POSITIONS).default('top-right'),
+    labelPosition: z.enum(LABEL_POSITIONS).default('auto'),
     title: z.string().trim().max(LIMITS.title, `Keep the title to ${LIMITS.title} characters.`).default(''),
     description: z.string().trim().max(LIMITS.description, `Keep the description to ${LIMITS.description} characters.`).default(''),
     // Optional: this feature's own photo (else the section's main photo is used)
