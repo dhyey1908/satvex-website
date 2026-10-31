@@ -23,7 +23,7 @@ const { clientErrorLimiter } = require('../middleware/rateLimit');
 const router = express.Router();
 
 // Everything that belongs to one customer is never cached (see middleware/noStore).
-router.use(['/auth', '/phone', '/cart', '/wishlist', '/orders', '/addresses', '/payments'], noStore);
+router.use(['/auth', '/phone', '/cart', '/wishlist', '/orders', '/addresses', '/payments', '/coupons'], noStore);
 
 // The browser reports cart / checkout errors here so they reach our logs instead of vanishing in a customer's console.
 router.post('/client-errors', clientErrorLimiter, asyncHandler(clientErrorController.report));

@@ -172,3 +172,75 @@ test('the session holds the selection only, never a price', async () => {
   assert.deepEqual(Object.keys(payload.item).sort(), ['productId', 'quantity', 'selectedColors', 'sellingOptionId']);
   assert.ok(payload.exp - payload.iat <= 2 * 60 * 60);
 });
+
+// ---- coupons on a Buy Now checkout: the code is checked against the one Buy Now item, not the bag
+const couponController = require('./couponController');
+const couponPricing = { validateCoupon: pricingService.validateCoupon };
+
+test('coupon on a Buy Now checkout works even when the bag is empty (it used to answer "Your cart is empty")', async () => {
+  const session = await startBuyNow(); // Combo of 3 = 349
+  cartService.getCartForUser = async () => {
+    bagReads += 1;
+    return [];
+  };
+  const seen = [];
+  pricingService.validateCoupon = async (code, subtotal) => {
+    seen.push([code, subtotal]);
+    return { code, discountAmount: 34.9 };
+  };
+  const res = fakeRes();
+  await couponController.applyToCart(ctx({ code: 'SATVEX10', directSession: session }), res);
+  assert.deepEqual(seen, [['SATVEX10', 349]], 'priced on the Buy Now item only');
+  assert.equal((res.body.data || res.body).subtotal, 349);
+  assert.equal(bagReads, 0, 'the bag is not read at all');
+  pricingService.validateCoupon = couponPricing.validateCoupon;
+});
+
+test('coupon on a Buy Now checkout ignores what is in the bag (Combo of 2 = 249 is not added in)', async () => {
+  const session = await startBuyNow();
+  pricingService.validateCoupon = async (code, subtotal) => ({ code, discountAmount: subtotal / 10 });
+  const res = fakeRes();
+  await couponController.applyToCart(ctx({ code: 'SATVEX10', directSession: session }), res);
+  assert.equal((res.body.data || res.body).subtotal, 349);
+  assert.equal((res.body.data || res.body).discountAmount, 34.9);
+  assert.equal(bagReads, 0);
+  pricingService.validateCoupon = couponPricing.validateCoupon;
+});
+
+test('coupon from the bag page still checks the bag (no session)', async () => {
+  const seen = [];
+  pricingService.validateCoupon = async (code, subtotal) => {
+    seen.push(subtotal);
+    return { code, discountAmount: 1 };
+  };
+  const bagWithTotals = [{ ...BAG[0], subtotal: 249 }];
+  cartService.getCartForUser = async () => bagWithTotals;
+  const res = fakeRes();
+  await couponController.applyToCart(ctx({ code: 'SATVEX10' }), res);
+  assert.deepEqual(seen, [249]);
+  // and an empty bag is still refused
+  cartService.getCartForUser = async () => [];
+  await assert.rejects(() => couponController.applyToCart(ctx({ code: 'SATVEX10' }), fakeRes()), (e) => e.code === 'CART_EMPTY');
+  pricingService.validateCoupon = couponPricing.validateCoupon;
+});
+
+test('a coupon cannot be priced on somebody else\'s or an expired Buy Now session', async () => {
+  const session = await startBuyNow();
+  await assert.rejects(() => couponController.applyToCart({ ...ctx({ code: 'SATVEX10', directSession: session }), user: { id: 'U2' } }, fakeRes()), (e) => e.code === 'DIRECT_SESSION_INVALID');
+  await assert.rejects(() => couponController.applyToCart(ctx({ code: 'SATVEX10', directSession: 'junk' }), fakeRes()), (e) => e.code === 'DIRECT_SESSION_INVALID');
+});
+
+// ---- the quick-apply chips endpoint (public) answers from the coupons table
+test('GET /coupons/chips: returns only the codes switched on as chips and still usable', async () => {
+  const couponService = require('../services/couponService');
+  const original = couponService.listAll;
+  couponService.listAll = async () => [
+    { code: 'SATVEX10', discountType: 'percentage', discountValue: 10, isActive: true, showAsChip: true, createdAt: '2026-10-01T00:00:00Z' },
+    { code: 'OFFCHIP', discountType: 'percentage', discountValue: 10, isActive: false, showAsChip: true, createdAt: '2026-10-02T00:00:00Z' },
+    { code: 'PLAIN', discountType: 'percentage', discountValue: 5, isActive: true, createdAt: '2026-10-03T00:00:00Z' },
+  ];
+  const res = fakeRes();
+  await couponController.listChips(ctx(), res);
+  assert.deepEqual((res.body.data || res.body).chips.map((c) => c.code), ['SATVEX10']);
+  couponService.listAll = original;
+});

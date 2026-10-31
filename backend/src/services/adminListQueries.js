@@ -328,13 +328,7 @@ function queryReviews(reviews, q) {
 
 // --------------------------------------------------------------- coupons ---
 
-// expired beats everything (checkout rejects it regardless); exhausted =
-// usage limit reached; otherwise the admin's own active toggle.
-function couponStatus(coupon, now = Date.now()) {
-  if (coupon.expiresAt && new Date(coupon.expiresAt).getTime() < now) return 'expired';
-  if (coupon.usageLimit && (coupon.usageCount || 0) >= coupon.usageLimit) return 'exhausted';
-  return coupon.isActive ? 'active' : 'inactive';
-}
+const { couponStatus } = require('../utils/couponStatus');
 const COUPON_RANK = { active: 0, exhausted: 1, inactive: 2, expired: 3 };
 
 const couponsQuerySchema = z.object({

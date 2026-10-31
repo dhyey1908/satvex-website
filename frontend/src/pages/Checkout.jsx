@@ -24,6 +24,7 @@ import { bagCount } from '../utils/cartSync';
 import { useCatalog } from '../hooks/useCatalog';
 import { useStickyBarHeight } from '../hooks/useStickyBarHeight';
 import { STOREFRONT } from '../config/storefront';
+import { useCouponChips } from '../hooks/useCouponChips';
 import { Truck, Loader2, Plus, Sparkles, Lock, PackageCheck } from 'lucide-react';
 import { Loader } from '../components/Loader';
 import { Modal } from '../components/Modal';
@@ -46,6 +47,7 @@ const CHECKOUT_SERVER_FIELD_MAP = {
 export function Checkout() {
   useDocumentMeta({ title: 'Checkout', path: '/checkout', noindex: true });
 
+  const couponChips = useCouponChips();
   const { items, total, refresh, appliedCoupon, applyCoupon, clearCoupon, updateItem, removeItem, addItem } = useCart();
   const { user, refreshUser } = useAuth();
   const { settings, refresh: refreshSettings } = useSettings();
@@ -406,7 +408,7 @@ export function Checkout() {
   }
 
   async function handleApplyCoupon(code) {
-    const result = await applyCoupon(code);
+    const result = await applyCoupon(code, directSession || undefined);
     setCouponCelebrationTrigger((n) => n + 1);
     return result;
   }
@@ -911,7 +913,7 @@ export function Checkout() {
               appliedCoupon={appliedCoupon}
               onApply={handleApplyCoupon}
               onClear={clearCoupon}
-              chips={STOREFRONT.checkout.couponChips}
+              chips={couponChips}
             />
           </div>
 

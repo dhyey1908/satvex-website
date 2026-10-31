@@ -95,15 +95,7 @@ async function isOnlinePaymentsAvailable(userId) {
 // trusting anything cached in the cart snapshot.
 // With a `directSession` ("Buy Now") the order is made from that session's ONE item and the bag is never read.
 async function resolveOrderItems(userId, directSession) {
-  if (directSession) {
-    const chosen = directCheckoutService.readSession(directSession, userId);
-    const lineItem = await pricingService.resolveLineItem({
-      productId: chosen.productId,
-      sellingOptionId: chosen.sellingOptionId,
-      selectedColors: chosen.selectedColors,
-    });
-    return [{ ...lineItem, quantity: chosen.quantity, subtotal: lineSubtotal(lineItem.unitPrice, chosen.quantity) }];
-  }
+  if (directSession) return directCheckoutService.resolveItems(directSession, userId);
   const cartItems = (await cartService.getCartForUser(userId)).filter((item) => !item.savedForLater);
   if (cartItems.length === 0) {
     throw new AppError('Your cart is empty.', 400, 'CART_EMPTY');

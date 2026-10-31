@@ -31,6 +31,7 @@ const EMPTY_FORM = {
   usageLimit: '',
   minOrderValue: '',
   oneUsePerCustomer: false,
+  showAsChip: false,
   expiresAt: '',
 };
 
@@ -107,6 +108,7 @@ export function AdminCoupons() {
       usageLimit: coupon.usageLimit || '',
       minOrderValue: coupon.minOrderValue || '',
       oneUsePerCustomer: coupon.oneUsePerCustomer || false,
+      showAsChip: coupon.showAsChip === true,
       expiresAt: isoToIstDate(coupon.expiresAt),
     });
     setFieldErrors({});
@@ -136,6 +138,7 @@ export function AdminCoupons() {
       discountValue: Number(form.discountValue),
       isActive: form.isActive,
       oneUsePerCustomer: form.oneUsePerCustomer,
+      showAsChip: form.showAsChip,
       ...(form.usageLimit ? { usageLimit: Number(form.usageLimit) } : {}),
       // 0 clears an existing minimum on edit.
       minOrderValue: form.minOrderValue ? Number(form.minOrderValue) : 0,
@@ -192,7 +195,12 @@ export function AdminCoupons() {
   };
 
   const columns = [
-    { key: 'code', header: 'Code', sortField: 'code', className: 'ui-cell-primary', render: (c) => <span className="ui-cell-main">{c.code}</span> },
+    { key: 'code', header: 'Code', sortField: 'code', className: 'ui-cell-primary', render: (c) => (
+      <>
+        <span className="ui-cell-main">{c.code}</span>
+        {c.showAsChip && <span className="ui-cell-sub">Shown as a chip</span>}
+      </>
+    ) },
     { key: 'discount', header: 'Discount', render: (c) => (c.discountType === 'percentage' ? `${c.discountValue}%` : `₹${c.discountValue}`) },
     {
       key: 'usage',
@@ -374,6 +382,13 @@ export function AdminCoupons() {
             />
             One use per customer
           </label>
+          <label className="checkbox-field">
+            <input type="checkbox" checked={form.showAsChip} onChange={(e) => setField('showAsChip', e.target.checked)} />
+            Show as a quick-apply chip on the bag and checkout
+          </label>
+          <p className="field-hint">
+            Customers see the code as a one-tap button under the coupon box. It only shows while this coupon is Active, not expired and not used up.
+          </p>
           <button type="submit" className="btn btn-primary btn-block" disabled={saving}>
             {saving ? 'Saving…' : 'Save Coupon'}
           </button>

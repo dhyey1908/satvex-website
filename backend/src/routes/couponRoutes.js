@@ -5,6 +5,7 @@ const couponController = require('../controllers/couponController');
 
 const router = express.Router();
 
+router.get('/chips', asyncHandler(couponController.listChips));
 router.post('/apply', requireAuth, asyncHandler(couponController.applyToCart));
 
 module.exports = router;

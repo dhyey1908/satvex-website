@@ -18,7 +18,7 @@ import { PageHeader } from '../components/PageHeader';
 import { useCatalog } from '../hooks/useCatalog';
 import { useStickyBarHeight } from '../hooks/useStickyBarHeight';
 import { estimateWindow } from '../utils/deliveryEstimate';
-import { STOREFRONT } from '../config/storefront';
+import { useCouponChips } from '../hooks/useCouponChips';
 import { Loader } from '../components/Loader';
 import { useMinimumLoading } from '../hooks/useMinimumLoading';
 import { ArrowLeft, Trash2, Bookmark, Sparkles, Truck, Heart } from 'lucide-react';
@@ -28,6 +28,7 @@ import './Cart.css';
 export function Cart() {
   useDocumentMeta({ title: 'Cart', path: '/cart', noindex: true });
 
+  const couponChips = useCouponChips();
   const { items, savedItems, itemCount, loading, updateItem, removeItem, setSavedForLater, appliedCoupon, applyCoupon, clearCoupon } = useCart();
   const catalog = useCatalog();
   const mobileBarRef = useRef(null);
@@ -247,7 +248,7 @@ export function Cart() {
                 appliedCoupon={appliedCoupon}
                 onApply={applyCoupon}
                 onClear={clearCoupon}
-                chips={STOREFRONT.checkout.couponChips}
+                chips={couponChips}
               />
             </div>
 

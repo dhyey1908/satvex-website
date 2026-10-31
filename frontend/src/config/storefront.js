@@ -24,9 +24,6 @@ export const STOREFRONT = {
     // REQUIRE_OTP_FOR_PREPAID: the mobile-OTP step is required for Cash on
     // Delivery orders; set true to require it for online (prepaid) orders too.
     requireOtpForPrepaid: false,
-    // Coupon codes offered as one-tap chips. The backend still validates each
-    // code when it is applied (an invalid/expired one just shows its error).
-    couponChips: ['SATVEX10'],
   },
 
   // Trust row under the buy buttons. `cod` is shown only if COD is enabled in

@@ -1,5 +1,7 @@
 const { signDirectCheckoutToken, verifyDirectCheckoutToken } = require('../utils/jwt');
 const AppError = require('../utils/AppError');
+const pricingService = require('./pricingService');
+const { lineSubtotal } = require('../utils/money');
 
 // "Buy Now": a separate, one-item checkout. The session is a signed token (see utils/jwt) that holds only the
 // selection - product, pack, colours, quantity - so the bag is never read or changed by it.
@@ -27,4 +29,16 @@ function readSession(token, userId) {
   return payload.item;
 }
 
-module.exports = { createSession, readSession };
+// The session's ONE item, priced from the live product (never from anything stored in the token).
+// Used wherever a Buy Now checkout needs its items instead of the bag: the quote, the order and the coupon check.
+async function resolveItems(token, userId) {
+  const chosen = readSession(token, userId);
+  const lineItem = await pricingService.resolveLineItem({
+    productId: chosen.productId,
+    sellingOptionId: chosen.sellingOptionId,
+    selectedColors: chosen.selectedColors,
+  });
+  return [{ ...lineItem, quantity: chosen.quantity, subtotal: lineSubtotal(lineItem.unitPrice, chosen.quantity) }];
+}
+
+module.exports = { createSession, readSession, resolveItems };

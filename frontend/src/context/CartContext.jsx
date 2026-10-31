@@ -213,8 +213,8 @@ export function CartProvider({ children }) {
   }, [refresh]);
 
   // ---- coupon (kept in memory only) ---------------------------------------------------------------------
-  const applyCoupon = useCallback(async (code) => {
-    const result = await couponService.apply(code);
+  const applyCoupon = useCallback(async (code, directSession) => {
+    const result = await couponService.apply(code, directSession);
     setAppliedCoupon(result);
     return result;
   }, []);

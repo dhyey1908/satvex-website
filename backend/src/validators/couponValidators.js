@@ -14,6 +14,8 @@ const couponBaseSchema = z.object({
   minOrderValue: z.number().min(0).max(1000000).optional(),
   usageLimit: z.number().int().positive().optional(),
   oneUsePerCustomer: z.boolean().default(false),
+  // Show this code as a one-tap chip on the bag and checkout (only while the coupon is also active / valid / not used up).
+  showAsChip: z.boolean().default(false),
 });
 
 function withPercentageCap(schema) {
@@ -36,6 +38,8 @@ const couponUpdateSchema = withFlatBelowMinimum(withPercentageCap(couponBaseSche
 
 const applyCouponSchema = z.object({
   code: z.string().trim().min(1),
+  // "Buy Now": check the code against that one-item session instead of the bag.
+  directSession: z.string().trim().min(1).max(2000).optional(),
 });
 
 module.exports = { couponSchema, couponUpdateSchema, applyCouponSchema };

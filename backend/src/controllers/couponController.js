@@ -1,15 +1,20 @@
 const cartService = require('../services/cartService');
+const directCheckoutService = require('../services/directCheckoutService');
 const couponService = require('../services/couponService');
 const couponRedemptionService = require('../services/couponRedemptionService');
 const pricingService = require('../services/pricingService');
 const { couponSchema, couponUpdateSchema, applyCouponSchema } = require('../validators/couponValidators');
 const AppError = require('../utils/AppError');
+const { chipCoupons } = require('../utils/couponStatus');
 const { couponsQuerySchema, queryCoupons } = require('../services/adminListQueries');
 const { ok, created } = require('../utils/response');
 
 async function applyToCart(req, res) {
-  const { code } = applyCouponSchema.parse(req.body);
-  const items = (await cartService.getCartForUser(req.user.id)).filter((item) => !item.savedForLater);
+  const { code, directSession } = applyCouponSchema.parse(req.body);
+  // A Buy Now checkout has its own one item (the bag may be empty, or hold other things): price the code on THAT.
+  const items = directSession
+    ? await directCheckoutService.resolveItems(directSession, req.user.id)
+    : (await cartService.getCartForUser(req.user.id)).filter((item) => !item.savedForLater);
   const subtotal = Number(items.reduce((sum, item) => sum + item.subtotal, 0).toFixed(2));
 
   if (items.length === 0) {
@@ -18,6 +23,11 @@ async function applyToCart(req, res) {
 
   const discount = await pricingService.validateCoupon(code, subtotal, req.user.id);
   ok(res, { ...discount, subtotal });
+}
+
+// Public: the codes the admin has switched on as quick-apply chips (and that can still be used today).
+async function listChips(req, res) {
+  ok(res, { chips: chipCoupons(await couponService.listAll()) });
 }
 
 async function adminList(req, res) {
@@ -48,4 +58,4 @@ async function adminRedemptions(req, res) {
   ok(res, { redemptions });
 }
 
-module.exports = { applyToCart, adminList, adminCreate, adminUpdate, adminRemove, adminRedemptions };
+module.exports = { listChips, applyToCart, adminList, adminCreate, adminUpdate, adminRemove, adminRedemptions };
