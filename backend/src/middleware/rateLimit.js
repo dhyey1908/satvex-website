@@ -49,7 +49,15 @@ const refreshLimiter = makeLimiter({
 // DynamoDB counter shared by every Lambda container) - an in-memory limiter
 // here would be per-container and reset on cold start.
 
+// Browser-side error reports: plenty for real use, too few to flood the logs.
+const clientErrorLimiter = makeLimiter({
+  windowMs: 60 * 1000,
+  max: 20,
+  message: 'Too many reports.',
+});
+
 module.exports = {
+  clientErrorLimiter,
   authLimiter,
   passwordResetLimiter,
   contactLimiter,

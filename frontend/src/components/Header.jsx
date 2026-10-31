@@ -10,6 +10,7 @@ import { BrandLogo } from './BrandLogo';
 import { SearchOverlay } from './SearchOverlay';
 import { AccountMenu } from './AccountMenu';
 import { useToast } from '../context/ToastContext';
+import { useCountBump } from '../hooks/useCountBump';
 import { SPRING_SOFT } from '../motion';
 import './Header.css';
 
@@ -36,6 +37,7 @@ export function Header() {
   const { isAuthenticated, user, logout } = useAuth();
   const { openLogin } = useAuthGate();
   const { itemCount: cartCount } = useCart();
+  const cartBump = useCountBump(cartCount);
   const { itemCount: wishlistCount } = useWishlist();
   const { showToast } = useToast();
   const navigate = useNavigate();
@@ -113,7 +115,7 @@ export function Header() {
             aria-label={`Cart (${cartCount} items)`}
           >
             <ShoppingBag size={20} />
-            {cartCount > 0 && <span className="badge">{cartCount}</span>}
+            {cartCount > 0 && <span className={`badge ${cartBump ? 'is-bump' : ''}`}>{cartCount}</span>}
           </NavLink>
 
           <div className="header-account-desktop">

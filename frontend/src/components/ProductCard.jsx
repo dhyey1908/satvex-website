@@ -5,6 +5,7 @@ import { Heart, ShoppingBag, Star } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAuthGate } from '../context/AuthGateContext';
 import { useCart } from '../context/CartContext';
+import { useBagFeedback } from '../hooks/useBagFeedback';
 import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../context/ToastContext';
 import { ImagePlaceholder } from './ImagePlaceholder';
@@ -16,6 +17,7 @@ export function ProductCard({ product }) {
   const { requireAuth } = useAuthGate();
   const { isInWishlist, addItem, removeItem } = useWishlist();
   const { addItem: addToCart, isInCart } = useCart();
+  const bagFeedback = useBagFeedback();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [justAdded, setJustAdded] = useState(false);
@@ -69,9 +71,9 @@ export function ProductCard({ product }) {
         selectedColors: [activeVariants[0].id],
         quantity: 1,
       });
-      showToast('Added to bag', 'success');
+      bagFeedback.added();
     } catch (err) {
-      showToast(err.message, 'error');
+      bagFeedback.failed(err);
     }
   }
 

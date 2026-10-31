@@ -28,7 +28,7 @@ import './Cart.css';
 export function Cart() {
   useDocumentMeta({ title: 'Cart', path: '/cart', noindex: true });
 
-  const { items, savedItems, loading, updateItem, removeItem, setSavedForLater, appliedCoupon, applyCoupon, clearCoupon } = useCart();
+  const { items, savedItems, itemCount, loading, updateItem, removeItem, setSavedForLater, appliedCoupon, applyCoupon, clearCoupon } = useCart();
   const catalog = useCatalog();
   const mobileBarRef = useRef(null);
   useStickyBarHeight(mobileBarRef);
@@ -192,7 +192,7 @@ export function Cart() {
         <span className="pdp-breadcrumb-current">Your Cart</span>
       </nav>
 
-      <PageHeader title="Shopping Bag" count={items.length} countLabel="items" />
+      <PageHeader title="Shopping Bag" count={itemCount} countLabel="items" />
 
       <FreeShippingBanner quote={quote} />
 

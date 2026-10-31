@@ -29,11 +29,14 @@ async function getCartItem(userId, cartItemId) {
   return result.Item || null;
 }
 
-async function addItem(userId, lineItem, quantity) {
+// `requestId` (a UUID the browser makes once per click) makes the add idempotent: it becomes the line's id and the
+// write only happens if no such line exists, so a double click, a retry or a repeated request adds it ONCE and
+// every repeat just gets the existing line back.
+async function addItem(userId, lineItem, quantity, requestId) {
   const now = new Date().toISOString();
   const item = withSubtotal({
     userId,
-    cartItemId: uuid(),
+    cartItemId: requestId || uuid(),
     productId: lineItem.productId,
     productName: lineItem.productName,
     productSlug: lineItem.productSlug,
@@ -51,7 +54,15 @@ async function addItem(userId, lineItem, quantity) {
     updatedAt: now,
   });
 
-  await docClient.send(new PutCommand({ TableName: TABLE, Item: item }));
+  try {
+    await docClient.send(new PutCommand({ TableName: TABLE, Item: item, ConditionExpression: 'attribute_not_exists(cartItemId)' }));
+  } catch (err) {
+    if (err.name === 'ConditionalCheckFailedException' && requestId) {
+      const existing = await getCartItem(userId, requestId);
+      if (existing) return existing;
+    }
+    throw err;
+  }
   return item;
 }
 

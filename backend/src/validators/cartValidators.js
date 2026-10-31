@@ -5,6 +5,8 @@ const addCartItemSchema = z.object({
   sellingOptionId: z.string().min(1),
   selectedColors: z.array(z.string().min(1)).min(1).max(20),
   quantity: z.number().int().min(1).max(20).default(1),
+  // Made once per click by the browser: a repeat of the same request adds nothing more (see cartService.addItem).
+  requestId: z.string().uuid().optional(),
 });
 
 const updateCartItemSchema = z.object({

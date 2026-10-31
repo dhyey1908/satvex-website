@@ -13,6 +13,8 @@ import { ProductReviews } from '../components/ProductReviews';
 import { ProductVideoSlider } from '../components/ProductVideoSlider';
 import { ProofStats } from '../components/ProofStats';
 import { orderService } from '../services/orderService';
+import { useBagFeedback } from '../hooks/useBagFeedback';
+import { useCountBump } from '../hooks/useCountBump';
 import { TopHighlight } from '../components/TopHighlight';
 import { FeatureHotspots } from '../components/FeatureHotspots';
 import { PriceDisplay } from '../components/PriceDisplay';
@@ -66,6 +68,8 @@ export function ProductDetail() {
   const { isAuthenticated } = useAuth();
   const { requireAuth } = useAuthGate();
   const { addItem, isInCart, items: cartItems, itemCount: cartCount } = useCart();
+  const cartBump = useCountBump(cartCount);
+  const bagFeedback = useBagFeedback();
   const { isInWishlist, addItem: addWishlistItem, removeItem: removeWishlistItem } = useWishlist();
   const { showToast } = useToast();
   const { settings } = useSettings();
@@ -422,9 +426,10 @@ export function ProductDetail() {
         selectedColors,
         quantity,
       });
-      showToast('Added to cart', 'success');
+      bagFeedback.added();
     } catch (err) {
-      showToast(err.message, 'error');
+      if (redirectToCheckout) showToast(err.message, 'error');
+      else bagFeedback.failed(err);
     } finally {
       setSubmitting(false);
       setBuyingNow(false);
@@ -525,7 +530,7 @@ export function ProductDetail() {
         </div>
         <Link to="/cart" className="pdp-mobile-header-cart" aria-label={`Cart (${cartCount} items)`}>
           <ShoppingBag size={20} />
-          {cartCount > 0 && <span className="badge">{cartCount}</span>}
+          {cartCount > 0 && <span className={`badge ${cartBump ? 'is-bump' : ''}`}>{cartCount}</span>}
         </Link>
       </div>
 

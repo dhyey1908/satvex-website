@@ -95,6 +95,10 @@
   background: var(--color-primary);
 }
 
+/* the bag badge gives a small bump each time the count goes up */
+@keyframes badge-bump { 0% { transform: scale(1); } 40% { transform: scale(1.45); } 100% { transform: scale(1); } }
+.badge.is-bump { animation: badge-bump 420ms ease; }
+@media (prefers-reduced-motion: reduce) { .badge.is-bump { animation: none; } }
 .badge {
   position: absolute;
   top: 2px;

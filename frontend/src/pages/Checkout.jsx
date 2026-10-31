@@ -20,6 +20,7 @@ import { AddressCard } from '../components/AddressCard';
 import { PhoneVerification } from '../components/PhoneVerification';
 import { AddressFormFields, ADDRESS_FORM_EMPTY, addressFormToPayload, validateAddressForm } from '../components/AddressFormFields';
 import { SummaryItems } from '../components/SummaryItems';
+import { bagCount } from '../utils/cartSync';
 import { useCatalog } from '../hooks/useCatalog';
 import { useStickyBarHeight } from '../hooks/useStickyBarHeight';
 import { STOREFRONT } from '../config/storefront';
@@ -654,7 +655,8 @@ export function Checkout() {
   // Computed by the backend (MRP markdown + coupon), shown as received.
   const savingsAmount = quote?.savingsAmount ?? 0;
   const lines = buyNow ? buyNowItems : items;
-  const itemCount = lines.length;
+  // the same bag count as the header badge: the sum of the quantities
+  const itemCount = bagCount(lines);
   const otpNeeded = otpRequiredFor(paymentMethod);
   // The COD fee as the server reports it (on the COD quote, or from the
   // prepaid-vs-COD comparison while Online is selected), else the store setting.

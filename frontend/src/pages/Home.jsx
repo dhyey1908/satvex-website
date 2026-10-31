@@ -6,6 +6,7 @@ import { productService } from '../services/productService';
 import { useAuth } from '../context/AuthContext';
 import { useAuthGate } from '../context/AuthGateContext';
 import { useCart } from '../context/CartContext';
+import { useBagFeedback } from '../hooks/useBagFeedback';
 import { useToast } from '../context/ToastContext';
 import { useSettings } from '../context/SettingsContext';
 import { ProductGrid } from '../components/ProductGrid';
@@ -37,6 +38,7 @@ export function Home() {
   const { isAuthenticated } = useAuth();
   const { requireAuth } = useAuthGate();
   const { addItem: addToCart, isInCart } = useCart();
+  const bagFeedback = useBagFeedback();
   const { showToast } = useToast();
   const { settings } = useSettings();
   const navigate = useNavigate();
@@ -114,9 +116,9 @@ export function Home() {
         selectedColors: [selectedVariant.id],
         quantity: 1,
       });
-      showToast('Added to bag', 'success');
+      bagFeedback.added();
     } catch (err) {
-      showToast(err.message, 'error');
+      bagFeedback.failed(err);
     } finally {
       setAdding(false);
     }

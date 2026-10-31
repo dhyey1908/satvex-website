@@ -50,9 +50,12 @@ async function doFetch(path, { method = 'GET', body, params } = {}) {
     if (qs) url += `?${qs}`;
   }
 
+  // The bag, orders, login state... belong to one customer and change all the time: never serve them from cache.
+  const isPrivate = /^\/(cart|wishlist|orders|auth|addresses|phone|payments)(\/|$)/.test(path);
   const res = await fetch(url, {
     method,
     credentials: 'include',
+    ...(isPrivate ? { cache: 'no-store' } : {}),
     headers: {
       ...(body ? { 'Content-Type': 'application/json' } : {}),
       ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
