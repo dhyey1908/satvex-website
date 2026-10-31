@@ -390,6 +390,12 @@
   .checkout-summary-bar { display: block; }
   .checkout-summary-inline { display: block; margin-bottom: var(--space-3); }
   .checkout-summary-col { display: none; }
+
+  /* One card, edge to edge, 16px padding: no card inside a card eating the width. */
+  .checkout-summary-bar { width: 100vw; margin-inline: calc(50% - 50vw); border-radius: 0; border-inline: 0; }
+  .checkout-summary-bar-toggle { padding: 0 var(--space-3); }
+  .checkout-summary-bar-panel { padding: 0 var(--space-3) var(--space-3); }
+  .checkout-summary-inline .order-summary { padding: var(--space-3); border-radius: var(--radius-md); }
 }
 
 /* The terms line sits just above whichever Place Order button is showing: in the

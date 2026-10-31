@@ -11,4 +11,8 @@
   color: var(--color-text);
 }
 /* The real product colour: never themed, 1px border token so light colours stay visible. */
+/* compact: small inline pills that wrap neatly (order summary) */
+.color-chips.is-compact { gap: 6px; }
+.color-chips.is-compact .color-chip { gap: 5px; padding: 2px 9px 2px 7px; font-size: 0.74rem; line-height: 1.4; }
+.color-chips.is-compact .color-chip-dot { width: 10px; height: 10px; }
 .color-chip-dot { width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--color-border); flex-shrink: 0; }

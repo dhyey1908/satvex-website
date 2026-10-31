@@ -3,6 +3,8 @@ import { api } from './apiClient';
 export const orderService = {
   quote: (data) => api.post('/orders/quote', data),
   checkout: (data) => api.post('/orders', data),
+  // "Buy Now": a separate one-item checkout. Nothing is added to the bag; returns { session }.
+  createDirectSession: (item) => api.post('/orders/direct-session', item),
   list: () => api.get('/orders'),
   getById: (id) => api.get(`/orders/${encodeURIComponent(id)}`),
   cancel: (id) => api.post(`/orders/${encodeURIComponent(id)}/cancel`),

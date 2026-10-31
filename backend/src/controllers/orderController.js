@@ -5,6 +5,8 @@ const orderService = require('../services/orderService');
 const couponService = require('../services/couponService');
 const couponRedemptionService = require('../services/couponRedemptionService');
 const pricingService = require('../services/pricingService');
+const directCheckoutService = require('../services/directCheckoutService');
+const { addCartItemSchema } = require('../validators/cartValidators');
 const payuService = require('../services/payuService');
 const settingsService = require('../services/settingsService');
 const shipmentService = require('../services/shipmentService');
@@ -91,7 +93,17 @@ async function isOnlinePaymentsAvailable(userId) {
 // Shared by checkout and the quote preview — re-derives every line item from
 // current product/variant data (price, availability, stock) rather than
 // trusting anything cached in the cart snapshot.
-async function resolveOrderItems(userId) {
+// With a `directSession` ("Buy Now") the order is made from that session's ONE item and the bag is never read.
+async function resolveOrderItems(userId, directSession) {
+  if (directSession) {
+    const chosen = directCheckoutService.readSession(directSession, userId);
+    const lineItem = await pricingService.resolveLineItem({
+      productId: chosen.productId,
+      sellingOptionId: chosen.sellingOptionId,
+      selectedColors: chosen.selectedColors,
+    });
+    return [{ ...lineItem, quantity: chosen.quantity, subtotal: lineSubtotal(lineItem.unitPrice, chosen.quantity) }];
+  }
   const cartItems = (await cartService.getCartForUser(userId)).filter((item) => !item.savedForLater);
   if (cartItems.length === 0) {
     throw new AppError('Your cart is empty.', 400, 'CART_EMPTY');
@@ -113,8 +125,8 @@ async function resolveOrderItems(userId) {
 // total) so the frontend never has to guess/recompute any of it — Cart and
 // Checkout just display what this returns. Never mutates coupon usage.
 async function quote(req, res) {
-  const { couponCode, paymentMethod, pincode } = quoteSchema.parse(req.body);
-  const orderItems = await resolveOrderItems(req.user.id);
+  const { couponCode, paymentMethod, pincode, directSession } = quoteSchema.parse(req.body);
+  const orderItems = await resolveOrderItems(req.user.id, directSession);
   const totals = await pricingService.calculateTotals({
     items: orderItems,
     couponCode,
@@ -161,7 +173,7 @@ const normalizeState = (s) =>
     .trim();
 
 async function checkout(req, res) {
-  const { customer, address, couponCode, paymentMethod, expectedTotal } = checkoutSchema.parse(req.body);
+  const { customer, address, couponCode, paymentMethod, expectedTotal, directSession } = checkoutSchema.parse(req.body);
 
   // Step 3: reject up front if Online isn't enabled for this user — before
   // any coupon commit or DB write. The API must not trust the frontend to
@@ -184,8 +196,9 @@ async function checkout(req, res) {
     );
   }
 
-  // Step 1: resolve items + compute totals (no side effects).
-  const orderItems = await resolveOrderItems(req.user.id);
+  // Step 1: resolve items + compute totals (no side effects). A Buy Now order is made from its own
+  // one-item session, never from the bag.
+  const orderItems = await resolveOrderItems(req.user.id, directSession);
   const totals = await pricingService.calculateTotals({
     items: orderItems,
     couponCode,
@@ -307,8 +320,8 @@ async function checkout(req, res) {
     throw new AppError('Could not place your order — please try again.', 500, 'ORDER_CREATE_FAILED');
   }
 
-  // Step 7: clear the cart.
-  await cartService.clearCart(req.user.id);
+  // Step 7: clear the cart - except for a Buy Now order, which never came from the bag and must leave it exactly as it was.
+  if (!directSession) await cartService.clearCart(req.user.id);
 
   if (order.status === 'Confirmed') {
     await shipmentService.triggerShipmentIfNeeded(order.orderId);
@@ -320,6 +333,14 @@ async function checkout(req, res) {
 
   // Step 8: return.
   created(res, { order: toCustomerOrder(order), payuParams });
+}
+
+// "Buy Now": start a separate one-item checkout. Checks the selection exactly as adding to the bag would (pack,
+// colours, stock) but does NOT add anything to the bag; returns the session to put in /checkout?mode=buynow&session=...
+async function createDirectSession(req, res) {
+  const input = addCartItemSchema.parse(req.body);
+  await pricingService.resolveLineItem(input);
+  created(res, { session: directCheckoutService.createSession(req.user.id, input) });
 }
 
 async function listMyOrders(req, res) {
@@ -742,6 +763,8 @@ async function adminTestShiprocketConnection(req, res) {
 }
 
 module.exports = {
+  createDirectSession,
+  resolveOrderItems,
   quote,
   checkout,
   listMyOrders,

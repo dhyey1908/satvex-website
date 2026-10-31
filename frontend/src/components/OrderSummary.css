@@ -106,20 +106,50 @@
 .order-summary-savings { align-self: flex-start; border-radius: var(--radius-pill); padding: 6px 14px; }
 .order-summary-rows-gap { gap: var(--space-2); }
 
-/* Line items inside the summary: thumbnail of the chosen colour, name, pack, colour chips. */
-.summary-items { display: flex; flex-direction: column; gap: var(--space-3); }
-.summary-item { display: flex; gap: var(--space-3); align-items: flex-start; }
+/* Line items inside the summary: a grid of [thumbnail 64px] [name (2 lines max) + pack + colour pills] [price].
+   The price never wraps and the name can never run underneath it. */
+.summary-items { display: flex; flex-direction: column; gap: var(--space-4); }
+.summary-item { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; column-gap: var(--space-3); align-items: start; }
 .summary-item-image {
-  width: 56px;
-  height: 56px;
-  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface-alt);
   overflow: hidden;
 }
 .summary-item-image img { width: 100%; height: 100%; object-fit: contain; }
-.summary-item-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.summary-item-name { font-weight: 600; font-size: 0.9rem; color: var(--color-text); }
+.summary-item-info { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.summary-item-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+  font-size: 0.9rem;
+  line-height: 1.3;
+  color: var(--color-text);
+}
 .summary-item-pack { font-size: 0.8rem; color: var(--color-text-muted); }
-.summary-item-price { flex-shrink: 0; font-size: 0.9rem; font-weight: 600; color: var(--color-text); }
+.summary-item-price { white-space: nowrap; text-align: right; font-size: 0.9rem; font-weight: 600; color: var(--color-text); }
+
+/* quantity stepper + Remove / Change under the item */
+.summary-item-edit { display: flex; align-items: center; flex-wrap: wrap; gap: 2px var(--space-3); margin-top: 4px; }
+.summary-item-edit .quantity-selector button { width: 32px; height: 32px; font-size: 1.05rem; }
+.summary-item-edit .quantity-selector span { min-width: 26px; font-size: 0.88rem; }
+.summary-item-link {
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.summary-item-link:hover { color: var(--color-primary-hover); }

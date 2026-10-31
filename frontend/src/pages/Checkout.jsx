@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
@@ -45,12 +45,20 @@ const CHECKOUT_SERVER_FIELD_MAP = {
 export function Checkout() {
   useDocumentMeta({ title: 'Checkout', path: '/checkout', noindex: true });
 
-  const { items, total, refresh, appliedCoupon, applyCoupon, clearCoupon } = useCart();
+  const { items, total, refresh, appliedCoupon, applyCoupon, clearCoupon, updateItem, removeItem, addItem } = useCart();
   const { user, refreshUser } = useAuth();
   const { settings, refresh: refreshSettings } = useSettings();
   const { showToast } = useToast();
   const confirm = useConfirm();
   const navigate = useNavigate();
+  // "Buy Now" (/checkout?mode=buynow&session=...) is a separate, one-item checkout: its item comes from the session,
+  // never from the bag, and nothing here adds to / removes from / empties the bag.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const directSession = searchParams.get('mode') === 'buynow' ? searchParams.get('session') : null;
+  const buyNow = Boolean(directSession);
+  const [buyNowItems, setBuyNowItems] = useState(null);
+  const [sessionError, setSessionError] = useState(null);
+  const itemEditBusyRef = useRef(false);
   const [form, setForm] = useState({ ...ADDRESS_FORM_EMPTY });
   const [fieldErrors, setFieldErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -246,14 +254,18 @@ export function Checkout() {
       ? typedPincode
       : undefined;
 
-  const currentQuoteKey = JSON.stringify([appliedCoupon?.code || '', paymentMethod, deliveryPincode || '']);
+  const currentQuoteKey = JSON.stringify([appliedCoupon?.code || '', paymentMethod, deliveryPincode || '', directSession || '']);
 
   useEffect(() => {
     let cancelled = false;
     orderService
-      .quote({ couponCode: appliedCoupon?.code, paymentMethod, pincode: deliveryPincode })
+      .quote({ couponCode: appliedCoupon?.code, paymentMethod, pincode: deliveryPincode, directSession: directSession || undefined })
       .then((data) => {
         if (cancelled) return;
+        if (directSession) {
+          setBuyNowItems(data.items || []);
+          setSessionError(null);
+        }
         setQuote(data);
         setQuoteKey(currentQuoteKey);
         setQuoteError(null);
@@ -261,6 +273,13 @@ export function Checkout() {
       })
       .catch((err) => {
         if (cancelled) return;
+        // Buy Now: a session that expired or is not valid, or a product / pack / colour that is no longer available.
+        if (directSession && /^(DIRECT_SESSION_|PRODUCT_UNAVAILABLE|SELLING_OPTION_UNAVAILABLE|INVALID_COLOR_SELECTION|COLOR_OUT_OF_STOCK|DUPLICATE_COLORS)/.test(err.code || '')) {
+          setSessionError(err.message);
+          setQuote(null);
+          setQuoteKey(null);
+          return;
+        }
         if (/^(COUPON_|INVALID_COUPON)/.test(err.code || '')) {
           clearCoupon();
           showToast(`${err.message} The coupon was removed.`, 'warning');
@@ -284,7 +303,7 @@ export function Checkout() {
     return () => {
       cancelled = true;
     };
-  }, [appliedCoupon, paymentMethod, deliveryPincode, quoteRefreshToken]);
+  }, [appliedCoupon, paymentMethod, deliveryPincode, quoteRefreshToken, directSession]);
 
   function setField(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -468,6 +487,8 @@ export function Checkout() {
         },
         couponCode: appliedCoupon?.code,
         paymentMethod: method,
+        // Buy Now: the order is made from this one-item session, not from the bag (and the bag is left as it is).
+        directSession: directSession || undefined,
         // The total on the customer's screen. The server still prices the
         // order itself and refuses (409 PRICE_CHANGED) if it would differ.
         expectedTotal: switchingMethod ? quote?.prepaidOffer?.onlineTotal : quote?.total,
@@ -573,7 +594,24 @@ export function Checkout() {
     );
   }
 
-  if (items.length === 0) {
+  if (buyNow) {
+    if (sessionError) {
+      return (
+        <div className="container section">
+          <EmptyState
+            title="This checkout is no longer available."
+            message={sessionError}
+            action={
+              <Link to={searchParams.get('product') ? `/product/${encodeURIComponent(searchParams.get('product'))}` : '/shop'} className="btn btn-primary">
+                Back to the product
+              </Link>
+            }
+          />
+        </div>
+      );
+    }
+    if (!buyNowItems) return <Loader label="Loading your checkout…" />;
+  } else if (items.length === 0) {
     return (
       <div className="container section">
         <EmptyState
@@ -615,7 +653,8 @@ export function Checkout() {
   }
   // Computed by the backend (MRP markdown + coupon), shown as received.
   const savingsAmount = quote?.savingsAmount ?? 0;
-  const itemCount = items.length;
+  const lines = buyNow ? buyNowItems : items;
+  const itemCount = lines.length;
   const otpNeeded = otpRequiredFor(paymentMethod);
   // The COD fee as the server reports it (on the COD quote, or from the
   // prepaid-vs-COD comparison while Online is selected), else the store setting.
@@ -625,6 +664,88 @@ export function Checkout() {
 
   // The one summary both placements render (sidebar on desktop; top bar and
   // before the Place Order area on mobile) - same data, same component.
+  // ---- editing the items right on the checkout page ----
+  const refreshQuote = () => setQuoteRefreshToken((n) => n + 1);
+
+  // Buy Now: a new quantity is a new one-item session (the old one is replaced in the address bar).
+  async function changeBuyNowQuantity(item, quantity) {
+    if (itemEditBusyRef.current || quantity === item.quantity) return;
+    itemEditBusyRef.current = true;
+    try {
+      const { session } = await orderService.createDirectSession({
+        productId: item.productId,
+        sellingOptionId: item.sellingOptionId,
+        selectedColors: item.selectedColors,
+        quantity,
+      });
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set('session', session);
+          return next;
+        },
+        { replace: true }
+      );
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      itemEditBusyRef.current = false;
+    }
+  }
+
+  async function changeBagQuantity(item, quantity) {
+    if (itemEditBusyRef.current || quantity === item.quantity) return;
+    itemEditBusyRef.current = true;
+    try {
+      await updateItem(item.cartItemId, { quantity });
+      refreshQuote();
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      itemEditBusyRef.current = false;
+    }
+  }
+
+  // Remove from the bag: totals update, and a toast offers Undo for 5 seconds. The last item gone = an empty bag.
+  async function removeFromBag(item) {
+    if (itemEditBusyRef.current) return;
+    itemEditBusyRef.current = true;
+    const wasLast = items.length === 1;
+    const snapshot = { productId: item.productId, sellingOptionId: item.sellingOptionId, selectedColors: item.selectedColors, quantity: item.quantity };
+    try {
+      await removeItem(item.cartItemId);
+    } catch (err) {
+      showToast(err.message, 'error');
+      itemEditBusyRef.current = false;
+      return;
+    }
+    itemEditBusyRef.current = false;
+    if (wasLast) {
+      showToast('Your bag is empty.', 'info');
+      navigate('/cart');
+      return;
+    }
+    refreshQuote();
+    showToast('Item removed', 'info', 5000, {
+      label: 'Undo',
+      onClick: async () => {
+        try {
+          await addItem(snapshot);
+          refreshQuote();
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
+      },
+    });
+  }
+
+  const firstLine = lines[0];
+  // "Change" on a Buy Now item: back to the product with the same pack, colours and quantity.
+  const changeHref =
+    buyNow && firstLine
+      ? `/product/${encodeURIComponent(firstLine.productSlug || searchParams.get('product') || '')}?pack=${encodeURIComponent(firstLine.sellingOptionId)}&colors=${(firstLine.selectedColors || []).map(encodeURIComponent).join(',')}&qty=${firstLine.quantity}`
+      : null;
+
   const summaryNode = (
     <OrderSummary
       subtotal={quote?.subtotal ?? 0}
@@ -642,7 +763,16 @@ export function Checkout() {
       savingsAmount={savingsAmount}
       itemCount={itemCount}
       defaultExpanded
-      itemsSlot={<SummaryItems items={items} catalog={catalog} />}
+      itemsSlot={
+        <SummaryItems
+          items={lines}
+          catalog={catalog}
+          mode={buyNow ? 'buynow' : 'bag'}
+          onQuantityChange={buyNow ? changeBuyNowQuantity : changeBagQuantity}
+          onRemove={removeFromBag}
+          changeHref={changeHref}
+        />
+      }
     />
   );
   // Feeds PhoneVerification's phone prop — either the saved address the

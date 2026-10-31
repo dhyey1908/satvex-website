@@ -12,6 +12,7 @@ import { RatingDisplay } from '../components/RatingDisplay';
 import { ProductReviews } from '../components/ProductReviews';
 import { ProductVideoSlider } from '../components/ProductVideoSlider';
 import { ProofStats } from '../components/ProofStats';
+import { orderService } from '../services/orderService';
 import { TopHighlight } from '../components/TopHighlight';
 import { FeatureHotspots } from '../components/FeatureHotspots';
 import { PriceDisplay } from '../components/PriceDisplay';
@@ -42,6 +43,22 @@ const DEFAULT_HIGHLIGHTS = [
   { title: 'Durable', description: 'Made to deliver dependable performance and lasting usability.' },
   { title: 'Stylish', description: 'Modern aesthetics designed for today’s women.' },
 ];
+
+// A link like /product/x?pack=<option>&colors=<id>,<id>&qty=2 reopens the page with that exact selection (the
+// "Change" link on a Buy Now checkout). Anything that does not match this product's live options is ignored.
+function selectionFromLink(product, params) {
+  const pack = params.get('pack');
+  const option = product.sellingOptions.find((o) => o.id === pack && o.isActive);
+  if (!option) return null;
+  const known = new Set(product.variants.map((v) => v.id));
+  const colours = (params.get('colors') || '').split(',').filter((id) => known.has(id));
+  const qty = Number(params.get('qty'));
+  return {
+    sellingOptionId: option.id,
+    selectedColors: colours.length === option.quantity ? colours : [],
+    quantity: Number.isInteger(qty) && qty >= 1 && qty <= 20 ? qty : 1,
+  };
+}
 
 export function ProductDetail() {
   const { slug } = useParams();
@@ -136,8 +153,13 @@ export function ProductDetail() {
         // navigating back to the PDP always shows "Add to Cart" again even
         // though the item is already there, until the customer re-picks
         // the same colors by hand.
-        const existing = cartItemsRef.current.find((i) => i.productId === p.productId);
-        if (existing) {
+        const fromLink = selectionFromLink(p, new URLSearchParams(window.location.search));
+        const existing = fromLink ? null : cartItemsRef.current.find((i) => i.productId === p.productId);
+        if (fromLink) {
+          setSellingOptionId(fromLink.sellingOptionId);
+          setSelectedColors(fromLink.selectedColors);
+          setQuantity(fromLink.quantity);
+        } else if (existing) {
           setSellingOptionId(existing.sellingOptionId);
           setSelectedColors(existing.selectedColors || []);
         } else {
@@ -383,6 +405,17 @@ export function ProductDetail() {
     if (redirectToCheckout) setBuyingNow(true);
     else setSubmitting(true);
     try {
+      if (redirectToCheckout) {
+        // Buy Now is a separate one-item checkout: nothing is added to the bag and the bag is not changed.
+        const { session } = await orderService.createDirectSession({
+          productId: product.productId,
+          sellingOptionId: sellingOption.id,
+          selectedColors,
+          quantity,
+        });
+        navigate(`/checkout?mode=buynow&session=${encodeURIComponent(session)}&product=${encodeURIComponent(product.slug)}`);
+        return;
+      }
       await addItem({
         productId: product.productId,
         sellingOptionId: sellingOption.id,
@@ -390,7 +423,6 @@ export function ProductDetail() {
         quantity,
       });
       showToast('Added to cart', 'success');
-      if (redirectToCheckout) navigate('/checkout');
     } catch (err) {
       showToast(err.message, 'error');
     } finally {

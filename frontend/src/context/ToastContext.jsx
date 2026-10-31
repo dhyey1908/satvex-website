@@ -29,10 +29,10 @@ export function ToastProvider({ children }) {
   }, []);
 
   const showToast = useCallback(
-    (message, type = 'success', duration) => {
+    (message, type = 'success', duration, action) => {
       const resolvedType = ICONS[type] ? type : 'success';
       const id = ++idRef.current;
-      setToasts((prev) => [...prev, { id, message, type: resolvedType, leaving: false }]);
+      setToasts((prev) => [...prev, { id, message, type: resolvedType, leaving: false, action }]);
       window.setTimeout(() => dismiss(id), duration ?? DEFAULT_DURATIONS[resolvedType]);
       return id;
     },
@@ -51,6 +51,21 @@ export function ToastProvider({ children }) {
                 <Icon size={14} />
               </span>
               <span className="toast-message">{t.message}</span>
+              {t.action && (
+                <>
+                  <span className="toast-sep" aria-hidden="true">·</span>
+                  <button
+                    type="button"
+                    className="toast-action"
+                    onClick={() => {
+                      dismiss(t.id);
+                      t.action.onClick?.();
+                    }}
+                  >
+                    {t.action.label}
+                  </button>
+                </>
+              )}
               <button type="button" className="toast-close" aria-label="Dismiss" onClick={() => dismiss(t.id)}>
                 <X size={16} />
               </button>

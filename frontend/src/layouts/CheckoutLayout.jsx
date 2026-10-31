@@ -1,4 +1,4 @@
-import { Outlet, Link } from 'react-router-dom';
+import { Outlet, Link, useSearchParams } from 'react-router-dom';
 import { Lock, ArrowLeft } from 'lucide-react';
 import { BrandLogo } from '../components/BrandLogo';
 import { useSettings } from '../context/SettingsContext';
@@ -9,6 +9,11 @@ import './CheckoutLayout.css';
 // slim legal footer. Nothing here competes with the payment form.
 export function CheckoutLayout() {
   const { settings } = useSettings();
+  // A Buy Now checkout is its own one-item checkout: the way back is the product, not the bag.
+  const [params] = useSearchParams();
+  const buyNow = params.get('mode') === 'buynow';
+  const product = params.get('product');
+  const backTo = buyNow ? (product ? `/product/${encodeURIComponent(product)}` : '/shop') : '/cart';
 
   return (
     <div className="app-shell checkout-shell">
@@ -20,8 +25,8 @@ export function CheckoutLayout() {
           <span className="checkout-header-secure">
             <Lock size={16} aria-hidden="true" /> Secure checkout
           </span>
-          <Link to="/cart" className="checkout-header-back">
-            <ArrowLeft size={16} aria-hidden="true" /> Return to bag
+          <Link to={backTo} className="checkout-header-back">
+            <ArrowLeft size={16} aria-hidden="true" /> {buyNow ? 'Return to product' : 'Return to bag'}
           </Link>
         </div>
       </header>

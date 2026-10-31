@@ -27,6 +27,8 @@ const checkoutSchema = z.object({
   // order itself; this only lets it refuse (409 PRICE_CHANGED) instead of
   // charging a different amount than the one on the customer's screen.
   expectedTotal: z.number().nonnegative().max(10000000).optional(),
+  // "Buy Now": order from this one-item session instead of the bag (see directCheckoutService).
+  directSession: z.string().trim().min(1).max(2000).optional(),
 });
 
 const quoteSchema = z.object({
@@ -36,6 +38,8 @@ const quoteSchema = z.object({
   // this; checkout always does. Without it, shipping uses the flat
   // fallback charge (see pricingService.calculateTotals).
   pincode: z.string().trim().regex(/^[0-9]{6}$/, 'Enter a valid 6-digit pincode.').optional(),
+  // "Buy Now": price this one-item session instead of the bag.
+  directSession: z.string().trim().min(1).max(2000).optional(),
 });
 
 const updateOrderStatusSchema = z.object({
