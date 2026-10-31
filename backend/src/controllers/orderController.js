@@ -26,6 +26,7 @@ const {
 } = require('../services/adminListQueries');
 const env = require('../config/env');
 const deliveryEligibilityService = require('../services/deliveryEligibilityService');
+const pincodeService = require('../services/pincodeService');
 
 // Internal cost data stored on an order for admin profit analytics is
 // stripped from every customer-facing response (see utils/productVisibility).
@@ -178,7 +179,21 @@ async function checkout(req, res) {
   // straight onto the courier label, and a mismatch is how orders end up
   // undeliverable. (Skipped when delivery restrictions are off and no state is
   // resolved - the pincode itself is still validated by the totals call below.)
-  const { state: pincodeState } = await deliveryEligibilityService.isDeliverable(address.pincode);
+  let { state: pincodeState } = await deliveryEligibilityService.isDeliverable(address.pincode);
+  // Delivery restrictions are off by default, and then nothing above looks the pincode up. The address is still
+  // checked: a pincode that does not exist is refused, and the state is compared with the pincode's real state.
+  // (If the lookup service is down the check is skipped - never a reason to refuse an order.)
+  if (!pincodeState) {
+    const known = await pincodeService.lookupPincode(address.pincode);
+    if (known.status === 'not_found') {
+      throw new AppError(
+        `We couldn't find pincode ${address.pincode}. Please check it and try again.`,
+        400,
+        'PINCODE_NOT_FOUND'
+      );
+    }
+    if (known.status === 'found') pincodeState = known.state;
+  }
   if (pincodeState && normalizeState(pincodeState) !== normalizeState(address.state)) {
     throw new AppError(
       `Pincode ${address.pincode} is in ${pincodeState}, but the address says ${address.state}. Please correct the state.`,

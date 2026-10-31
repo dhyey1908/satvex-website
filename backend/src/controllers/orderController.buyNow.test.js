@@ -14,10 +14,11 @@ const settingsService = require('../services/settingsService');
 const orderService = require('../services/orderService');
 const deliveryEligibilityService = require('../services/deliveryEligibilityService');
 const directCheckoutService = require('../services/directCheckoutService');
+const pincodeService = require('../services/pincodeService');
 const { verifyAccessToken, signAccessToken } = require('../utils/jwt');
 const orderController = require('./orderController');
 
-const originals = [cartService, pricingService, settingsService, orderService, deliveryEligibilityService].map((m) => [m, { ...m }]);
+const originals = [cartService, pricingService, settingsService, orderService, deliveryEligibilityService, pincodeService].map((m) => [m, { ...m }]);
 after(() => originals.forEach(([m, o]) => Object.assign(m, o)));
 
 function fakeRes() {
@@ -63,6 +64,7 @@ beforeEach(() => {
     return { subtotal, total: subtotal, paymentMethod: 'COD', codCharge: 0, shipping: 0, gstAmount: 0, gstPercent: 0 };
   };
   deliveryEligibilityService.isDeliverable = async () => ({ deliverable: true, state: 'Gujarat' });
+  pincodeService.lookupPincode = async () => ({ status: 'unknown' });
   orderService.createOrder = async (o) => {
     created.push(o);
     return { ...o, orderId: 'ORDER-X', status: 'Pending' };

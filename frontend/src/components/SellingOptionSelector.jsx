@@ -8,7 +8,7 @@ export function SellingOptionSelector({ options, selectedId, onSelect }) {
   const active = options.filter((o) => o.isActive);
 
   return (
-    <div className="selling-option-selector">
+    <div className="selling-option-selector" data-count={active.length}>
       {active.map((option) => {
         const badge = packBadge(option, STOREFRONT);
         return (

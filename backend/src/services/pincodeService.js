@@ -24,4 +24,33 @@ async function lookupState(pincode) {
   return office.State;
 }
 
-module.exports = { lookupState };
+// What we know about a pincode, for checking a typed address. Unlike lookupState (which throws when the lookup
+// API is down) this never throws:
+//   { status: 'found', state, district }  the pincode exists
+//   { status: 'not_found' }               the lookup says there is NO such pincode (an explicit "No records found")
+//   { status: 'unknown' }                 the lookup failed or answered oddly: never a reason to refuse an order
+// Answers are remembered for a few hours so checkout does not call the free lookup API on every order.
+const CACHE_MS = 6 * 60 * 60 * 1000;
+const cache = new Map();
+
+async function lookupPincode(pincode) {
+  if (!/^[0-9]{6}$/.test(pincode)) return { status: 'not_found' };
+  const hit = cache.get(pincode);
+  if (hit && Date.now() - hit.at < CACHE_MS) return hit.result;
+
+  let result = { status: 'unknown' };
+  try {
+    const res = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
+    const data = await res.json();
+    const entry = data?.[0];
+    const office = entry?.PostOffice?.[0];
+    if (entry?.Status === 'Success' && office?.State) result = { status: 'found', state: office.State, district: office.District || '' };
+    else if (/no records/i.test(String(entry?.Message || ''))) result = { status: 'not_found' };
+  } catch {
+    return { status: 'unknown' }; // not cached: try again next time
+  }
+  if (result.status !== 'unknown') cache.set(pincode, { at: Date.now(), result });
+  return result;
+}
+
+module.exports = { lookupState, lookupPincode, clearPincodeCache: () => cache.clear() };

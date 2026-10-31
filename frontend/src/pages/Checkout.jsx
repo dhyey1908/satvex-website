@@ -568,6 +568,15 @@ export function Checkout() {
         scrollToElement(document.getElementById('address-state'));
         return;
       }
+      if (err.code === 'PINCODE_NOT_FOUND') {
+        // The pincode does not exist: show it on the pincode field and take the customer there.
+        setFieldErrors((prev) => ({ ...prev, pincode: err.message }));
+        setTouched((prev) => ({ ...prev, pincode: true }));
+        setShowNewAddressForm(true);
+        showToast(err.message, 'error');
+        scrollToElement(document.getElementById('address-pincode'));
+        return;
+      }
       const serverErrors = mapServerFieldErrors(err, CHECKOUT_SERVER_FIELD_MAP);
       if (serverErrors) {
         setFieldErrors((prev) => ({ ...prev, ...serverErrors }));

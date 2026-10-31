@@ -14,9 +14,10 @@ const couponService = require('../services/couponService');
 const couponRedemptionService = require('../services/couponRedemptionService');
 const shipmentService = require('../services/shipmentService');
 const deliveryEligibilityService = require('../services/deliveryEligibilityService');
+const pincodeService = require('../services/pincodeService');
 const orderController = require('./orderController');
 
-const originals = [cartService, pricingService, settingsService, orderService, couponService, couponRedemptionService, shipmentService, deliveryEligibilityService].map((m) => [m, { ...m }]);
+const originals = [cartService, pricingService, settingsService, orderService, couponService, couponRedemptionService, shipmentService, deliveryEligibilityService, pincodeService].map((m) => [m, { ...m }]);
 after(() => originals.forEach(([m, o]) => Object.assign(m, o)));
 
 function fakeRes() {
@@ -65,6 +66,7 @@ beforeEach(() => {
     paymentMethod,
   });
   deliveryEligibilityService.isDeliverable = async () => ({ deliverable: true, state: pincodeState });
+  pincodeService.lookupPincode = async () => ({ status: 'unknown' }); // never the network in tests
   orderService.createOrder = async (o) => {
     created.push(o);
     return { ...o, orderId: 'ORDER-X' };
@@ -178,4 +180,34 @@ test('admin sets a non-cancel status: nothing is released', async () => {
   await orderController.adminUpdateStatus({ params: { id: 'O5' }, body: { status: 'Processing' } }, fakeRes());
   assert.deepEqual(shipmentCancels, []);
   assert.deepEqual(usageDecrements, []);
+});
+
+// ---- the address is always checked against the pincode, even when delivery restrictions are off
+test('checkout (restrictions off): a pincode that does not exist is refused and NOTHING is written', async () => {
+  pincodeState = null; // restrictions off: the eligibility check resolves no state
+  pincodeService.lookupPincode = async () => ({ status: 'not_found' });
+  const r = await attempt(validBody({ address: { ...validBody().address, pincode: '999999' } }));
+  assert.equal(r.ok, false);
+  assert.equal(r.err.code, 'PINCODE_NOT_FOUND');
+  assert.equal(r.err.statusCode, 400);
+  assert.match(r.err.message, /999999/);
+  assert.equal(created.length, 0);
+});
+
+test('checkout (restrictions off): a state that does not match the real state of the pincode is refused', async () => {
+  pincodeState = null;
+  pincodeService.lookupPincode = async () => ({ status: 'found', state: 'Gujarat', district: 'Rajkot' });
+  const r = await attempt(validBody({ address: { ...validBody().address, state: 'Maharashtra' } }));
+  assert.equal(r.ok, false);
+  assert.equal(r.err.code, 'ADDRESS_STATE_MISMATCH');
+  assert.match(r.err.message, /Gujarat/);
+  assert.equal(created.length, 0);
+});
+
+test('checkout (restrictions off): a correct pincode + state goes through; so does an unreachable lookup service', async () => {
+  pincodeState = null;
+  pincodeService.lookupPincode = async () => ({ status: 'found', state: 'Gujarat', district: 'Rajkot' });
+  assert.equal((await attempt(validBody())).ok, true);
+  pincodeService.lookupPincode = async () => ({ status: 'unknown' });
+  assert.equal((await attempt(validBody())).ok, true);
 });
