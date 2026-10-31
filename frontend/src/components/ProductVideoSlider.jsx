@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Pause, Play, Volume2, VolumeX, X } from 'lucide-react';
 import './ProductVideoSlider.css';
+import { SmartImage } from './SmartImage';
+import { useVideoReady } from '../hooks/useVideoReady';
 
 const SWIPE_THRESHOLD_PX = 44;
 const DRAG_CLICK_GUARD_PX = 6;
@@ -37,7 +39,7 @@ function CardPoster({ video, label }) {
   }, [video.thumbnailUrl, near]);
 
   if (video.thumbnailUrl) {
-    return <img className="pvs-poster" src={video.thumbnailUrl} alt={label} loading="lazy" decoding="async" draggable={false} />;
+    return <SmartImage className="pvs-poster" src={video.thumbnailUrl} alt={label} loading="lazy" decoding="async" draggable={false} />;
   }
   return (
     <span className="pvs-poster pvs-poster-video" ref={holderRef}>
@@ -52,6 +54,7 @@ function CardPoster({ video, label }) {
 function ActivePlayer({ video, muted, onEnded, onRequestClose, onToggleMute }) {
   const ref = useRef(null);
   const [paused, setPaused] = useState(false);
+  const load = useVideoReady(ref, [video.videoUrl]);
 
   useEffect(() => {
     const el = ref.current;
@@ -77,7 +80,7 @@ function ActivePlayer({ video, muted, onEnded, onRequestClose, onToggleMute }) {
         ref={ref}
         className="pvs-player"
         src={video.videoUrl}
-        poster={video.thumbnailUrl || undefined}
+        {...load.props}
         muted={muted}
         playsInline
         preload="auto"

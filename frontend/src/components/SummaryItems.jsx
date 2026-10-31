@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { ColorChips } from './ColorChips';
 import { QuantitySelector } from './QuantitySelector';
 import { itemImage } from '../utils/itemImage';
+import { SmartImage } from './SmartImage';
 
 /**
  * The items listed inside an order summary: photo of the CHOSEN colour (first selected colour for a combo),
@@ -21,7 +22,7 @@ export function SummaryItems({ items, catalog, mode = 'view', onQuantityChange, 
         return (
           <div key={item.cartItemId ?? index} className="summary-item">
             <span className="summary-item-image">
-              {image && <img src={image} alt={`${item.productName} in ${item.selectedColorDetails?.[0]?.colorName || 'your chosen colour'}`} loading="lazy" />}
+              <SmartImage src={image} alt={`${item.productName} in ${item.selectedColorDetails?.[0]?.colorName || 'your chosen colour'}`} loading="lazy" />
             </span>
             <span className="summary-item-info">
               <span className="summary-item-name">{item.productName}</span>

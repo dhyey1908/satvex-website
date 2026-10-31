@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Images } from 'lucide-react';
 import { Modal } from './Modal';
 import './ColourPreview.css';
+import { SmartImage } from './SmartImage';
 
 // Phone-only. The gallery is far above the colour swatches, so picking a colour used
 // to mean scrolling up to see it. This shows the picked colour's photos right here:
@@ -17,7 +18,7 @@ export function ColourPreview({ variant, productName }) {
       <button type="button" className="colour-preview-open" onClick={() => setOpen(true)} aria-label={`View ${title}`}>
         <span className="colour-preview-thumbs">
           {photos.slice(0, 3).map((p) => (
-            <img key={p.url} src={p.url} alt="" loading="lazy" decoding="async" />
+            <SmartImage key={p.url} src={p.url} alt="" loading="lazy" decoding="async" />
           ))}
         </span>
         <span className="colour-preview-text">
@@ -30,7 +31,7 @@ export function ColourPreview({ variant, productName }) {
       <Modal open={open} onClose={() => setOpen(false)} title={title}>
         <div className="colour-preview-sheet">
           {photos.map((p) => (
-            <img key={p.url} src={p.url} alt={p.alt || `SATVEX ${productName} – ${variant.colorName}`} loading="lazy" decoding="async" />
+            <SmartImage key={p.url} src={p.url} alt={p.alt || `SATVEX ${productName} – ${variant.colorName}`} loading="lazy" decoding="async" />
           ))}
         </div>
       </Modal>

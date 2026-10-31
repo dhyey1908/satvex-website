@@ -37,6 +37,7 @@
   --color-footer-border: #3e3250;
 
   --color-overlay: rgba(46, 35, 56, 0.5);
+  --color-viewer-bg: #000000;       /* the full-screen photo viewer on phones */
 
   /* Shadows are warm plum, never grey or black. */
   --shadow-sm: 0 1px 2px rgba(46, 35, 56, 0.08), 0 1px 1px rgba(46, 35, 56, 0.08);

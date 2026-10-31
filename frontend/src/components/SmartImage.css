@@ -1,0 +1,50 @@
+/* See SmartImage.jsx: invisible until fully loaded, then a soft fade-in. */
+img.smart-img {
+  transition: opacity 0.3s ease;
+}
+/* !important: some callers (the gallery's crossfade) set their own inline opacity. */
+img.smart-img[data-img='loading'] {
+  opacity: 0 !important;
+}
+
+/* Same for a video: invisible until its first frame is ready (see hooks/useVideoReady). */
+video[data-video='loading'] {
+  opacity: 0 !important;
+}
+video[data-video] {
+  transition: opacity 0.3s ease;
+}
+
+/* The box around a picture that is still loading shimmers. */
+/* The doubled attribute and :root only raise specificity, so a box's own background rule cannot hide the shimmer. */
+:root [data-img-loading][data-img-loading] {
+  background-color: var(--color-surface-alt);
+  background-image: linear-gradient(100deg, transparent 20%, color-mix(in srgb, var(--color-surface) 65%, transparent) 50%, transparent 80%);
+  background-size: 200% 100%;
+  animation: smart-img-shimmer 1.4s linear infinite;
+}
+@keyframes smart-img-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root [data-img-loading][data-img-loading] { animation: none; }
+}
+
+/* No picture (or it failed to load): a neutral placeholder that fills the same box. */
+.smart-img-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 40px;
+  background: var(--color-surface-alt);
+  color: var(--color-text-muted);
+}
+.smart-img-fallback svg {
+  width: 40%;
+  max-width: 44px;
+  min-width: 18px;
+  opacity: 0.55;
+}

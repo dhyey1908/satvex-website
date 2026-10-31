@@ -8,6 +8,7 @@ import { formatShortDateTime } from '../../utils/dateRange';
 import { rupees } from '../../utils/csv';
 import { itemImage } from '../../utils/itemImage';
 import { whatsappLink } from '../../utils/whatsapp';
+import { SmartImage } from '../../components/SmartImage';
 
 const colours = (item) => (item.selectedColorDetails || []).map((c) => c.colorName).filter(Boolean).join(', ');
 
@@ -55,7 +56,7 @@ export function OrderDrawer({ order, onClose }) {
             const img = itemImage(item);
             return (
               <div className="od-item" key={`${item.productId}-${i}`}>
-                {img ? <img src={img} alt="" /> : <span className="od-item-blank" />}
+                {img ? <SmartImage src={img} alt="" /> : <span className="od-item-blank" />}
                 <div>
                   <div className="ui-cell-main">{item.productName}</div>
                   <span className="ui-cell-sub">

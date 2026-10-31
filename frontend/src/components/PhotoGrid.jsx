@@ -3,6 +3,7 @@ import { GripVertical, Star, Trash2, ChevronLeft, ChevronRight } from 'lucide-re
 import { useConfirm } from '../context/ConfirmContext';
 import { useToast } from '../context/ToastContext';
 import './PhotoGrid.css';
+import { SmartImage } from './SmartImage';
 
 /**
  * A grid of ~120px thumbnails for one list of photos (a colour's, or the common
@@ -80,7 +81,7 @@ export function PhotoGrid({ photos, onChange, primary = false, moveTargets = [],
           }}
         >
           <div className="photo-thumb">
-            <img src={p.url} alt={p.alt || ''} loading="lazy" draggable={false} />
+            <SmartImage src={p.url} alt={p.alt || ''} loading="lazy" draggable={false} />
             <span className="photo-handle" title="Drag to reorder" aria-hidden="true"><GripVertical size={16} /></span>
             {primary && (
               <button

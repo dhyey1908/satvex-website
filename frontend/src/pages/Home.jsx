@@ -19,6 +19,7 @@ import { usePreloadedImage } from '../hooks/usePreloadedImage';
 import { rememberProductCount } from '../utils/catalogSize';
 import { staggerContainer, fadeUp, revealOnScroll, crossfade } from '../motion';
 import './Home.css';
+import { SmartImage } from '../components/SmartImage';
 
 const WHY_PILLAR_ICONS = [InfinityIcon, Leaf, Package, Star];
 const DEFAULT_WHY_PILLARS = [
@@ -160,7 +161,7 @@ export function Home() {
               <div className="hero-image">
                 {heroImage ? (
                   <>
-                    <img src={heroImage} alt={showcase?.name} fetchPriority="high" decoding="async" />
+                    <SmartImage src={heroImage} alt={showcase?.name} fetchPriority="high" decoding="async" />
                     <div className="hero-image-overlay" />
                     {selectedVariant && (
                       <div className="hero-image-badge">

@@ -8,6 +8,7 @@ import { useToast } from '../context/ToastContext';
 import { ReviewImageUploader } from './ReviewImageUploader';
 import { formatDate } from '../utils/date';
 import './ProductReviews.css';
+import { SmartImage } from './SmartImage';
 
 const MAX_REVIEW_IMAGES = 3;
 
@@ -298,7 +299,7 @@ export function ProductReviews({ productId, onSummary }) {
                         onClick={() => setLightboxImage(src)}
                         aria-label="View full-size review photo"
                       >
-                        <img src={src} alt="" loading="lazy" />
+                        <SmartImage src={src} alt="" loading="lazy" />
                       </button>
                     ))}
                   </div>
@@ -351,7 +352,7 @@ export function ProductReviews({ productId, onSummary }) {
               <div className="product-review-form-images">
                 {form.images.map((url, i) => (
                   <div key={url + i} className="product-review-form-image">
-                    <img src={url} alt="" />
+                    <SmartImage src={url} alt="" />
                     <button
                       type="button"
                       className="product-review-form-image-remove"
@@ -387,7 +388,7 @@ export function ProductReviews({ productId, onSummary }) {
           <button type="button" className="product-review-lightbox-close" aria-label="Close">
             <X size={22} />
           </button>
-          <img src={lightboxImage} alt="" onClick={(e) => e.stopPropagation()} />
+          <SmartImage src={lightboxImage} alt="" onClick={(e) => e.stopPropagation()} />
         </div>
       )}
 

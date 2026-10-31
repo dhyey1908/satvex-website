@@ -7,6 +7,7 @@ import { formatDate } from '../utils/date';
 import { useCatalog } from '../hooks/useCatalog';
 import { itemImage } from '../utils/itemImage';
 import './OrderCard.css';
+import { SmartImage } from './SmartImage';
 
 export function OrderCard({ order, onCancel, onReorder, reviewedProductIds }) {
   const catalog = useCatalog();
@@ -32,7 +33,7 @@ export function OrderCard({ order, onCancel, onReorder, reviewedProductIds }) {
       <div className="order-card-items">
         {order.items.slice(0, 2).map((item, i) => (
           <div key={i} className="order-card-item">
-            <img src={itemImage(item, catalog)} alt={item.productName} loading="lazy" />
+            <SmartImage src={itemImage(item, catalog)} alt={item.productName} loading="lazy" />
             <div>
               <p className="order-card-item-name">{item.productName}</p>
               <p className="order-card-item-meta">

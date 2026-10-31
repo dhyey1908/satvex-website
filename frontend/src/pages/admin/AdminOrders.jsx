@@ -21,6 +21,7 @@ import { itemImage } from '../../utils/itemImage';
 import { whatsappLink } from '../../utils/whatsapp';
 import './Admin.css';
 import './AdminLists.css';
+import { SmartImage } from '../../components/SmartImage';
 
 const STATUSES = ['Pending', 'Awaiting confirmation', 'Confirmed', 'Address needs fix', 'Shipping retry needed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 const TABS = ['Awaiting confirmation', 'Pending', 'Address needs fix', 'Shipping retry needed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
@@ -167,7 +168,7 @@ export function AdminOrders() {
         const img = o.items?.[0] && itemImage(o.items[0]);
         return (
           <div className="al-items">
-            {img ? <img src={img} alt="" loading="lazy" /> : <span className="al-items-blank" />}
+            {img ? <SmartImage src={img} alt="" loading="lazy" /> : <span className="al-items-blank" />}
             <span>{itemsSummary(o)}</span>
           </div>
         );

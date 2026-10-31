@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ZoomIn, Play, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ZoomIn, Play, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ImagePlaceholder } from './ImagePlaceholder';
 import { crossfade } from '../motion';
 import { usePreloadedImage } from '../hooks/usePreloadedImage';
 import './ProductGallery.css';
+import { SmartImage } from './SmartImage';
+import { useVideoReady } from '../hooks/useVideoReady';
+import { ProductLightbox } from './ProductLightbox';
 
 // Minimum horizontal travel (px) before a touch swipe or mouse drag on the
 // main view counts as "change slide" rather than a tap/click — keeps
@@ -14,6 +16,9 @@ const SWIPE_THRESHOLD = 40;
 
 // `lifestyleImages` is an optional slot for in-use / model photos: they follow
 // the product photos in the same sequence (thumbnails, arrows, swipe, dots).
+// The main photo: same crossfade as before, but invisible (box shimmering) until fully loaded, placeholder if it fails.
+const MotionSmartImage = motion.create(SmartImage);
+
 export function ProductGallery({ images, lifestyleImages, activeImage, videoUrl, videoFirst = false, alt, altByUrl, resetKey, onImageChange }) {
   const base = images && images.length > 0 ? images : [];
   const gallery = lifestyleImages?.length ? [...base, ...lifestyleImages.filter((u) => !base.includes(u))] : base;
@@ -27,11 +32,11 @@ export function ProductGallery({ images, lifestyleImages, activeImage, videoUrl,
   // reduced motion) falls back to the plain image view below rather than a
   // stuck, silent black box — see the autoplay effect further down.
   const [videoFailed, setVideoFailed] = useState(false);
-  const [zoomOpen, setZoomOpen] = useState(false);
+  // Index into the lightbox's slide list (video first when there is one, then the photos) while it is open, else null.
+  const [lightboxAt, setLightboxAt] = useState(null);
   // The colour changed: its photos replace the old ones, so go back to the first
   // photo (the colour's primary). The very first render keeps the video default.
   const firstResetKey = useRef(resetKey);
-  const [magnified, setMagnified] = useState(false);
   const pointerStart = useRef(null);
   // Set when a gesture turned out to be a swipe/drag, so the click that can
   // follow it doesn't also open the zoom view.
@@ -53,6 +58,8 @@ export function ProductGallery({ images, lifestyleImages, activeImage, videoUrl,
   // actually loaded, so switching color/thumbnail never shows a blank gap.
   const mainImage = usePreloadedImage(targetImage);
   const videoVisible = showVideo && Boolean(videoUrl) && !videoFailed;
+  // The video stays invisible (its box shimmering) until its first frame is ready: no poster photo flashing first.
+  const videoLoad = useVideoReady(videoRef, [videoUrl, videoVisible]);
 
   // ProductDetail doesn't remount this component on every product-page
   // navigation (same route, just a new slug) — re-derive the default
@@ -162,6 +169,18 @@ export function ProductGallery({ images, lifestyleImages, activeImage, videoUrl,
     }
   }
 
+  // The same list the gallery walks (video first, then the colour's photos + the shared ones), for the lightbox.
+  const lightboxSlides = [
+    ...(hasVideo ? [{ type: 'video', src: videoUrl }] : []),
+    ...gallery.map((src) => ({ type: 'image', src, alt: altByUrl?.[src] || alt })),
+  ];
+  function openLightbox() {
+    if (videoVisible) return setLightboxAt(0);
+    if (!mainImage) return undefined;
+    const at = gallery.indexOf(mainImage);
+    return setLightboxAt(at === -1 ? currentPos : at + (hasVideo ? 1 : 0));
+  }
+
   const goPrev = () => step(-1);
   const goNext = () => step(1);
 
@@ -211,7 +230,7 @@ export function ProductGallery({ images, lifestyleImages, activeImage, videoUrl,
               onClick={() => selectImage(i)}
               aria-label={`View image ${i + 1}`}
             >
-              <img src={src} alt="" loading="lazy" />
+              <SmartImage src={src} alt="" loading="lazy" />
             </button>
           ))}
           {videoUrl && (
@@ -255,6 +274,9 @@ export function ProductGallery({ images, lifestyleImages, activeImage, videoUrl,
           // poster shows the first product image until the first frame of
           // video is ready.
           <div className="gallery-main gallery-main-video">
+            <button type="button" className="gallery-zoom-btn" onClick={openLightbox} aria-label="View video full size">
+              <ZoomIn size={16} />
+            </button>
             <video
               key={videoUrl}
               ref={videoRef}
@@ -266,7 +288,7 @@ export function ProductGallery({ images, lifestyleImages, activeImage, videoUrl,
               disablePictureInPicture
               draggable={false}
               preload="auto"
-              poster={gallery[0] || undefined}
+              {...videoLoad.props}
               onError={() => setVideoFailed(true)}
               aria-label={`${alt} — product video`}
             />
@@ -275,16 +297,12 @@ export function ProductGallery({ images, lifestyleImages, activeImage, videoUrl,
           <button
             type="button"
             className="gallery-main"
-            onClick={() => {
-              if (!mainImage) return;
-              setMagnified(false);
-              setZoomOpen(true);
-            }}
+            onClick={openLightbox}
             aria-label="View full-size image"
           >
             <AnimatePresence>
               {mainImage ? (
-                <motion.img
+                <MotionSmartImage
                   key={mainImage}
                   src={mainImage}
                   alt={altByUrl?.[mainImage] || alt}
@@ -299,8 +317,8 @@ export function ProductGallery({ images, lifestyleImages, activeImage, videoUrl,
               )}
             </AnimatePresence>
             {mainImage && (
-              <span className="gallery-zoom-hint">
-                <ZoomIn size={14} /> Tap to zoom
+              <span className="gallery-zoom-icon" aria-hidden="true">
+                <ZoomIn size={16} />
               </span>
             )}
           </button>
@@ -333,47 +351,16 @@ export function ProductGallery({ images, lifestyleImages, activeImage, videoUrl,
         )}
       </div>
 
-      {createPortal(
-        <AnimatePresence>
-          {zoomOpen && mainImage && (
-            <motion.div
-              className="gallery-zoom-overlay"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.18 }}
-              onClick={() => setZoomOpen(false)}
-            >
-              <button type="button" className="gallery-zoom-close" aria-label="Close zoomed image">
-                <X size={20} />
-              </button>
-              {/* Scrollable so a magnified image (genuinely larger than the
-                  viewport, not just fit-to-screen) can actually be panned —
-                  without this, "zoom" on a phone looks identical to the
-                  inline image since both cap at ~90vw. */}
-              <div className="gallery-zoom-scroll">
-                <motion.img
-                  className={magnified ? 'magnified' : ''}
-                  src={mainImage}
-                  alt={alt}
-                  initial={{ scale: 0.94, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.96, opacity: 0 }}
-                  transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setMagnified((v) => !v);
-                  }}
-                />
-              </div>
-              <span className="gallery-zoom-magnify-hint">
-                {magnified ? 'Tap to zoom out' : 'Tap image to magnify'}
-              </span>
-            </motion.div>
-          )}
-        </AnimatePresence>,
-        document.body
-      )}
+      <ProductLightbox
+        open={lightboxAt !== null}
+        slides={lightboxSlides}
+        startIndex={lightboxAt ?? 0}
+        onClose={(lastIndex) => {
+          setLightboxAt(null);
+          // land the gallery on the photo that was last looked at
+          if (lastIndex !== lightboxAt) goToSlide(lastIndex);
+        }}
+      />
     </div>
   );
 }

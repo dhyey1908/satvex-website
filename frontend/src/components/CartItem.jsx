@@ -8,6 +8,7 @@ import { ColorChips } from './ColorChips';
 import { EditColoursModal } from './EditColoursModal';
 import { itemImage } from '../utils/itemImage';
 import './CartItem.css';
+import { SmartImage } from './SmartImage';
 
 export function CartItem({ item, catalog, onQuantityChange, onEditColours, onRemove, onSaveForLater, onMoveToCart }) {
   const [editing, setEditing] = useState(false);
@@ -23,7 +24,7 @@ export function CartItem({ item, catalog, onQuantityChange, onEditColours, onRem
       exit={listItem.exit}
     >
       <Link to={`/product/${item.productSlug}`} className="cart-item-image">
-        {image && <img src={image} alt={`${item.productName} in ${item.selectedColorDetails?.[0]?.colorName || 'your chosen colour'}`} loading="lazy" />}
+        <SmartImage src={image} alt={`${item.productName} in ${item.selectedColorDetails?.[0]?.colorName || 'your chosen colour'}`} loading="lazy" />
       </Link>
 
       <div className="cart-item-info">

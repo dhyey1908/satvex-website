@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { productService } from '../services/productService';
 import { useSettings } from '../context/SettingsContext';
 import './AuthLayout.css';
+import { SmartImage } from './SmartImage';
 
 export function AuthLayout({ children }) {
   const { settings } = useSettings();
@@ -23,7 +24,7 @@ export function AuthLayout({ children }) {
   return (
     <div className="auth-layout">
       <div className="auth-visual">
-        {image && <img src={image} alt="Satvex" />}
+        {image && <SmartImage src={image} alt="Satvex" />}
         <div className="auth-visual-overlay" />
         <div className="auth-visual-content">
           <div className="eyebrow-dot"><span>Satvex Collection</span></div>

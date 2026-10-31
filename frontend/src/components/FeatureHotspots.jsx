@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Emphasis } from './ProofStats';
 import { DEFAULT_ASPECT, LABEL_GAP, MOBILE_MAX, labelLine, labelTop, pad2, pixelFromPercent, resolvePlacement, stepIndex } from '../utils/hotspots';
 import './FeatureHotspots.css';
+import { SmartImage } from './SmartImage';
 
 const AUTOPLAY_MS = 5000;
 const FADE_OUT_MS = 150;
@@ -224,7 +225,7 @@ export function FeatureHotspots({ section, preview = false }) {
         {/* The photo's box keeps its aspect ratio from the first paint (no layout shift); the marker is
             positioned inside it with percentages, so it follows the photo at any size. */}
         <div className="fh-figure" ref={figureRef}>
-          <img key={src} className="fh-img" src={src} alt={`${slide.title} - highlighted on the product`} loading={safeShown === 0 ? 'lazy' : 'eager'} onLoad={measure} draggable={false} />
+          <SmartImage key={src} className="fh-img" src={src} alt={`${slide.title} - highlighted on the product`} loading={safeShown === 0 ? 'lazy' : 'eager'} onLoad={measure} draggable={false} />
           <span
             key={slide.id}
             ref={markerRef}

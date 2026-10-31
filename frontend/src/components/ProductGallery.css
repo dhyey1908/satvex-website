@@ -16,7 +16,7 @@
 .gallery-main {
   position: relative;
   min-width: 0;
-  aspect-ratio: 3678 / 3300;
+  aspect-ratio: 1 / 1;
   border-radius: var(--radius-lg);
   overflow: hidden;
   background: var(--color-surface-alt);
@@ -32,8 +32,14 @@
 /* Absolutely positioned so the outgoing and incoming image can overlap and
    crossfade in place — without this, having both mounted at once (needed to
    avoid a blank gap between them) would stack them instead of overlapping. */
-.gallery-main img { position: absolute; inset: 0; width: 100%; object-fit: contain; transition: transform 400ms ease; }
-.gallery-main:hover img { transform: scale(1.03); }
+/* height: 100% as well as width: while a photo was still loading it had no height, so a half-drawn picture stood in a
+   box of the wrong size. */
+.gallery-main img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; transition: transform 400ms ease, opacity 0.3s ease; }
+.gallery-main .smart-img-fallback { position: absolute; inset: 0; }
+/* On the page the photo does not zoom on hover; the cursor just says a click opens it full size (where the zoom is). */
+@media (hover: hover) and (pointer: fine) {
+  .gallery-main { cursor: zoom-in; }
+}
 
 /* Circular, minimal, overlaid on the shared aspect-ratio box (not part of
    either .gallery-main's own layout) — siblings via .gallery-main-wrap, see
@@ -65,90 +71,27 @@
   .gallery-nav { width: 32px; height: 32px; }
 }
 
-.gallery-zoom-hint {
+/* Small zoom icon, top right of the main photo / video (the whole photo is the button; the video has its own). */
+.gallery-zoom-icon,
+.gallery-zoom-btn {
   position: absolute;
-  bottom: var(--space-3);
+  top: var(--space-3);
   right: var(--space-3);
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
-  border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--color-surface) 90%, transparent);
-  color: var(--color-text-muted);
-  font-size: 0.7rem;
-  font-weight: 600;
-  pointer-events: none;
-}
-
-.gallery-zoom-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: color-mix(in srgb, var(--color-footer-bg) 92%, transparent);
-  cursor: zoom-out;
-}
-.gallery-zoom-scroll {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: auto;
-  padding: var(--space-5);
-  cursor: default;
-}
-.gallery-zoom-scroll img {
-  max-width: min(90vw, 900px);
-  max-height: 88vh;
-  object-fit: contain;
-  cursor: zoom-in;
-  transition: max-width 250ms ease, max-height 250ms ease;
-}
-/* Genuinely larger than the viewport (not just "fit to screen") so there is
-   real detail to see and real scrolling to do — this is what makes it read
-   as an actual zoom instead of a same-size popup. */
-.gallery-zoom-scroll img.magnified {
-  max-width: none;
-  max-height: none;
-  width: 200%;
-  cursor: zoom-out;
-}
-.gallery-zoom-close {
-  position: absolute;
-  top: var(--space-4);
-  right: var(--space-4);
-  z-index: 1;
+  z-index: 2;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   border: none;
-  background: color-mix(in srgb, var(--color-surface) 12%, transparent);
-  color: var(--color-primary-contrast);
-  cursor: pointer;
+  background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
 }
-.gallery-zoom-close:hover { background: color-mix(in srgb, var(--color-surface) 22%, transparent); }
-
-.gallery-zoom-magnify-hint {
-  position: absolute;
-  bottom: var(--space-4);
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 6px 14px;
-  border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--color-surface) 12%, transparent);
-  color: var(--color-primary-contrast);
-  font-size: 0.72rem;
-  font-weight: 600;
-  pointer-events: none;
-}
+.gallery-zoom-icon { pointer-events: none; }
+.gallery-zoom-btn { cursor: zoom-in; }
+.gallery-zoom-btn:hover { color: var(--color-primary); }
 
 .gallery-thumbs {
   display: flex;
@@ -205,7 +148,7 @@
 .gallery-main-video video {
   position: absolute;
   inset: 0;
-  /* width: 100%; */
+  width: 100%;
   height: 100%;
   /* contain, not cover — never crop the product out of frame regardless of
      the uploaded video's own aspect ratio. */
@@ -243,7 +186,7 @@
   .product-gallery { flex-direction: column-reverse; }
 
   .gallery-main {
-    aspect-ratio: 3678 / 3300;
+    aspect-ratio: 1 / 1;
     max-height: none;
     background: var(--color-surface-alt);
   }
@@ -319,8 +262,6 @@
   transition: width var(--transition-fast), background var(--transition-fast);
 }
 .gallery-dot.active::before { width: 20px; border-radius: 4px; background: var(--color-primary); box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-surface) 80%, transparent); }
-/* The zoom hint sits bottom-right; keep dots clear of it on narrow screens. */
-@media (max-width: 480px) { .gallery-zoom-hint { display: none; } }
 
 /* Thumbnails: white tiles; the selected one gets a 2px primary border. */
 .gallery-thumb { background: var(--color-surface); }

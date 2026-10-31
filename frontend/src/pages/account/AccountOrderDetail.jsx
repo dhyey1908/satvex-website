@@ -22,6 +22,7 @@ import { useActionLoader } from '../../context/ActionLoaderContext';
 import { canRetryPayment } from '../../utils/paymentStatus';
 import { formatDateTime } from '../../utils/date';
 import './Account.css';
+import { SmartImage } from '../../components/SmartImage';
 
 export function AccountOrderDetail() {
   useDocumentMeta({ title: 'Order Details', noindex: true });
@@ -245,7 +246,7 @@ export function AccountOrderDetail() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8 }}>
               {order.items.map((item, i) => (
                 <div key={i} className="order-card-item" style={{ padding: '6px 0' }}>
-                  <img src={itemImage(item, catalog)} alt={item.productName} loading="lazy" decoding="async" />
+                  <SmartImage src={itemImage(item, catalog)} alt={item.productName} loading="lazy" decoding="async" />
                   <div style={{ flex: 1 }}>
                     <p className="order-card-item-name">{item.productName}</p>
                     <p className="order-card-item-meta">

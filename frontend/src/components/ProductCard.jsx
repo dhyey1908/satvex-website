@@ -11,6 +11,7 @@ import { useToast } from '../context/ToastContext';
 import { ImagePlaceholder } from './ImagePlaceholder';
 import { PriceDisplay } from './PriceDisplay';
 import './ProductCard.css';
+import { SmartImage } from './SmartImage';
 
 export function ProductCard({ product }) {
   const { isAuthenticated } = useAuth();
@@ -111,7 +112,7 @@ export function ProductCard({ product }) {
     <Link to={`/product/${product.slug}`} className="product-card">
       <div className="product-card-image">
         {cardImage ? (
-          <img src={cardImage} alt={`SATVEX ${product.name}`} loading="lazy" decoding="async" width="600" height="500" />
+          <SmartImage src={cardImage} alt={`SATVEX ${product.name}`} loading="lazy" decoding="async" width="600" height="500" />
         ) : (
           <ImagePlaceholder />
         )}
