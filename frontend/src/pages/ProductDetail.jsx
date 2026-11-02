@@ -701,7 +701,7 @@ export function ProductDetail() {
                   {colorError}
                 </p>
               )}
-              <ColourPreview variant={activeVariant} productName={displayName} />
+              <ColourPreview variants={selectedColors.map((id) => product.variants.find((v) => v.id === id))} productName={displayName} />
             </div>
           )}
 
