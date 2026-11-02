@@ -11,6 +11,7 @@ import { LinkShipmentModal } from '../../components/LinkShipmentModal';
 import { effectivePaymentStatus } from '../../utils/paymentStatus';
 import { formatDateTime } from '../../utils/date';
 import { formatShortDateTime } from '../../utils/dateRange';
+import { trackingUrl } from '../../utils/trackingUrl';
 import './Admin.css';
 
 // The three in the middle are set by the system (and by the Orders screen's Confirm / Retry buttons); they are listed
@@ -267,7 +268,8 @@ export function AdminOrderDetail() {
         </p>
         {order.awbCode && (
           <p>
-            AWB: <strong>{order.awbCode}</strong> {order.courierName ? `(${order.courierName})` : ''}
+            AWB: <strong>{order.awbCode}</strong> {order.courierName ? `(${order.courierName})` : ''} ·{' '}
+            <a href={trackingUrl(order.awbCode)} target="_blank" rel="noopener noreferrer">Tracking link</a>
           </p>
         )}
         {order.labelUrl && (

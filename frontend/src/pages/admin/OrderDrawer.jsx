@@ -1,3 +1,4 @@
+import { trackingUrl } from '../../utils/trackingUrl';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, ExternalLink, FileText, Tag } from 'lucide-react';
 import { Drawer } from '../../components/Drawer';
@@ -105,7 +106,7 @@ export function OrderDrawer({ order, onClose }) {
           <Row label="Tracking" value={order.lastTrackingStatus} />
           <div className="od-links">
             {order.awbCode && (
-              <a href={`https://shiprocket.co/tracking/${encodeURIComponent(order.awbCode)}`} target="_blank" rel="noreferrer">
+              <a href={trackingUrl(order.awbCode)} target="_blank" rel="noreferrer">
                 <ExternalLink size={14} /> Track shipment
               </a>
             )}

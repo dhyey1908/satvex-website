@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Star, Loader2, RefreshCw, Truck } from 'lucide-react';
+import { Star, Loader2, RefreshCw, Truck, ExternalLink } from 'lucide-react';
+import { trackingUrl } from '../../utils/trackingUrl';
 import { orderService } from '../../services/orderService';
 import { reviewService } from '../../services/reviewService';
 import { useToast } from '../../context/ToastContext';
@@ -171,6 +172,18 @@ export function AccountOrderDetail() {
               Estimated Delivery: <strong>{order.estimatedDeliveryDate}</strong>
             </p>
           )}
+          {/* A <div>, not a <p>: the page's "p a:hover" link colour would turn this button's text the same colour as its hover background. */}
+          <div style={{ margin: '12px 0 0' }}>
+            <a className="btn btn-primary btn-sm" href={trackingUrl(order.awbCode)} target="_blank" rel="noopener noreferrer">
+              <ExternalLink size={14} /> Track your shipment
+            </a>
+          </div>
+          <p className="field-hint" style={{ margin: '8px 0 0', overflowWrap: 'anywhere' }}>
+            Tracking link:{' '}
+            <a href={trackingUrl(order.awbCode)} target="_blank" rel="noopener noreferrer">
+              {trackingUrl(order.awbCode)}
+            </a>
+          </p>
           {order.trackingEvents && order.trackingEvents.length > 0 && (
             <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
               {order.trackingEvents
