@@ -229,13 +229,17 @@ async function schedulePickup({ shiprocketOrderId, shipmentId, pickupDate }) {
   });
 }
 
+// Shiprocket's label call takes a LIST of shipment ids. Sent as a single number it answers 200 with label_created: 0,
+// which used to leave a fully booked shipment (AWB assigned, pickup scheduled) marked "Sync Failed".
 async function generateLabel({ shipmentId }) {
   const data = await shiprocketFetch(BASE_URL, '/v1/external/courier/generate/label', {
     method: 'POST',
-    body: JSON.stringify({ shipment_id: shipmentId }),
+    body: JSON.stringify({ shipment_id: [Number(shipmentId) || shipmentId] }),
   });
   if (!data?.label_created || !data?.label_url) {
-    throw new AppError('Shiprocket did not return a label.', 502, 'SHIPROCKET_LABEL_FAILED');
+    // Shiprocket says why in `response` / `message` (and lists the shipments it could not label in `not_created`).
+    const reason = [data?.response, data?.message].filter((m) => typeof m === 'string' && m).join(' ');
+    throw new AppError(`Shiprocket did not return a label${reason ? `: ${reason}` : '.'}`, 502, 'SHIPROCKET_LABEL_FAILED');
   }
   return data.label_url;
 }
