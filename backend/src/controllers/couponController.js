@@ -2,6 +2,7 @@ const cartService = require('../services/cartService');
 const directCheckoutService = require('../services/directCheckoutService');
 const couponService = require('../services/couponService');
 const couponRedemptionService = require('../services/couponRedemptionService');
+const orderService = require('../services/orderService');
 const pricingService = require('../services/pricingService');
 const { couponSchema, couponUpdateSchema, applyCouponSchema } = require('../validators/couponValidators');
 const AppError = require('../utils/AppError');
@@ -53,8 +54,27 @@ async function adminRemove(req, res) {
   ok(res, { deleted: true });
 }
 
+// Who used a coupon. The orders are the record of it (every order keeps its coupon code, discount and customer), so the
+// history is built from them: a coupon without "one use per customer" writes no redemption row, which used to leave
+// this list empty even though the usage count said it had been used. Cancelled and expired orders are not uses (their
+// coupon was released). Recorded redemptions whose order is not found are kept too.
 async function adminRedemptions(req, res) {
-  const redemptions = await couponRedemptionService.listForCoupon(req.params.code);
+  const code = String(req.params.code).toUpperCase();
+  const [orders, recorded] = await Promise.all([orderService.listEverything(), couponRedemptionService.listForCoupon(code)]);
+  const fromOrders = orders
+    .filter((o) => String(o.couponCode || '').toUpperCase() === code && o.status !== 'Cancelled' && o.paymentStatus !== 'expired')
+    .map((o) => ({
+      redemptionId: o.orderId,
+      orderId: o.orderId,
+      customerName: o.customer?.name || '',
+      customerPhone: o.customer?.phone || '',
+      customerEmail: o.customer?.email || '',
+      discountAmount: Number(o.discountAmount || 0),
+      createdAt: o.createdAt,
+    }));
+  const seen = new Set(fromOrders.map((r) => r.orderId));
+  const extra = recorded.filter((r) => !seen.has(r.orderId));
+  const redemptions = [...fromOrders, ...extra].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
   ok(res, { redemptions });
 }
 

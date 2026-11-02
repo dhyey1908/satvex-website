@@ -404,6 +404,7 @@ export function AdminCoupons() {
               <thead>
                 <tr>
                   <th>Customer</th>
+                  <th>Order</th>
                   <th>Discount</th>
                   <th>Date</th>
                 </tr>
@@ -412,9 +413,10 @@ export function AdminCoupons() {
                 {redemptions.map((r) => (
                   <tr key={r.redemptionId}>
                     <td>
-                      {r.customerName}
-                      <p className="field-hint" style={{ margin: '2px 0 0' }}>{r.customerEmail}</p>
+                      {r.customerName || '—'}
+                      {(r.customerPhone || r.customerEmail) && <p className="field-hint" style={{ margin: '2px 0 0' }}>{r.customerPhone || r.customerEmail}</p>}
                     </td>
+                    <td>{r.orderId ? `#${r.orderId.slice(0, 8)}` : '—'}</td>
                     <td>−₹{r.discountAmount.toFixed(2)}</td>
                     <td>{formatDate(r.createdAt)}</td>
                   </tr>
