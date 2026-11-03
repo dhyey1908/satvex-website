@@ -29,7 +29,7 @@ function loadHandler() {
     .replace('${HttpApi}', 'api123')
     .replace(/\$\{AWS::Region\}/g, 'ap-south-1')
     .replace('${FrontendCanonicalHost}', 'www.satvex.co.in')
-    .replace('${PrerenderedProductSlugs}', 'butterfly,second-product');
+    .replace('${PrerenderedProductSlugs}', 'claw-clip,second-product');
   return new Function(`${code}\nreturn handler;`)();
 }
 
@@ -69,17 +69,31 @@ test('every route in App.jsx is served as the SPA (not a 404)', () => {
 
 test('prerendered products get their static page; unlisted product slugs still load the SPA', () => {
   const handler = loadHandler();
-  assert.equal(run(handler, '/product/butterfly'), '/_pre/product/butterfly.html');
+  assert.equal(run(handler, '/product/claw-clip'), '/_pre/product/claw-clip.html');
   assert.equal(run(handler, '/product/second-product/'), '/_pre/product/second-product.html');
   assert.equal(run(handler, '/product/brand-new-product'), '/index.html');
-  assert.equal(run(handler, '/product/butterfly/extra'), '/__not_found__');
+  assert.equal(run(handler, '/product/claw-clip/extra'), '/__not_found__');
+});
+
+test('the old /product/butterfly link 301s to the renamed product (one hop, query kept, any host)', () => {
+  const handler = loadHandler();
+  const go = (uri, host, querystring = {}) => handler({ request: { uri, headers: { host: { value: host } }, querystring } });
+  for (const uri of ['/product/butterfly', '/product/butterfly/']) {
+    const res = go(uri, 'www.satvex.co.in', { color: { value: 'pink' } });
+    assert.equal(res.statusCode, 301, uri);
+    assert.equal(res.headers.location.value, 'https://www.satvex.co.in/product/unbreakable-soft-matte-claw-clip?color=pink', uri);
+  }
+  // bare domain: straight to the canonical host AND the new slug, not two hops
+  assert.equal(go('/product/butterfly', 'satvex.co.in').headers.location.value, 'https://www.satvex.co.in/product/unbreakable-soft-matte-claw-clip');
+  // other product URLs are not redirected
+  assert.equal(run(handler, '/product/butterfly-extra'), '/index.html');
 });
 
 test('the bare domain 301-redirects to the canonical host, keeping path and query', () => {
   const handler = loadHandler();
-  const res = handler({ request: { uri: '/product/butterfly', headers: { host: { value: 'satvex.co.in' } }, querystring: { utm: { value: 'x' }, a: { value: '' } } } });
+  const res = handler({ request: { uri: '/product/claw-clip', headers: { host: { value: 'satvex.co.in' } }, querystring: { utm: { value: 'x' }, a: { value: '' } } } });
   assert.equal(res.statusCode, 301);
-  assert.equal(res.headers.location.value, 'https://www.satvex.co.in/product/butterfly?utm=x&a');
+  assert.equal(res.headers.location.value, 'https://www.satvex.co.in/product/claw-clip?utm=x&a');
   // the canonical host itself, the CloudFront default domain and unknown hosts are never redirected
   for (const h of ['www.satvex.co.in', 'd111111abcdef8.cloudfront.net', 'other.example.com']) {
     assert.equal(run(handler, '/shop', h), '/_pre/shop.html', h);

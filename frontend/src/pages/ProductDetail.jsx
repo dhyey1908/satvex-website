@@ -5,6 +5,7 @@ import { Heart, Loader2, CheckCircle2, XCircle, ShoppingBag, Zap, ArrowLeft, Bad
 import { productService } from '../services/productService';
 import { ProductGallery } from '../components/ProductGallery';
 import { ColourPreview } from '../components/ColourPreview';
+import { NotFound } from './NotFound';
 import { SellingOptionSelector } from '../components/SellingOptionSelector';
 import { ComboColorSelector } from '../components/ComboColorSelector';
 import { QuantitySelector } from '../components/QuantitySelector';
@@ -80,6 +81,7 @@ export function ProductDetail() {
   const holdLoader = useMinimumLoading(!product);
   const [relatedProducts, setRelatedProducts] = useState(null);
   const [error, setError] = useState(null);
+  const [notFound, setNotFound] = useState(false);
   const [sellingOptionId, setSellingOptionId] = useState(null);
   const [selectedColors, setSelectedColors] = useState([]);
   // For combos, which of the selected colors the main image currently
@@ -147,6 +149,7 @@ export function ProductDetail() {
   useEffect(() => {
     setProduct(null);
     setError(null);
+    setNotFound(false);
     productService
       .getBySlug(slug)
       .then(({ product: p }) => {
@@ -172,7 +175,9 @@ export function ProductDetail() {
           setSelectedColors([]);
         }
       })
-      .catch((err) => setError(err.message));
+      // A link to a product that does not exist (a typo, or a product that was removed) gets the real not-found page
+      // (noindex), not a generic error box and not a redirect to some other page.
+      .catch((err) => (err.status === 404 ? setNotFound(true) : setError(err.message)));
 
     productService
       .list()
@@ -334,6 +339,7 @@ export function ProductDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pickedColourId, product]);
 
+  if (notFound) return <NotFound />;
   if (error) return <ErrorState message={error} />;
   if (!product || holdLoader) return <Loader label="Loading product…" />;
 
