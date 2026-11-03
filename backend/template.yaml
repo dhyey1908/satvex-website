@@ -826,8 +826,7 @@ Resources:
 
   # Storefront edge function (one function, two events).
   #  viewer-request : rewrites the SPA's real routes to /index.html and sends
-  #                   every other extension-less path to a key that cannot
-  #                   exist, so CloudFront answers a true 404 + /404.html.
+  #                   every other extension-less path to the home page (302).
   #                   Keep the route list in step with frontend/src/App.jsx.
   #  viewer-response: adds the security headers. They live here rather than in
   #                   a ResponseHeadersPolicy because the distribution is on the
@@ -951,9 +950,13 @@ Resources:
             }
           }
 
-          // Not a route: a key that cannot exist -> S3 403 -> custom 404 page.
-          request.uri = '/__not_found__';
-          return request;
+          // Not a route: no "not found" screen, the visitor is sent to the home page (302, temporary:
+          // the link is wrong, the home page is not its new address).
+          return {
+            statusCode: 302,
+            statusDescription: 'Found',
+            headers: { location: { value: 'https://' + (CANONICAL_HOST || host) + '/' } }
+          };
         }
 
   FrontendBucketPolicy:

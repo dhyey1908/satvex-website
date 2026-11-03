@@ -33,7 +33,11 @@ function loadHandler() {
   return new Function(`${code}\nreturn handler;`)();
 }
 
-const run = (handler, uri, host = 'www.satvex.co.in') => handler({ request: { uri, headers: { host: { value: host } }, querystring: {} } }).uri;
+// The rewritten path, or '/__home__' when the request is answered with the redirect to home.
+const run = (handler, uri, host = 'www.satvex.co.in') => {
+  const res = handler({ request: { uri, headers: { host: { value: host } }, querystring: {} } });
+  return res.statusCode === 302 ? '/__home__' : res.uri;
+};
 const respond = (handler) => handler({ response: { statusCode: 200, headers: {} } }).headers;
 
 // Every <Route path="..."> in App.jsx, nested paths joined to their parent.
@@ -72,7 +76,7 @@ test('prerendered products get their static page; unlisted product slugs still l
   assert.equal(run(handler, '/product/claw-clip'), '/_pre/product/claw-clip.html');
   assert.equal(run(handler, '/product/second-product/'), '/_pre/product/second-product.html');
   assert.equal(run(handler, '/product/brand-new-product'), '/index.html');
-  assert.equal(run(handler, '/product/claw-clip/extra'), '/__not_found__');
+  assert.equal(run(handler, '/product/claw-clip/extra'), '/__home__');
 });
 
 test('the old /product/butterfly link 301s to the renamed product (one hop, query kept, any host)', () => {
@@ -100,10 +104,12 @@ test('the bare domain 301-redirects to the canonical host, keeping path and quer
   }
 });
 
-test('unknown paths are a real 404, not the SPA', () => {
+test('unknown paths redirect to the home page (302), not a not-found page and not the SPA', () => {
   const handler = loadHandler();
-  for (const r of ['/nope', '/shop/extra', '/product', '/product/a/b', '/admin/unknown', '/account/secret', '/wp-login', '/.git/config/x']) {
-    assert.equal(run(handler, r), '/__not_found__', `${r} should be a 404`);
+  for (const r of ['/nope', '/abc', '/shop/extra', '/product', '/product/a/b', '/admin/unknown', '/account/secret', '/wp-login', '/.git/config/x']) {
+    const res = handler({ request: { uri: r, headers: { host: { value: 'www.satvex.co.in' } }, querystring: {} } });
+    assert.equal(res.statusCode, 302, `${r} should redirect`);
+    assert.equal(res.headers.location.value, 'https://www.satvex.co.in/', `${r} goes to the home page`);
   }
 });
 
