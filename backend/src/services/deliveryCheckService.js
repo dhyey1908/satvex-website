@@ -66,13 +66,15 @@ async function liveCheck(pincode) {
   if (prepaidCouriers.length === 0) return { status: 'no_courier' };
 
   const codOk = codCouriers.filter((c) => Number(c.cod) !== 0);
-  const fastest = shippingRateService.selectCourier(prepaidCouriers, 'fastest');
+  // The date is the one for the courier the order will actually go with: the same rule the shipping charge and the
+  // booking use (cheapest by default). Quoting the fastest air courier would promise a date the order may not get.
+  const chosen = shippingRateService.selectCourier(prepaidCouriers, settings.shipping?.courierSelectionRule || 'lowest_rate');
   return {
     status: 'ok',
     prepaid: true,
     cod: codOk.length > 0,
-    deliveryBy: deliveryDateFor(fastest),
-    courierName: fastest?.courier_name || null,
+    deliveryBy: deliveryDateFor(chosen),
+    courierName: chosen?.courier_name || null,
   };
 }
 
