@@ -6,6 +6,19 @@
 
 .about-values { background: var(--color-surface-alt); }
 .about-values h2 { margin: 4px 0 var(--sp-lg); }
+
+/* Plain, scannable text sections (Why we started, How we check, Why buy direct, Business details). */
+.about-text { max-width: 44rem; }
+.about-text h2 { margin: 0 0 var(--sp-md); }
+.about-text p, .about-text li, .about-text dd { color: var(--color-text-muted); line-height: 1.65; }
+.about-text strong { color: var(--color-text); }
+.about-text ul { margin: 0 0 var(--sp-md); padding-left: 1.25rem; list-style: disc; }
+.about-text li { margin-bottom: 6px; }
+.about-checks { margin: 0; padding-left: 1.5rem; }
+.about-checks li { padding-left: 4px; }
+.about-details { display: grid; grid-template-columns: max-content 1fr; gap: 8px var(--sp-md); margin: 0; }
+.about-details dt { font-weight: 600; color: var(--color-text); }
+.about-details dd { margin: 0; overflow-wrap: anywhere; }
 .about-values-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

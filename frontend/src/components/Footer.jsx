@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, Phone, ChevronDown } from 'lucide-react';
+import { Mail, Phone, MapPin, ChevronDown } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
 import { STOREFRONT } from '../config/storefront';
 import { BrandLogo } from './BrandLogo';
@@ -85,6 +85,9 @@ export function Footer() {
               <Phone size={14} /> <a href={`tel:${settings.contactPhone}`}>{settings.contactPhone}</a>
             </li>
           )}
+          <li className="footer-contact-item footer-address">
+            <MapPin size={14} /> <span>{STOREFRONT.business.name}, {STOREFRONT.business.address}</span>
+          </li>
         </FooterSection>
       </div>
 

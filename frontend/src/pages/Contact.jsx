@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { contactService } from '../services/contactService';
 import { useSettings } from '../context/SettingsContext';
+import { STOREFRONT } from '../config/storefront';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { AttachmentUploader } from '../components/AttachmentUploader';
@@ -173,6 +174,10 @@ export function Contact() {
                 <span className="contact-info-value">{settings.contactPhone}</span>
               </a>
             )}
+            <div className="contact-info-card">
+              <span className="contact-info-label">Address</span>
+              <span className="contact-info-value">{STOREFRONT.business.name}, {STOREFRONT.business.address}</span>
+            </div>
             {settings?.instagramUrl && (
               <a href={settings.instagramUrl} target="_blank" rel="noreferrer" className="contact-info-card">
                 <span className="contact-info-label">Instagram</span>
@@ -183,7 +188,7 @@ export function Contact() {
 
           <p className="contact-response-note">
             <CheckCircle2 size={16} />
-            Response within 1 business day
+            Response within {STOREFRONT.policy.replyWithin}
           </p>
         </div>
 

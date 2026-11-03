@@ -1,4 +1,5 @@
 import { PolicyPage } from '../components/PolicyPage';
+import { STOREFRONT } from '../config/storefront';
 
 export function TermsConditions() {
   return (
@@ -11,7 +12,7 @@ export function TermsConditions() {
         <h2>About These Terms</h2>
         <p>
           These terms govern your use of the SATVEX website and any purchase you make through it. By using our site
-          or placing an order, you agree to these terms. SATVEX is based in Gujarat, India.
+          or placing an order, you agree to these terms. SATVEX is run by {STOREFRONT.business.name}, {STOREFRONT.business.address}, India.
         </p>
       </section>
 

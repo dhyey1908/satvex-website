@@ -989,7 +989,7 @@ export function Checkout() {
             <div className="checkout-info-row">
               <Truck size={20} aria-hidden="true" />
               <p>
-                Standard Delivery, dispatched within 1-2 business days
+                Standard Delivery, dispatched within {STOREFRONT.policy.dispatch}
                 {deliveryInfo?.deliveryBy && formatDeliveryDate(deliveryInfo.deliveryBy) && (
                   <strong className="checkout-delivery-by"> · Delivery by {formatDeliveryDate(deliveryInfo.deliveryBy)}</strong>
                 )}
@@ -1089,7 +1089,7 @@ export function Checkout() {
                 cover) — keep them in sync with those pages. */}
             <ul className="payment-trust-list">
               <li><Lock size={15} aria-hidden="true" /><span>Secure payments powered by PayU</span></li>
-              <li><Truck size={15} aria-hidden="true" /><span>Dispatched in 1–2 business days, tracked across India</span></li>
+              <li><Truck size={15} aria-hidden="true" /><span>Dispatched within {STOREFRONT.policy.dispatch}, tracked across India</span></li>
               <li>
                 <PackageCheck size={15} aria-hidden="true" />
                 <span>

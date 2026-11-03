@@ -35,6 +35,8 @@
   gap: var(--space-1);
 }
 .policy-body li { list-style: disc; }
+.policy-body ol { margin: 0; padding-left: var(--space-4); color: var(--color-text-muted); }
+.policy-body ol li { list-style: decimal; padding-left: 4px; margin-bottom: var(--space-2); }
 
 .policy-body a { color: var(--color-primary); font-weight: 600; }
 .policy-body a:hover { text-decoration: underline; }

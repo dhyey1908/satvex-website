@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Truck, Gift, Leaf, Infinity as InfinityIcon, Package, Star, CheckCircle2, XCircle, ShoppingBag, Quote } from 'lucide-react';
+import { Truck, ClipboardCheck, Banknote, MessageCircle, Infinity as InfinityIcon, ShieldCheck, CheckCircle2, XCircle, ShoppingBag, Quote } from 'lucide-react';
 import { productService } from '../services/productService';
 import { useAuth } from '../context/AuthContext';
 import { useAuthGate } from '../context/AuthGateContext';
@@ -17,16 +17,28 @@ import { HeroBanner } from '../components/HeroBanner';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import { usePreloadedImage } from '../hooks/usePreloadedImage';
 import { rememberProductCount } from '../utils/catalogSize';
+import { STOREFRONT } from '../config/storefront';
 import { staggerContainer, fadeUp, revealOnScroll, crossfade } from '../motion';
 import './Home.css';
 import { SmartImage } from '../components/SmartImage';
 
-const WHY_PILLAR_ICONS = [InfinityIcon, Leaf, Package, Star];
-const DEFAULT_WHY_PILLARS = [
-  { title: 'Flexible', description: 'Moves comfortably with your everyday needs.' },
-  { title: 'Comfortable', description: 'Lightweight designs created for effortless everyday use.' },
-  { title: 'Durable', description: 'Made to deliver dependable performance and lasting usability.' },
-  { title: 'Stylish', description: 'Modern aesthetics designed for today’s women.' },
+// "Why trust us": what a first-time visitor worries about (will it break, is it real, is it safe to pay).
+const TRUST_POINTS = [
+  {
+    Icon: InfinityIcon,
+    title: 'Built to bend',
+    description: 'A sturdy metal spring and a flexible body that bends instead of snapping. Rounded, interlocking teeth hold without digging in.',
+  },
+  {
+    Icon: ClipboardCheck,
+    title: 'Checked by hand',
+    description: 'Every clip is inspected by hand before it ships: spring, teeth, edges and colour.',
+  },
+  {
+    Icon: ShieldCheck,
+    title: 'Safe to order',
+    description: 'Secure online payment{cod}. Real support by phone and email. A replacement or refund if your clip arrives damaged.',
+  },
 ];
 
 export function Home() {
@@ -150,9 +162,14 @@ export function Home() {
               <Link to="/about" className="hero-text-link">Discover Our Story →</Link>
             </motion.div>
             <motion.div className="hero-trust-row" variants={fadeUp}>
-              <span className="hero-trust-item"><Gift size={16} />Ready to Gift</span>
-              <span className="hero-trust-sep">•</span>
-              <span className="hero-trust-item"><Leaf size={16} />Skin-Friendly Materials</span>
+              {[
+                { Icon: ClipboardCheck, text: 'Hand-checked' },
+                { Icon: Truck, text: `Ships in ${STOREFRONT.policy.dispatch}` },
+                ...(settings?.cod?.enabled !== false ? [{ Icon: Banknote, text: 'Cash on Delivery' }] : []),
+                { Icon: MessageCircle, text: `Replies within ${STOREFRONT.policy.replyWithin}` },
+              ].map(({ Icon, text }) => (
+                <span key={text} className="hero-trust-item"><Icon size={16} />{text}</span>
+              ))}
             </motion.div>
           </motion.div>
           <HeroBanner
@@ -324,10 +341,10 @@ export function Home() {
         </section>
       )}
 
-      {/* TRUST PILLARS */}
+      {/* WHY TRUST US */}
       <section className="section why-satvex">
         <div className="container">
-          <div className="eyebrow-dot"><span>Why Satvex</span></div>
+          <div className="eyebrow-dot"><span>Why Trust Satvex</span></div>
           <motion.div
             className="why-grid"
             variants={staggerContainer(0.08)}
@@ -335,16 +352,13 @@ export function Home() {
             whileInView="animate"
             viewport={{ once: true, margin: '-80px' }}
           >
-            {(settings?.whyPillars || DEFAULT_WHY_PILLARS).map((pillar, i) => {
-              const Icon = WHY_PILLAR_ICONS[i];
-              return (
-                <motion.div className="why-card" variants={fadeUp} key={pillar.title}>
-                  <div className="why-icon"><Icon size={i === 3 ? 22 : 20} /></div>
-                  <h3 className="text-title-md">{pillar.title}</h3>
-                  <p className="text-body-sm">{pillar.description}</p>
-                </motion.div>
-              );
-            })}
+            {TRUST_POINTS.map(({ Icon, title, description }) => (
+              <motion.div className="why-card" variants={fadeUp} key={title}>
+                <div className="why-icon"><Icon size={20} /></div>
+                <h3 className="text-title-md">{title}</h3>
+                <p className="text-body-sm">{description.replace('{cod}', settings?.cod?.enabled !== false ? ' or Cash on Delivery' : '')}</p>
+              </motion.div>
+            ))}
           </motion.div>
         </div>
       </section>
@@ -378,7 +392,7 @@ export function Home() {
         whileInView={revealOnScroll.whileInView}
         viewport={{ once: true, margin: '-80px' }}
       >
-        <p>Thoughtfully designed. Quietly luxurious. Made for the woman who notices the details.</p>
+        <p>Thoughtfully designed. Premium everyday. Made for the woman who notices the details.</p>
       </motion.section>
 
       {/* FINAL CTA */}

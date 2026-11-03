@@ -26,11 +26,23 @@ export const STOREFRONT = {
     requireOtpForPrepaid: false,
   },
 
+  // Who we are and the policy facts that more than one page states. Pages read these (never retype them), so the
+  // policies, checkout, confirmation, footer and product page cannot contradict each other.
+  business: {
+    name: 'Satvex',
+    address: 'Opp. Vaishnav Die Polishing, Nilkanth Industrial Area, Gopal Hotel Road, Nr. Maldhari Fatak, Gondal Chowkdi, Opp. Pixel Complex, Rajkot, Gujarat – 360004',
+  },
+  policy: {
+    dispatch: '24–48 hours', // from the order being confirmed, every day of the week
+    reportWithin: '48 hours', // damaged / wrong item must be reported within this long of delivery
+    replyWithin: '1 business day',
+  },
+
   // Trust row under the buy buttons. `cod` is shown only if COD is enabled in
   // the store settings.
   trust: [
     { id: 'secure', icon: 'shield', label: 'Secure payment (UPI, Cards)' },
-    { id: 'returns', icon: 'rotate', label: 'Easy returns' },
+    { id: 'returns', icon: 'rotate', label: 'Replacement or refund if damaged' },
     { id: 'cod', icon: 'banknote', label: 'Cash on Delivery', requiresCod: true },
     { id: 'ships', icon: 'truck', label: 'Ships across India' },
   ],

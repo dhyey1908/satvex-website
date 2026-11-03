@@ -15,6 +15,7 @@ import { useToast } from '../context/ToastContext';
 import { redirectToPayuCheckout } from '../utils/payu';
 import { useActionLoader } from '../context/ActionLoaderContext';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
+import { STOREFRONT } from '../config/storefront';
 import './OrderConfirmation.css';
 
 // Poll for up to ~2 minutes (40 tries, 3s apart) before giving up and
@@ -298,7 +299,7 @@ export function OrderConfirmation() {
           </p>
           <p style={{ margin: 0 }}>{order.address.country}</p>
           <p className="order-confirmation-processing">
-            Your order is <strong>{order.status}</strong> and will be processed within 1-2 business days.
+            Your order is <strong>{order.status}</strong> and will be dispatched within {STOREFRONT.policy.dispatch}.
           </p>
         </div>
       </div>

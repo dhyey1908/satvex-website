@@ -781,7 +781,16 @@ export function ProductDetail() {
                 title: 'Shipping & Returns',
                 body: (
                   <>
-                    <p>Delivery times, shipping charges and our return and refund terms are set out in our policies.</p>
+                    <ul>
+                      <li><strong>Ships in {STOREFRONT.policy.dispatch}</strong>, 7 days a week. Enter your pincode above for your delivery date.</li>
+                      {Number(settings?.shipping?.freeThreshold) > 0 && (
+                        <li><strong>Free shipping</strong> on orders of ₹{Number(settings.shipping.freeThreshold).toLocaleString('en-IN')} and above.</li>
+                      )}
+                      {settings?.cod?.enabled !== false && Number(settings?.cod?.charge) > 0 && (
+                        <li>Cash on Delivery adds a ₹{Number(settings.cod.charge).toLocaleString('en-IN')} fee. Pay online and you don&apos;t pay it.</li>
+                      )}
+                      <li><strong>Damaged or wrong item?</strong> Tell us within {STOREFRONT.policy.reportWithin} of delivery, with photos and a short video, for a replacement or refund. We pay the return shipping.</li>
+                    </ul>
                     <p>
                       <Link to="/shipping-policy">Shipping &amp; Delivery policy</Link>
                       {' · '}

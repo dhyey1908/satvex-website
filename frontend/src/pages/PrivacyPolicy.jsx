@@ -15,6 +15,7 @@ export function PrivacyPolicy() {
           <li>Your name, if you choose to add it to your profile.</li>
           <li>Delivery addresses you save or enter at checkout.</li>
           <li>Your order history, cart, and wishlist.</li>
+          <li>If we refund you by UPI or bank transfer, the UPI ID or bank details you share with us. We use them only to send that refund.</li>
         </ul>
       </section>
 
