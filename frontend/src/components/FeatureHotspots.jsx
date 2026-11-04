@@ -19,7 +19,8 @@ const reducedMotion = () => typeof window !== 'undefined' && Boolean(window.matc
  * Desktop: [arrow] [left gutter] [photo] [right gutter] [arrow]. The text sits in the gutter on the side
  * nearest the marker (or where the admin pinned it) and never overlaps the photo; a thin line is drawn
  * at runtime from the marker to the text and recalculated whenever the photo loads or the box resizes.
- * Narrow blocks (phones): no lines; the text becomes a numbered card under the photo.
+ * Narrow blocks (phones): the text becomes a numbered card under the photo, and the same thin line runs from the
+ * numbered badge down to the card, so it is clear which part of the product the text is about.
  */
 export function FeatureHotspots({ section, preview = false }) {
   const slides = section?.hotspots || [];
@@ -90,7 +91,7 @@ export function FeatureHotspots({ section, preview = false }) {
     const label = labelRef.current;
     const title = titleRef.current;
     const gutter = (placement.side === 'left' ? leftRef : rightRef).current;
-    if (!stage || !figure || !label || !title || !gutter || mobile || !slide) {
+    if (!stage || !figure || !label || !title || !gutter || !slide) {
       setLayout(null);
       return;
     }
@@ -98,6 +99,19 @@ export function FeatureHotspots({ section, preview = false }) {
     const f = figure.getBoundingClientRect();
     const g = gutter.getBoundingClientRect();
     const markerPx = pixelFromPercent(slide.pointX, slide.pointY, f.width, f.height);
+    if (mobile) {
+      // from the badge to the top edge of the card below the photo (kept inside the card's width, so it runs almost straight down)
+      const l = label.getBoundingClientRect();
+      const mx = f.left - s.left + markerPx.x;
+      const my = f.top - s.top + markerPx.y;
+      const x2 = Math.max(l.left - s.left + 24, Math.min(mx, l.right - s.left - 24));
+      const y2 = l.top - s.top;
+      // start just outside the 24px badge, along the line's own direction
+      const len = Math.hypot(x2 - mx, y2 - my) || 1;
+      const off = 14;
+      setLayout({ top: LABEL_GAP, line: { x1: mx + ((x2 - mx) / len) * off, y1: my + ((y2 - my) / len) * off, x2, y2 } });
+      return;
+    }
     const top = labelTop({ vertical: placement.vertical, markerY: markerPx.y, labelHeight: label.offsetHeight, stageHeight: f.height });
     const lineHeight = parseFloat(getComputedStyle(title).lineHeight) || title.offsetHeight;
     // the edge of the label that faces the photo: LABEL_GAP in from the gutter's edge
@@ -245,7 +259,7 @@ export function FeatureHotspots({ section, preview = false }) {
           </button>
         )}
 
-        {!mobile && layout && (
+        {layout && (
           <svg className={`fh-lines ${leaving ? 'is-leaving' : ''}`} aria-hidden="true">
             <g key={slide.id}>
               <line className="fh-line" x1={layout.line.x1} y1={layout.line.y1} x2={layout.line.x2} y2={layout.line.y2} pathLength="1" />

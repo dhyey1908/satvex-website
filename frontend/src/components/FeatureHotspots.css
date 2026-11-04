@@ -2,7 +2,7 @@
    Desktop: [arrow] [left gutter] [photo] [right gutter] [arrow] as a grid. The text lives in a gutter, so it
    can never overlap the photo, and both gutters always take their space, so the photo stays centred.
    Phones / narrow blocks (.is-mobile, set from the block's own width): numbered badge on the photo, the text is a
-   card under it, no lines. Sizes follow the block's width (container queries). */
+   card under it, joined to the badge by the same thin line. Sizes follow the block's width (container queries). */
 .fh {
   container-type: inline-size;
   container-name: fh;
@@ -127,13 +127,15 @@
   .fh-label-text { font-size: 0.92rem; }
 }
 
-/* ---- phones / narrow blocks: numbered badge on the photo, the text is a card below, no lines ---- */
+/* ---- phones / narrow blocks: numbered badge on the photo, the text is a card below, joined by the line ---- */
 .fh.is-mobile { padding: 28px 0 20px; }
 .fh.is-mobile .fh-title { font-size: 1.6rem; text-align: left; margin-bottom: 16px; }
 .fh.is-mobile .fh-stage { display: flex; flex-direction: column; }
 .fh.is-mobile .fh-figure { order: 1; }
 .fh.is-mobile .fh-gutter { display: contents; }
-.fh.is-mobile .fh-lines, .fh.is-mobile .fh-arrow { display: none; }
+.fh.is-mobile .fh-arrow { display: none; }
+/* The photo is its own stacking layer here (it fades in), so the line needs an explicit level to be drawn over it. */
+.fh.is-mobile .fh-lines { z-index: 2; }
 .fh.is-mobile .fh-marker {
   display: inline-flex;
   align-items: center;
