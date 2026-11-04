@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Loader2, CheckCircle2, XCircle, ShoppingBag, Zap, ArrowLeft, BadgeCheck, Share2, Gift } from 'lucide-react';
+import { Heart, Loader2, CheckCircle2, XCircle, ShoppingBag, Zap, ArrowLeft, Share2, Gift } from 'lucide-react';
 import { productService } from '../services/productService';
 import { ProductGallery } from '../components/ProductGallery';
 import { ColourPreview } from '../components/ColourPreview';
@@ -39,13 +39,6 @@ import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
 import { colourSlug, defaultColourId, galleryFor, variantForUrl } from '../utils/colourGallery';
 import { STOREFRONT } from '../config/storefront';
 import './ProductDetail.css';
-
-const DEFAULT_HIGHLIGHTS = [
-  { title: 'Flexible', description: 'Moves comfortably with your everyday needs.' },
-  { title: 'Comfortable', description: 'Lightweight designs created for effortless everyday use.' },
-  { title: 'Durable', description: 'Made to deliver dependable performance and lasting usability.' },
-  { title: 'Stylish', description: 'Modern aesthetics designed for today’s women.' },
-];
 
 // A link like /product/x?pack=<option>&colors=<id>,<id>&qty=2 reopens the page with that exact selection (the
 // "Change" link on a Buy Now checkout). Anything that does not match this product's live options is ignored.
@@ -101,6 +94,7 @@ export function ProductDetail() {
   // Inline "please pick your colours" message shown under the swatches, plus
   // the section the page scrolls to when Add to Cart / Buy Now is tapped early.
   const [colorError, setColorError] = useState(null);
+  const [colorShake, setColorShake] = useState(0); // bumps to shake the "n / required selected" pill once
   const colorSectionRef = useRef(null);
   const colorErrorRef = useRef(null);
   // Real-review summary reported up by ProductReviews (for structured data).
@@ -384,7 +378,7 @@ export function ProductDetail() {
     if (!sellingOption) return 'Please choose a pack.';
     const needed = sellingOption.quantity;
     if (selectedColors.length < needed) {
-      return needed === 1 ? 'Please select a colour.' : `Please select ${needed} colours.`;
+      return needed === 1 ? 'Please select a colour' : `Please select ${needed} colours`;
     }
     if (hasOutOfStockSelection()) return 'One of your selected colours is out of stock — please choose another.';
     return null;
@@ -396,6 +390,7 @@ export function ProductDetail() {
     const problem = selectionProblem();
     if (!problem) return false;
     setColorError(problem);
+    setColorShake((n) => n + 1);
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     colorSectionRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
     return true;
@@ -510,7 +505,6 @@ export function ProductDetail() {
   // empty (so the row is hidden) while the store has only one product.
   const recentlyViewed = (relatedProducts || []).filter((p) => recentSlugs.includes(p.slug));
 
-  const highlights = settings?.whyPillars || DEFAULT_HIGHLIGHTS;
   // Which image is genuinely on screen right now, reported up from
   // ProductGallery and matched back to a variant by its own image URL. With
   // the gallery now built from variant photos whenever they exist
@@ -678,22 +672,6 @@ export function ProductDetail() {
 
           {sellingOption && (
             <div className="product-detail-section pdp-color-section" ref={colorSectionRef}>
-              <div className="pdp-color-section-header">
-                <h3>{sellingOption.quantity === 1 ? 'Select a Colour' : `Select ${sellingOption.quantity} Colours`}</h3>
-                {sellingOption.quantity > 1 && (
-                  <span className="pdp-color-count">
-                    {selectedColors.length} / {sellingOption.quantity} selected
-                  </span>
-                )}
-              </div>
-              {sellingOption.offer?.freeLabel && (
-                <p className="pdp-color-free-note" key={sellingOption.id}>
-                  <Gift size={15} aria-hidden="true" />
-                  <span>
-                    {sellingOption.offer.paidQuantity} you pay for + {sellingOption.offer.freeQuantity} free = {sellingOption.quantity} colours. Pick any {sellingOption.quantity}.
-                  </span>
-                </p>
-              )}
               <ComboColorSelector
                 variants={product.variants}
                 requiredCount={sellingOption.quantity}
@@ -701,12 +679,20 @@ export function ProductDetail() {
                 selectedIds={selectedColors}
                 onChange={setSelectedColors}
                 onBlocked={setColorError}
+                error={colorError}
+                errorRef={colorErrorRef}
+                shakeKey={colorShake}
+                notice={
+                  sellingOption.offer?.freeLabel && (
+                    <p className="pdp-color-free-note" key={sellingOption.id}>
+                      <Gift size={15} aria-hidden="true" />
+                      <span>
+                        {sellingOption.offer.paidQuantity} you pay for + {sellingOption.offer.freeQuantity} free = {sellingOption.quantity} colours. Pick any {sellingOption.quantity}.
+                      </span>
+                    </p>
+                  )
+                }
               />
-              {colorError && (
-                <p className="pdp-color-error" role="alert" ref={colorErrorRef}>
-                  {colorError}
-                </p>
-              )}
               <ColourPreview variants={selectedColors.map((id) => product.variants.find((v) => v.id === id))} productName={displayName} />
             </div>
           )}
@@ -715,16 +701,6 @@ export function ProductDetail() {
             <h3>Number of combos</h3>
             <QuantitySelector value={quantity} onChange={setQuantity} label="number of combos" />
           </div>
-
-          {highlights.length > 0 && (
-            <div className="pdp-highlights">
-              {highlights.slice(0, 4).map((h) => (
-                <span key={h.title} className="pdp-highlight-pill">
-                  <BadgeCheck size={13} /> {h.title}
-                </span>
-              ))}
-            </div>
-          )}
 
           <PincodeCheck />
 

@@ -19,9 +19,10 @@ export function ColourPreview({ variants = [], productName }) {
   if (groups.length === 0) return null;
 
   const total = groups.reduce((sum, g) => sum + g.photos.length, 0);
-  const names = groups.map((g) => g.variant.colorName).join(' + ');
-  // One colour: its first photos. Several: the lead photo of each colour, so every pick is visible.
-  const thumbs = groups.length === 1 ? groups[0].photos.slice(0, 3) : groups.map((g) => g.photos[0]).slice(0, 4);
+  const names = groups.map((g) => g.variant.colorName).join(', ');
+  // One colour: its first photos. Several: the lead photo of each colour (3 at most, then a "+N"), so the strip stays compact.
+  const thumbs = groups.length === 1 ? groups[0].photos.slice(0, 3) : groups.map((g) => g.photos[0]).slice(0, 3);
+  const moreColours = groups.length > 3 ? groups.length - 3 : 0;
   const title = `${names} photos`;
 
   return (
@@ -31,9 +32,10 @@ export function ColourPreview({ variants = [], productName }) {
           {thumbs.map((p) => (
             <SmartImage key={p.url} src={p.url} alt="" loading="lazy" decoding="async" />
           ))}
+          {moreColours > 0 && <span className="colour-preview-more" aria-hidden="true">+{moreColours}</span>}
         </span>
         <span className="colour-preview-text">
-          <strong>{names}</strong>
+          <strong title={names}>{groups.length > 1 ? `${groups.length} colours: ${names}` : names}</strong>
           <span>
             <Images size={13} aria-hidden="true" /> View {total} photo{total === 1 ? '' : 's'}
           </span>

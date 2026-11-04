@@ -56,9 +56,6 @@ export function EditColoursModal({ open, onClose, item, product, onSave }) {
     >
       {product && option ? (
         <>
-          <p className="field-hint">
-            {item.sellingOptionName}: choose {required} colour{required === 1 ? '' : 's'} — {selected.length} / {required} selected
-          </p>
           <ComboColorSelector
             variants={product.variants}
             requiredCount={required}
@@ -66,8 +63,8 @@ export function EditColoursModal({ open, onClose, item, product, onSave }) {
             selectedIds={selected}
             onChange={(next) => { setSelected(next); setMessage(null); }}
             onBlocked={setMessage}
+            error={message}
           />
-          {message && <p className="pdp-color-error" role="alert">{message}</p>}
         </>
       ) : (
         <p>Loading colours…</p>
