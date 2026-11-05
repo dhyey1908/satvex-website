@@ -84,3 +84,28 @@ test('Shiprocket outage retries: 3 automatic retries about 10 minutes apart (30 
   assert.deepEqual(await minutesUntilNext(1), { result: { failed: false }, minutes: 10 });
   assert.deepEqual(await minutesUntilNext(2), { result: { failed: true }, minutes: null });
 });
+
+test('replacing a shipment keeps the old one on record and clears everything that belonged to it', async () => {
+  await orderService.recordManualShipment('A', {
+    shiprocketOrderId: '222222',
+    awbCode: 'NEWAWB456',
+    replacing: { shiprocketOrderId: '111111', awbCode: 'OLDAWB123', courierName: 'Delhivery', trackingStatus: 'Cancelled' },
+  });
+  const { UpdateExpression: expr, ExpressionAttributeValues: values } = sent[0].input;
+  assert.match(expr, /SET shiprocketOrderId = :srId, awbCode = :awb/);
+  assert.match(expr, /previousShipments = list_append\(if_not_exists\(previousShipments, :none\), :previous\)/);
+  const removed = expr.split(' REMOVE ')[1];
+  for (const field of ['lastTrackingStatus', 'trackingEvents', 'labelUrl', 'invoiceUrl', 'shiprocketShipmentId', 'estimatedDeliveryDate']) {
+    assert.ok(removed.includes(field), `${field} is cleared`);
+  }
+  assert.equal(values[':srId'], '222222');
+  assert.equal(values[':previous'][0].shiprocketOrderId, '111111');
+  assert.ok(values[':previous'][0].replacedAt);
+});
+
+test('a plain manual link does not touch the tracking history or archive anything', async () => {
+  await orderService.recordManualShipment('A', { shiprocketOrderId: '222222' });
+  const { UpdateExpression: expr } = sent[0].input;
+  assert.equal(expr.includes('REMOVE'), false);
+  assert.equal(expr.includes('previousShipments'), false);
+});

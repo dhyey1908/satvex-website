@@ -353,11 +353,34 @@ async function retryShipment(orderId) {
 // optionally AWB/courier). We store that so tracking webhooks reach this order,
 // close the retry job, and stop it showing as a sync issue. Never creates
 // anything at Shiprocket.
-async function linkManualShipment(orderId, { shiprocketOrderId, awbCode, courierName, note }) {
+//
+// `replace`: the order DOES have a shipment, but the admin cancelled it in Shiprocket (address fixed, parcel redone)
+// and made a new one by hand. The old shipment is swapped out for the new one - allowed until the courier has
+// actually moved the parcel.
+const PARCEL_MOVED = new Set(['Picked Up', 'In Transit', 'Out for Delivery', 'Delivered', 'RTO / Returned']);
+
+async function linkManualShipment(orderId, { shiprocketOrderId, awbCode, courierName, note, replace = false }) {
   const order = await orderService.findById(orderId);
   if (!order) throw new AppError('Order not found.', 404, 'NOT_FOUND');
   if (order.status === 'Cancelled') throw new AppError('This order is cancelled.', 400, 'ORDER_CANCELLED');
-  if (['label_generated', 'cancelled'].includes(order.shipmentStatus) || order.lastTrackingStatus) {
+  let replacing = null;
+  if (replace) {
+    if (order.status === 'Delivered' || PARCEL_MOVED.has(order.lastTrackingStatus)) {
+      throw new AppError('The courier has already moved this parcel, so its shipment can no longer be replaced.', 409, 'SHIPMENT_IN_MOTION');
+    }
+    if (order.shiprocketOrderId && String(order.shiprocketOrderId) === String(shiprocketOrderId)) {
+      throw new AppError('That is the Shiprocket order this order already follows. Enter the id of the NEW one.', 409, 'SAME_SHIPMENT');
+    }
+    if (order.shiprocketOrderId) {
+      replacing = {
+        shiprocketOrderId: String(order.shiprocketOrderId),
+        awbCode: order.awbCode || null,
+        courierName: order.courierName || null,
+        shipmentStatus: order.shipmentStatus || null,
+        trackingStatus: order.lastTrackingStatus || null,
+      };
+    }
+  } else if (['label_generated', 'cancelled'].includes(order.shipmentStatus) || order.lastTrackingStatus) {
     throw new AppError('This order already has a working shipment, so there is nothing to link.', 409, 'SHIPMENT_ALREADY_SYNCED');
   }
   // A Shiprocket order id belongs to exactly one of our orders: tracking updates
@@ -370,7 +393,7 @@ async function linkManualShipment(orderId, { shiprocketOrderId, awbCode, courier
   const { acquired } = await orderService.acquireShipmentLock(orderId);
   if (!acquired) throw new AppError('An automatic shipment attempt is running for this order — try again in a minute.', 409, 'SHIPMENT_IN_PROGRESS');
   try {
-    await orderService.recordManualShipment(orderId, { shiprocketOrderId, awbCode, courierName, note });
+    await orderService.recordManualShipment(orderId, { shiprocketOrderId, awbCode, courierName, note, ...(replacing ? { replacing } : {}) });
     // Close the retry job so the sweep never re-attempts it.
     if (await shipmentJobService.findByOrderId(orderId)) await shipmentJobService.markDone(orderId);
   } finally {

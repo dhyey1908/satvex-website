@@ -681,6 +681,8 @@ const linkShipmentSchema = z.object({
   awbCode: z.string().trim().regex(/^[A-Za-z0-9-]{5,40}$/, 'AWB looks wrong.').optional().or(z.literal('')),
   courierName: z.string().trim().max(60).optional().or(z.literal('')),
   note: z.string().trim().max(300).optional().or(z.literal('')),
+  // true = swap out the shipment this order already has (cancelled in Shiprocket) for the one just made by hand.
+  replace: z.boolean().optional(),
 });
 
 // "Shipped manually": record a shipment the admin created by hand in Shiprocket.
@@ -691,6 +693,7 @@ async function adminLinkManualShipment(req, res) {
     awbCode: input.awbCode || undefined,
     courierName: input.courierName || undefined,
     note: input.note || undefined,
+    replace: input.replace === true,
   });
   ok(res, { order });
 }

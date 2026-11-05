@@ -12,6 +12,7 @@ import { effectivePaymentStatus } from '../../utils/paymentStatus';
 import { formatDateTime } from '../../utils/date';
 import { formatShortDateTime } from '../../utils/dateRange';
 import { trackingUrl } from '../../utils/trackingUrl';
+import { parcelHasMoved, shipmentIsCancelled } from '../../utils/shipmentState';
 import './Admin.css';
 
 // The three in the middle are set by the system (and by the Orders screen's Confirm / Retry buttons); they are listed
@@ -91,6 +92,7 @@ export function AdminOrderDetail() {
   }
 
   const [linkingShipment, setLinkingShipment] = useState(false);
+  const [replacingShipment, setReplacingShipment] = useState(false);
 
   async function handleUnlinkShipment() {
     const ok = await confirm({
@@ -130,6 +132,14 @@ export function AdminOrderDetail() {
     order.paymentStatus === 'paid' &&
     order.refundStatus !== 'pending' &&
     order.refundStatus !== 'success';
+
+  // The Shiprocket shipment was cancelled but the order is still on: the admin links the new one with "Replace shipment".
+  const shipmentDead = shipmentIsCancelled(order);
+  const canReplaceShipment =
+    Boolean(order.shiprocketOrderId) &&
+    order.status !== 'Cancelled' &&
+    !parcelHasMoved(order) &&
+    (shipmentDead || order.shipmentStatus === 'label_generated' || Boolean(order.lastTrackingStatus));
 
   return (
     <div>
@@ -266,6 +276,15 @@ export function AdminOrderDetail() {
           </span>
           {order.shipmentManuallyLinked && <span className="pill pill-inactive" style={{ marginLeft: 8 }}>Shipped manually</span>}
         </p>
+        {shipmentDead && (
+          <div className="admin-alert-banner">
+            <AlertTriangle size={18} />
+            <span>
+              Shiprocket shows this shipment as cancelled, but the order is still active. Made a new shipment in the Shiprocket
+              panel? Press &ldquo;Replace shipment&rdquo; and enter its order id. Until then the customer is not shown the old tracking.
+            </span>
+          </div>
+        )}
         {order.awbCode && (
           <p>
             AWB: <strong>{order.awbCode}</strong> {order.courierName ? `(${order.courierName})` : ''} ·{' '}
@@ -308,7 +327,12 @@ export function AdminOrderDetail() {
             )}
           </>
         )}
-        {order.shipmentStatus !== 'label_generated' && !order.shipmentManuallyLinked && (
+        {canReplaceShipment && (
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setReplacingShipment(true)}>
+            Replace shipment
+          </button>
+        )}
+        {order.shipmentStatus !== 'label_generated' && !order.shipmentManuallyLinked && !shipmentDead && (
           <>
             <button type="button" className="btn btn-secondary btn-sm" onClick={handleRetryShipment} disabled={retryingShipment}>
               {retryingShipment ? 'Retrying…' : 'Retry Shipment'}
@@ -319,7 +343,21 @@ export function AdminOrderDetail() {
           </>
         )}
         {order.manualShipmentNote && <p>Note: {order.manualShipmentNote}</p>}
+        {order.previousShipments?.length > 0 && (
+          <div>
+            <p className="field-hint" style={{ margin: '12px 0 4px' }}>Earlier shipments (replaced, kept for the record)</p>
+            {order.previousShipments.map((p) => (
+              <p key={`${p.shiprocketOrderId}-${p.replacedAt}`} className="field-hint" style={{ margin: '2px 0' }}>
+                Shiprocket order {p.shiprocketOrderId}
+                {p.awbCode ? ` · AWB ${p.awbCode}` : ''}
+                {p.courierName ? ` (${p.courierName})` : ''}
+                {p.trackingStatus ? ` · ${p.trackingStatus}` : ''} · replaced {formatDateTime(p.replacedAt)}
+              </p>
+            ))}
+          </div>
+        )}
         <LinkShipmentModal open={linkingShipment} onClose={() => setLinkingShipment(false)} orderId={id} onLinked={load} initial={order.shipmentManuallyLinked ? order : null} />
+        <LinkShipmentModal open={replacingShipment} onClose={() => setReplacingShipment(false)} orderId={id} onLinked={load} replacing={order} />
       </div>
 
       <div className="admin-form-section">

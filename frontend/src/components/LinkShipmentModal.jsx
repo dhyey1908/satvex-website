@@ -9,8 +9,11 @@ import { useToast } from '../context/ToastContext';
  * Shiprocket panel after the automatic booking failed. Entering Shiprocket's
  * order id here links it to this order, so tracking updates reach it, the retry
  * stops, and it leaves the Sync Issues list. Nothing is created at Shiprocket.
+ *
+ * `replacing` (the order, when it already has a shipment): the Shiprocket order was cancelled and a new one made by
+ * hand, so the new id takes the old one's place and the old AWB / tracking link / label / invoice are dropped.
  */
-export function LinkShipmentModal({ open, onClose, orderId, onLinked, initial = null }) {
+export function LinkShipmentModal({ open, onClose, orderId, onLinked, initial = null, replacing = null }) {
   const { showToast } = useToast();
   const [form, setForm] = useState({ shiprocketOrderId: '', awbCode: '', courierName: '', note: '' });
   const [saving, setSaving] = useState(false);
@@ -35,8 +38,11 @@ export function LinkShipmentModal({ open, onClose, orderId, onLinked, initial = 
     setSaving(true);
     setError(null);
     try {
-      await adminService.linkShipment(orderId, form);
-      showToast(editing ? 'Shipment details updated.' : 'Linked. This order now follows the Shiprocket shipment.', 'success');
+      await adminService.linkShipment(orderId, replacing ? { ...form, replace: true } : form);
+      showToast(
+        replacing ? 'Shipment replaced. This order now follows the new Shiprocket shipment.' : editing ? 'Shipment details updated.' : 'Linked. This order now follows the Shiprocket shipment.',
+        'success'
+      );
       onLinked?.();
       onClose();
     } catch (err) {
@@ -50,26 +56,35 @@ export function LinkShipmentModal({ open, onClose, orderId, onLinked, initial = 
     <Modal
       open={open}
       onClose={onClose}
-      title={editing ? 'Edit manual shipment' : 'Shipped manually in Shiprocket'}
+      title={replacing ? 'Replace Shiprocket shipment' : editing ? 'Edit manual shipment' : 'Shipped manually in Shiprocket'}
       footer={
         <>
           <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancel</button>
           <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>
-            {saving ? <Loader2 size={16} className="btn-spinner" /> : editing ? 'Save changes' : 'Link shipment'}
+            {saving ? <Loader2 size={16} className="btn-spinner" /> : replacing ? 'Replace shipment' : editing ? 'Save changes' : 'Link shipment'}
           </button>
         </>
       }
     >
-      <p className="field-hint">
-        Created this shipment yourself in the Shiprocket panel? Enter its details so the order stops showing
-        &ldquo;Sync Failed&rdquo; and its tracking updates arrive here. We will not book anything again.
-      </p>
+      {replacing ? (
+        <p className="field-hint">
+          This order now follows Shiprocket order <strong>{replacing.shiprocketOrderId}</strong>
+          {replacing.awbCode ? <> (AWB {replacing.awbCode})</> : null}. Cancelled it and made a new one in the Shiprocket panel?
+          Enter the NEW order&rsquo;s details. The old AWB, tracking link, label and invoice come off this order, and the customer
+          sees the new tracking instead. Nothing is created or cancelled at Shiprocket.
+        </p>
+      ) : (
+        <p className="field-hint">
+          Created this shipment yourself in the Shiprocket panel? Enter its details so the order stops showing
+          &ldquo;Sync Failed&rdquo; and its tracking updates arrive here. We will not book anything again.
+        </p>
+      )}
       <div className="field">
-        <label htmlFor="ls-order-id">Shiprocket order id *</label>
+        <label htmlFor="ls-order-id">{replacing ? 'New Shiprocket order id *' : 'Shiprocket order id *'}</label>
         <input id="ls-order-id" inputMode="numeric" value={form.shiprocketOrderId} onChange={set('shiprocketOrderId')} placeholder="e.g. 987654321" />
       </div>
       <div className="field">
-        <label htmlFor="ls-awb">AWB / tracking number (optional)</label>
+        <label htmlFor="ls-awb">{replacing ? 'New AWB / tracking number (recommended: it gives the customer their tracking link)' : 'AWB / tracking number (optional)'}</label>
         <input id="ls-awb" value={form.awbCode} onChange={set('awbCode')} />
       </div>
       <div className="field">

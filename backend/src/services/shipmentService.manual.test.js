@@ -77,6 +77,54 @@ test('editing: re-linking the SAME order with corrected values is allowed', asyn
   assert.equal(edits[1][2].shiprocketOrderId, '222222');
 });
 
+// The admin cancelled the Shiprocket order (e.g. wrong address), made a new one by hand and now tells us its id.
+const cancelledAtShiprocket = () => ({
+  orderId: 'A', status: 'Processing', paymentMethod: 'COD', shipmentStatus: 'label_generated',
+  shiprocketOrderId: '111111', awbCode: 'OLDAWB123', courierName: 'Delhivery', lastTrackingStatus: 'Cancelled',
+});
+
+test('replacing: a shipment cancelled in Shiprocket is swapped for the new one, and the old one is kept for the record', async () => {
+  db.A = cancelledAtShiprocket();
+  await shipmentService.linkManualShipment('A', { shiprocketOrderId: '222222', awbCode: 'NEWAWB456', replace: true });
+  const [, , input] = calls.find((c) => c[0] === 'manual');
+  assert.equal(input.shiprocketOrderId, '222222');
+  assert.equal(input.awbCode, 'NEWAWB456');
+  assert.deepEqual(input.replacing, {
+    shiprocketOrderId: '111111', awbCode: 'OLDAWB123', courierName: 'Delhivery', shipmentStatus: 'label_generated', trackingStatus: 'Cancelled',
+  });
+  assert.equal(calls.at(-1), 'release');
+});
+
+test('replacing: also allowed when Shiprocket never told us about the cancellation (no tracking update yet)', async () => {
+  db.A = { ...cancelledAtShiprocket(), lastTrackingStatus: undefined };
+  await shipmentService.linkManualShipment('A', { shiprocketOrderId: '222222', replace: true });
+  assert.ok(calls.some((c) => c[0] === 'manual'));
+});
+
+test('replacing: refused once the courier has moved the parcel, and for the id the order already follows', async () => {
+  db.A = { ...cancelledAtShiprocket(), lastTrackingStatus: 'In Transit' };
+  await assert.rejects(() => shipmentService.linkManualShipment('A', { shiprocketOrderId: '222222', replace: true }), /already moved/i);
+  db.A = { ...cancelledAtShiprocket(), status: 'Delivered' };
+  await assert.rejects(() => shipmentService.linkManualShipment('A', { shiprocketOrderId: '222222', replace: true }), /already moved/i);
+  db.A = cancelledAtShiprocket();
+  await assert.rejects(() => shipmentService.linkManualShipment('A', { shiprocketOrderId: '111111', replace: true }), /already follows/i);
+  assert.equal(calls.length, 0);
+});
+
+test('replacing: the new id must not belong to another order, and a cancelled order is still refused', async () => {
+  db.A = cancelledAtShiprocket();
+  orderService.findByShiprocketOrderId = async () => ({ orderId: 'OTHER1234-xxxx' });
+  await assert.rejects(() => shipmentService.linkManualShipment('A', { shiprocketOrderId: '222222', replace: true }), /already linked to another order/);
+  db.A.status = 'Cancelled';
+  await assert.rejects(() => shipmentService.linkManualShipment('A', { shiprocketOrderId: '222222', replace: true }), /cancelled/i);
+  assert.equal(calls.length, 0);
+});
+
+test('without replace, an order that already has a (cancelled) shipment is still refused', async () => {
+  db.A = cancelledAtShiprocket();
+  await assert.rejects(() => shipmentService.linkManualShipment('A', { shiprocketOrderId: '222222' }), /already has a working shipment/i);
+});
+
 test('unlinking puts the order back in Sync Issues; refused when it is not linked or already moving', async () => {
   await assert.rejects(() => shipmentService.unlinkManualShipment('A'), /no manual shipment link/i);
   orderService.clearManualShipment = async (id) => { Object.assign(db[id], { shipmentStatus: 'sync_failed', shipmentManuallyLinked: undefined, shiprocketOrderId: undefined }); };

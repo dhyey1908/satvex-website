@@ -790,7 +790,12 @@ async function recordAwbAssigned(orderId, { awbCode, courierName, shiprocketShip
 // Shiprocket's tracking webhook find this order - plus the AWB/courier when
 // known, and flags it so the automatic booking, the retry sweep and "Retry all"
 // never create a second Shiprocket order for it.
-async function recordManualShipment(orderId, { shiprocketOrderId, awbCode, courierName, note }) {
+//
+// `replacing` (the shipment being swapped out: { shiprocketOrderId, awbCode, courierName, ... }) is set when the old
+// Shiprocket order was cancelled and a new one made by hand. The old one is kept in previousShipments for the record,
+// and everything that belonged to it is dropped - its AWB (so the tracking link), label, invoice, the "Cancelled"
+// tracking events and delivery estimate - so neither the admin nor the customer is left looking at a dead shipment.
+async function recordManualShipment(orderId, { shiprocketOrderId, awbCode, courierName, note, replacing = null }) {
   const now = new Date().toISOString();
   await docClient.send(
     new UpdateCommand({
@@ -799,7 +804,11 @@ async function recordManualShipment(orderId, { shiprocketOrderId, awbCode, couri
       // Replaces every manual-link field (not merges), so an edit with the AWB
       // left blank clears a wrong AWB instead of keeping it.
       UpdateExpression:
-        'SET shiprocketOrderId = :srId, awbCode = :awb, courierName = :courier, shipmentStatus = :status, shipmentManuallyLinked = :true, manualShipmentAt = :now, manualShipmentNote = :note, updatedAt = :now',
+        'SET shiprocketOrderId = :srId, awbCode = :awb, courierName = :courier, shipmentStatus = :status, shipmentManuallyLinked = :true, manualShipmentAt = :now, manualShipmentNote = :note, updatedAt = :now' +
+        (replacing ? ', previousShipments = list_append(if_not_exists(previousShipments, :none), :previous)' : '') +
+        (replacing
+          ? ' REMOVE lastTrackingStatus, trackingEvents, lastWebhookPayload, lastWebhookAt, estimatedDeliveryDate, labelUrl, invoiceUrl, shiprocketShipmentId, shipmentCancelledAt'
+          : ''),
       ConditionExpression: 'attribute_exists(orderId)',
       ExpressionAttributeValues: {
         ':srId': String(shiprocketOrderId),
@@ -809,6 +818,7 @@ async function recordManualShipment(orderId, { shiprocketOrderId, awbCode, couri
         ':true': true,
         ':now': now,
         ':note': note || null,
+        ...(replacing ? { ':none': [], ':previous': [{ ...replacing, replacedAt: now }] } : {}),
       },
     })
   );
@@ -879,6 +889,7 @@ const SHIPROCKET_STATUS_MAP = {
   'OUT FOR DELIVERY': 'Out for Delivery',
   DELIVERED: 'Delivered',
   CANCELLED: 'Cancelled',
+  CANCELED: 'Cancelled',
   RTO: 'RTO / Returned',
   'RTO DELIVERED': 'RTO / Returned',
   'PICKUP SCHEDULED': 'Pickup Scheduled',

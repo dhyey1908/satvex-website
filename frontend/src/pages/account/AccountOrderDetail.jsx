@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Star, Loader2, RefreshCw, Truck, ExternalLink } from 'lucide-react';
 import { trackingUrl } from '../../utils/trackingUrl';
+import { shipmentIsCancelled } from '../../utils/shipmentState';
 import { orderService } from '../../services/orderService';
 import { reviewService } from '../../services/reviewService';
 import { useToast } from '../../context/ToastContext';
@@ -145,7 +146,18 @@ export function AccountOrderDetail() {
         <OrderTimeline status={order.status} />
       </div>
 
-      {order.awbCode && (
+      {/* The courier booking was cancelled (e.g. to correct something) and a new one is being arranged: the old
+          tracking link would lead nowhere, so say so until the new one arrives. */}
+      {shipmentIsCancelled(order) && (
+        <div className="account-form" style={{ maxWidth: '100%', marginBottom: 20 }}>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
+            <Truck size={18} /> Shipment Tracking
+          </h3>
+          <p style={{ margin: '12px 0 0' }}>Your parcel is being re-booked with the courier. The new tracking link will appear here as soon as it is ready.</p>
+        </div>
+      )}
+
+      {order.awbCode && !shipmentIsCancelled(order) && (
         <div className="account-form" style={{ maxWidth: '100%', marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
