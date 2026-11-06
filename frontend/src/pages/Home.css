@@ -114,6 +114,9 @@
   grid-template-columns: 7fr 5fr;
   gap: var(--gutter);
   align-items: center;
+  /* On a wide screen the photo (and with it the card) would otherwise grow far taller than the little the panel has to say. */
+  max-width: 1120px;
+  margin-inline: auto;
 }
 
 .showcase-media {
@@ -163,7 +166,9 @@
   letter-spacing: 0.06em;
 }
 
-.showcase-panel { display: flex; flex-direction: column; gap: var(--sp-md); height: 100%; justify-content: space-between; }
+/* The panel takes only the height its content needs and sits in the middle of the photo, instead of stretching to the
+   photo's height and spreading its few blocks far apart. */
+.showcase-panel { display: flex; flex-direction: column; gap: var(--sp-lg); justify-content: center; padding-inline: var(--sp-sm); }
 .showcase-panel-top { display: flex; align-items: center; justify-content: space-between; }
 .showcase-panel-label { color: var(--color-text-muted); }
 .showcase-panel-count { color: var(--color-primary); }
@@ -201,6 +206,11 @@
   letter-spacing: 0.04em;
 }
 .showcase-option-pill.accent { background: var(--color-surface-alt); color: var(--color-primary); }
+
+.showcase-perks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.showcase-perks li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.875rem; line-height: 1.4; color: var(--color-text-muted); }
+.showcase-perks svg { flex-shrink: 0; margin-top: 1px; color: var(--color-primary); }
+.showcase-perks strong { color: var(--color-text); font-weight: 600; }
 
 .showcase-cta-row { display: flex; flex-wrap: wrap; gap: var(--sp-sm); }
 .showcase-cta-row .btn { flex: 1; }
@@ -304,6 +314,7 @@
   .hero-inner { grid-template-columns: 1fr; min-height: auto; }
   .hero-image { order: -1; max-width: 420px; max-height: 280px; margin: 0 auto; }
   .showcase-box { grid-template-columns: 1fr; }
+  .showcase-panel { gap: var(--sp-md); padding-inline: 0; }
   .why-grid { grid-template-columns: 1fr; }
 }
 

@@ -96,6 +96,12 @@ export function Home() {
   const showcaseImage = usePreloadedImage(showcaseImageTarget);
   const isSingleProduct = (products?.length ?? 0) <= 1;
 
+  // The shipping and payment facts the showcase states come from the store settings and the shared policy config (the
+  // same ones the Shipping Policy page reads), so this card can never promise something the policies don't.
+  const freeFrom = Number(settings?.shipping?.freeThreshold);
+  const codOn = settings?.cod?.enabled !== false;
+  const { policy } = STOREFRONT;
+
   const quickAddInCart =
     showcase && singleOption && selectedVariant && isInCart(showcase.productId, singleOption.id, [selectedVariant.id]);
 
@@ -278,19 +284,40 @@ export function Home() {
                       <div>
                         <PriceDisplay price={displayOption.price} compareAtPrice={displayOption.compareAtPrice} offer={displayOption.offer} size="lg" />
                       </div>
-                      <span className="text-label-sm showcase-pricing-note">Free Shipping</span>
+                      {freeFrom > 0 && (
+                        <span className="text-label-sm showcase-pricing-note">Free shipping on ₹{freeFrom.toLocaleString('en-IN')}+ orders</span>
+                      )}
                     </div>
                     {activeOptions.length > 1 && (
                       <div className="showcase-option-pills">
                         {activeOptions.map((o) => (
                           <span key={o.id} className={`showcase-option-pill ${o.id === singleOption?.id ? '' : 'accent'}`}>
-                            {o.name}
+                            {o.name} · ₹{o.price}
                           </span>
                         ))}
                       </div>
                     )}
                   </div>
                 )}
+
+                <ul className="showcase-perks">
+                  <li>
+                    <Truck size={18} aria-hidden="true" />
+                    <span>Ships within <strong>{policy.dispatch}</strong>, 7 days a week</span>
+                  </li>
+                  <li>
+                    <Banknote size={18} aria-hidden="true" />
+                    <span>
+                      {codOn
+                        ? <>Cash on Delivery available</>
+                        : <>Secure online payment by UPI or card</>}
+                    </span>
+                  </li>
+                  <li>
+                    <ShieldCheck size={18} aria-hidden="true" />
+                    <span>Replacement or refund if it arrives damaged</span>
+                  </li>
+                </ul>
 
                 <div className="showcase-cta-row">
                   {singleOption && (
