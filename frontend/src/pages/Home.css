@@ -102,7 +102,10 @@
 
 /* INTERACTIVE SHOWCASE */
 .showcase-section { background: var(--color-surface-alt); }
-.showcase-header { text-align: center; max-width: 40rem; margin: 0 auto var(--sp-xl); }
+.showcase-header { text-align: center; max-width: 60rem; margin: 0 auto var(--sp-xl); }
+/* The title stays on one line wherever it fits; on a narrow screen it wraps into two even lines, not a long one and a lone word. */
+.showcase-header h2 { text-wrap: balance; }
+.showcase-subcopy { text-wrap: balance; }
 .showcase-subcopy { color: var(--color-text-muted); margin-top: 6px; }
 
 .showcase-box {
